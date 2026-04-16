@@ -988,712 +988,282 @@ body::before {
   <!-- MAIN CONTENT -->
   <div class="main-content">
 
-    <!-- ═══════════════════════════════════
-     APP SHELL
-     ═══════════════════════════════════ -->
-<div id="app-shell">
-  <!-- TOPBAR -->
-  <div class="topbar">
-    <div class="topbar-brand">Room<span>Defects</span></div>
-    <div class="topbar-badge" id="topbar-role">HK</div>
-    <div class="topbar-actions">
-      <div class="icon-btn" onclick="showPage('dashboard')" title="Dashboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      </div>
-      <div class="icon-btn" onclick="doLogout()" title="Logout">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </div>
-    </div>
-  </div>
-
-  <!-- MAIN CONTENT -->
-  <div class="main-content">
-
     <!-- ═══ PAGE: DASHBOARD ═══ -->
     <div class="page active" id="page-dashboard">
-      <div style="text-align: center; padding: 40px 20px;">
-        <h1 style="font-size: 24px; margin-bottom: 20px;">📊 Room Defects Dashboard</h1>
-        <p style="color: var(--text-1); margin-bottom: 30px;">Selamat datang ke Room Defects Management System</p>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 500px; margin: 0 auto;">
-          <button class="btn btn-primary" onclick="showPage('report')">
-            <span>📝</span> Lapor Kerusakan
-          </button>
-          <button class="btn btn-secondary" onclick="showPage('defects')">
-            <span>📋</span> Lihat Daftar
-          </button>
+      <div class="section-header">
+        <div>
+          <div class="section-title">Dashboard</div>
+          <div class="section-sub" id="dash-greeting">Selamat datang</div>
         </div>
+        <button class="btn btn-secondary btn-sm" onclick="refreshData()">↻ Refresh</button>
+      </div>
+
+      <!-- SLA Alert -->
+      <div class="sla-alert stagger-child" id="sla-alert-banner">
+        <div class="sla-alert-icon">🚨</div>
+        <div class="sla-alert-text">
+          <strong id="sla-count">2 defect</strong> melewati batas SLA — Eskalasi ke GM sedang berjalan
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-red)">
+          <div class="metric-value" id="m-open">0</div>
+          <div class="metric-label">Open</div>
+          <div class="metric-icon">🔴</div>
+        </div>
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-amber)">
+          <div class="metric-value" id="m-inprog">0</div>
+          <div class="metric-label">In Progress</div>
+          <div class="metric-icon">🟡</div>
+        </div>
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-blue)">
+          <div class="metric-value" id="m-resolved">0</div>
+          <div class="metric-label">Resolved</div>
+          <div class="metric-icon">🔵</div>
+        </div>
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-green)">
+          <div class="metric-value" id="m-closed">0</div>
+          <div class="metric-label">Closed Today</div>
+          <div class="metric-icon">✅</div>
+        </div>
+      </div>
+
+      <!-- Avg SLA -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">⏱️ Rata-rata Waktu Perbaikan</div>
+        <div class="bar-chart" id="avg-time-chart">
+          <!-- JS fill -->
+        </div>
+      </div>
+
+      <!-- Predictive Maintenance -->
+      <div class="section-header mt-3">
+        <div class="section-title">🔮 Predictive Maintenance</div>
+        <div class="ai-badge">AI</div>
+      </div>
+      <div id="predict-list">
+        <!-- JS fill -->
       </div>
     </div>
 
-    <!-- ═══ PAGE: REPORT DEFECT ═══ -->
-    <div class="page" id="page-report">
-      <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 20px; margin-bottom: 8px;">📝 Lapor Kerusakan Kamar</h2>
-        <p style="color: var(--text-1); font-size: 13px;">Silakan isi detail kerusakan dan upload foto</p>
-      </div>
-
-      <!-- DEFECT FORM CARD -->
-      <div style="background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px 20px; margin-bottom: 20px;">
-        
-        <!-- ROOM NUMBER -->
-        <div class="form-group">
-          <label class="form-label">🏨 Nomor Kamar</label>
-          <input class="form-input" id="defect-room" type="text" placeholder="e.g., 101, 205" required>
-        </div>
-
-        <!-- CATEGORY -->
-        <div class="form-group">
-          <label class="form-label">🔧 Kategori Kerusakan</label>
-          <select class="form-select" id="defect-category" required>
-            <option value="">-- Pilih Kategori --</option>
-            <option value="Plumbing">🚰 Plumbing (Air/Pipa)</option>
-            <option value="Electrical">⚡ Electrical (Listrik)</option>
-            <option value="AC_HVAC">❄️ AC/HVAC (Pendingin)</option>
-            <option value="Furniture">🪑 Furniture (Furnitur)</option>
-            <option value="Door_Lock">🔐 Door/Lock (Pintu/Kunci)</option>
-            <option value="TV_Remote">📺 TV/Remote (TV/Remote)</option>
-            <option value="Ceiling_Wall">🖼️ Ceiling/Wall (Plafon/Dinding)</option>
-            <option value="Bathroom">🚿 Bathroom (Kamar Mandi)</option>
-            <option value="Lighting">💡 Lighting (Pencahayaan)</option>
-            <option value="Other">❓ Lainnya</option>
-          </select>
-        </div>
-
-        <!-- DESCRIPTION -->
-        <div class="form-group">
-          <label class="form-label">📝 Deskripsi Kerusakan</label>
-          <textarea class="form-textarea" id="defect-description" placeholder="Jelaskan detail kerusakan yang Anda lihat..." required></textarea>
-        </div>
-
-        <!-- PRIORITY -->
-        <div class="form-group">
-          <label class="form-label">⚠️ Prioritas</label>
-          <select class="form-select" id="defect-priority">
-            <option value="LOW">🟢 LOW (Tidak Urgent)</option>
-            <option value="MEDIUM" selected>🟡 MEDIUM (Cukup Urgent)</option>
-            <option value="HIGH">🔴 HIGH (Sangat Urgent)</option>
-          </select>
-        </div>
-
-        <!-- PHOTO BEFORE -->
-        <div class="form-group">
-          <label class="form-label">📸 Foto Kerusakan (BEFORE)</label>
-          <div class="photo-upload-area" id="before-upload" onclick="triggerFileInput('before')">
-            <div class="upload-icon">📷</div>
-            <div class="upload-text">Tap/Click untuk ambil foto SEBELUM perbaikan</div>
-            <img class="photo-preview" id="before-preview">
-            <input type="file" id="before-file" accept="image/*" hidden onchange="handlePhotoSelect('before', this)">
-            <div class="upload-progress" id="before-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" id="before-progress-fill"></div>
-              </div>
-              <div class="progress-text" id="before-progress-text">Uploading... 0%</div>
-            </div>
-            <div class="photo-status" id="before-status"></div>
-          </div>
-        </div>
-
-        <!-- SAVE BUTTON -->
-        <div style="display: flex; gap: 10px; margin-top: 24px;">
-          <button class="btn btn-primary" onclick="saveDefect()">
-            <span>💾</span> Simpan Laporan
-          </button>
-          <button class="btn btn-secondary" onclick="showPage('dashboard')">
-            <span>↩️</span> Batal
-          </button>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ═══ PAGE: DEFECTS LIST ═══ -->
+    <!-- ═══ PAGE: DEFECT LIST ═══ -->
     <div class="page" id="page-defects">
-      <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 20px; margin-bottom: 8px;">📋 Daftar Kerusakan</h2>
-        <p style="color: var(--text-1); font-size: 13px;">Kelola dan pantau status kerusakan kamar</p>
+      <div class="section-header">
+        <div class="section-title">Defect Tracker</div>
+        <button class="btn btn-primary btn-sm" onclick="showPage('report')">+ Lapor</button>
       </div>
 
-      <!-- FILTER -->
-      <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
-        <button class="filter-chip active" onclick="filterDefects('ALL')">Semua</button>
-        <button class="filter-chip" onclick="filterDefects('OPEN')">🔴 Open</button>
-        <button class="filter-chip" onclick="filterDefects('IN_PROGRESS')">🟡 In Progress</button>
-        <button class="filter-chip" onclick="filterDefects('RESOLVED')">🔵 Resolved</button>
-        <button class="filter-chip" onclick="filterDefects('CLOSED')">🟢 Closed</button>
+      <div class="filter-bar" id="status-filter">
+        <div class="filter-chip active" data-filter="ALL" onclick="filterDefects(this)">Semua</div>
+        <div class="filter-chip" data-filter="OPEN" onclick="filterDefects(this)">🔴 Open</div>
+        <div class="filter-chip" data-filter="IN_PROGRESS" onclick="filterDefects(this)">🟡 In Progress</div>
+        <div class="filter-chip" data-filter="RESOLVED" onclick="filterDefects(this)">🔵 Resolved</div>
+        <div class="filter-chip" data-filter="CLOSED" onclick="filterDefects(this)">✅ Closed</div>
       </div>
 
-      <!-- DEFECTS LIST -->
-      <div id="defects-list" style="display: flex; flex-direction: column; gap: 12px;">
-        <div style="text-align: center; color: var(--text-1); padding: 40px 20px;">
-          Loading defects...
-        </div>
-      </div>
-
-      <!-- BACK BUTTON -->
-      <button class="btn btn-secondary" onclick="showPage('dashboard')" style="margin-top: 20px; width: 100%;">
-        <span>↩️</span> Kembali
-      </button>
-    </div>
-
-    <!-- ═══ PAGE: DEFECT DETAIL ═══ -->
-    <div class="page" id="page-detail">
-      <div id="defect-detail-container"></div>
-      
-      <button class="btn btn-secondary" onclick="showPage('defects')" style="margin-top: 20px; width: 100%;">
-        <span>↩️</span> Kembali ke Daftar
-      </button>
-    </div>
-
-  </div>
-
-  <!-- BOTTOM NAV -->
-  <div class="bottom-nav">
-    <div class="nav-item active" onclick="showPage('dashboard')">
-      <div style="font-size: 20px;">📊</div>
-      <div class="nav-label">Dashboard</div>
-    </div>
-    <div class="nav-item" onclick="showPage('report')">
-      <div style="font-size: 20px;">📝</div>
-      <div class="nav-label">Lapor</div>
-    </div>
-    <div class="nav-item" onclick="showPage('defects')">
-      <div style="font-size: 20px;">📋</div>
-      <div class="nav-label">Daftar</div>
-    </div>
-    <div class="nav-item" onclick="doLogout()">
-      <div style="font-size: 20px;">🚪</div>
-      <div class="nav-label">Logout</div>
-    </div>
-  </div>
-
-</div>
-
-<!-- ═══════════════════════════════════
-     ADDITIONAL STYLES FOR FORMS & DEFECT LIST
-     ═══════════════════════════════════ -->
-<style>
-
-/* FILTER CHIPS */
-.filter-chip {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  border-radius: 100px;
-  border: 1px solid var(--border);
-  background: var(--bg-1);
-  color: var(--text-1);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.filter-chip:hover {
-  border-color: var(--accent-blue);
-  color: var(--accent-blue);
-}
-.filter-chip.active {
-  background: var(--accent-blue);
-  border-color: var(--accent-blue);
-  color: white;
-}
-
-/* DEFECT CARD */
-.defect-card {
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-.defect-card:hover {
-  border-color: var(--border-active);
-  transform: translateX(2px);
-}
-.defect-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--status-color, var(--accent-blue));
-}
-
-.defect-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.defect-room {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 800;
-}
-.defect-id {
-  font-size: 10px;
-  color: var(--text-2);
-  letter-spacing: 0.1em;
-  font-family: monospace;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 100px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.status-open {
-  background: rgba(239,68,68,0.15);
-  color: var(--accent-red);
-  border: 1px solid rgba(239,68,68,0.3);
-}
-.status-inprogress {
-  background: rgba(245,158,11,0.15);
-  color: var(--accent-amber);
-  border: 1px solid rgba(245,158,11,0.3);
-}
-.status-resolved {
-  background: rgba(59,130,246,0.15);
-  color: var(--accent-blue);
-  border: 1px solid rgba(59,130,246,0.3);
-}
-.status-closed {
-  background: rgba(16,185,129,0.15);
-  color: var(--accent-green);
-  border: 1px solid rgba(16,185,129,0.3);
-}
-
-.defect-category {
-  font-size: 12px;
-  color: var(--text-1);
-  margin-bottom: 8px;
-}
-.defect-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-2);
-  margin-top: 12px;
-}
-
-/* DETAIL MODAL */
-.detail-card {
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-}
-.detail-row:last-child {
-  border-bottom: none;
-}
-.detail-label {
-  color: var(--text-1);
-  font-weight: 500;
-}
-.detail-value {
-  color: var(--text-0);
-  font-weight: 600;
-}
-
-/* PHOTO COMPARISON */
-.photo-compare {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 16px 0;
-}
-.photo-slot {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  aspect-ratio: 4/3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
-  position: relative;
-}
-.photo-slot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.photo-slot-label {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  padding: 8px;
-  background: rgba(0,0,0,0.7);
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-}
-.photo-slot-empty {
-  color: var(--text-2);
-  font-size: 12px;
-}
-
-</style>
-
-<!-- ═══════════════════════════════════
-     ADDITIONAL JAVASCRIPT
-     ═══════════════════════════════════ -->
-<script>
-
-// ══════════════════════════════════════════════════════════
-// PAGE NAVIGATION
-// ══════════════════════════════════════════════════════════
-
-function showPage(pageName) {
-  // Hide all pages
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  
-  // Show selected page
-  const page = document.getElementById(`page-${pageName}`);
-  if (page) {
-    page.classList.add('active');
-  }
-
-  // Update bottom nav
-  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-  event?.target?.closest('.nav-item')?.classList.add('active');
-
-  // Load data if needed
-  if (pageName === 'defects') {
-    loadDefectsList();
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-// DEFECT LIST & FILTERING
-// ══════════════════════════════════════════════════════════
-
-let allDefects = [];
-let currentFilter = 'ALL';
-
-function loadDefectsList() {
-  google.script.run
-    .withSuccessHandler((res) => {
-      allDefects = JSON.parse(res);
-      filterDefects(currentFilter);
-    })
-    .withFailureHandler((err) => {
-      console.error('Error loading defects:', err);
-      showToast('❌ Gagal memuat daftar kerusakan', 'error');
-    })
-    .gasGetDefects();
-}
-
-function filterDefects(status) {
-  currentFilter = status;
-  
-  // Update filter chips
-  document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
-  event?.target?.classList.add('active');
-
-  // Filter defects
-  const filtered = status === 'ALL' 
-    ? allDefects 
-    : allDefects.filter(d => d.Status === status);
-
-  renderDefectsList(filtered);
-}
-
-function renderDefectsList(defects) {
-  const container = document.getElementById('defects-list');
-  
-  if (defects.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; color: var(--text-1); padding: 40px 20px;">
-        <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
-        <div>Tidak ada kerusakan</div>
-      </div>
-    `;
-    return;
-  }
-
-  const statusColors = {
-    'OPEN': 'var(--accent-red)',
-    'IN_PROGRESS': 'var(--accent-amber)',
-    'RESOLVED': 'var(--accent-blue)',
-    'CLOSED': 'var(--accent-green)'
-  };
-
-  const statusBadges = {
-    'OPEN': 'status-open',
-    'IN_PROGRESS': 'status-inprogress',
-    'RESOLVED': 'status-resolved',
-    'CLOSED': 'status-closed'
-  };
-
-  container.innerHTML = defects.map(d => `
-    <div class="defect-card" style="--status-color: ${statusColors[d.Status] || 'var(--accent-blue)'}" onclick="viewDefectDetail('${d.ID}')">
-      <div class="defect-header">
-        <div>
-          <div class="defect-room">🏨 ${d.RoomNumber}</div>
-          <div class="defect-id">${d.ID}</div>
-        </div>
-        <span class="status-badge ${statusBadges[d.Status] || 'status-open'}">
-          ${getStatusIcon(d.Status)} ${d.Status}
-        </span>
-      </div>
-      <div class="defect-category">
-        🔧 ${d.Category}
-      </div>
-      <div style="font-size: 13px; color: var(--text-1); margin-bottom: 8px;">
-        ${d.Description?.substring(0, 80) || ''}...
-      </div>
-      <div class="defect-meta">
-        <span>👤 ${d.Reporter}</span>
-        <span>⏰ ${formatDate(d.CreatedAt)}</span>
-        ${d.PhotoBefore ? '<span style="color: var(--accent-green);">✅ Ada Foto</span>' : '<span style="color: var(--text-2);">❌ No Photo</span>'}
-      </div>
-    </div>
-  `).join('');
-}
-
-function getStatusIcon(status) {
-  const icons = {
-    'OPEN': '🔴',
-    'IN_PROGRESS': '🟡',
-    'RESOLVED': '🔵',
-    'CLOSED': '🟢'
-  };
-  return icons[status] || '⚪';
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return 'N/A';
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return 'N/A';
-  }
-}
-
-function viewDefectDetail(defectId) {
-  const defect = allDefects.find(d => d.ID === defectId);
-  if (!defect) return;
-
-  const container = document.getElementById('defect-detail-container');
-  
-  const statusColors = {
-    'OPEN': 'var(--accent-red)',
-    'IN_PROGRESS': 'var(--accent-amber)',
-    'RESOLVED': 'var(--accent-blue)',
-    'CLOSED': 'var(--accent-green)'
-  };
-
-  container.innerHTML = `
-    <div class="detail-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div>
-          <h2 style="font-size: 20px; margin-bottom: 4px;">Kamar ${defect.RoomNumber}</h2>
-          <div style="color: var(--text-2); font-size: 12px;">${defect.ID}</div>
-        </div>
-        <span class="status-badge status-${defect.Status.toLowerCase()}" style="background-color: ${statusColors[defect.Status]}; color: white; border: none;">
-          ${getStatusIcon(defect.Status)} ${defect.Status}
-        </span>
-      </div>
-
-      <div class="detail-row">
-        <span class="detail-label">Kategori</span>
-        <span class="detail-value">${defect.Category}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Prioritas</span>
-        <span class="detail-value">${defect.Priority}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Reporter</span>
-        <span class="detail-value">${defect.Reporter}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Engineer</span>
-        <span class="detail-value">${defect.Engineer || 'Belum ditugaskan'}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Dibuat</span>
-        <span class="detail-value">${formatDate(defect.CreatedAt)}</span>
-      </div>
-      ${defect.StartedAt ? `
-        <div class="detail-row">
-          <span class="detail-label">Dimulai</span>
-          <span class="detail-value">${formatDate(defect.StartedAt)}</span>
-        </div>
-      ` : ''}
-      ${defect.ResolvedAt ? `
-        <div class="detail-row">
-          <span class="detail-label">Diselesaikan</span>
-          <span class="detail-value">${formatDate(defect.ResolvedAt)}</span>
-        </div>
-      ` : ''}
-    </div>
-
-    <div class="detail-card">
-      <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">📝 Deskripsi</h3>
-      <div style="color: var(--text-1); font-size: 13px; line-height: 1.6;">
-        ${defect.Description || 'Tidak ada deskripsi'}
+      <div class="defect-list" id="defect-list">
+        <!-- JS fill -->
       </div>
     </div>
 
-    ${defect.PhotoBefore || defect.PhotoAfter ? `
-      <div class="detail-card">
-        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">📸 Foto Perbandingan</h3>
-        <div class="photo-compare">
-          <div class="photo-slot">
-            ${defect.PhotoBefore && defect.PhotoBefore.startsWith('data:') ? `
-              <img src="${defect.PhotoBefore}" alt="Before">
-            ` : `
-              <div class="photo-slot-empty">❌ Tidak ada foto BEFORE</div>
-            `}
-            <div class="photo-slot-label">BEFORE</div>
-          </div>
-          <div class="photo-slot">
-            ${defect.PhotoAfter && defect.PhotoAfter.startsWith('data:') ? `
-              <img src="${defect.PhotoAfter}" alt="After">
-            ` : `
-              <div class="photo-slot-empty">❌ Tidak ada foto AFTER</div>
-            `}
-            <div class="photo-slot-label">AFTER</div>
-          </div>
-        </div>
+    <!-- ═══ PAGE: REPORT FORM ═══ -->
+    <div class="page" id="page-report">
+      <div class="section-header">
+        <button class="btn btn-secondary btn-sm" onclick="showPage('defects')">← Kembali</button>
+        <div class="section-title">Lapor Kerusakan</div>
       </div>
-    ` : ''}
 
-    ${defect.Status === 'OPEN' && window.currentRole === 'ENG' ? `
-      <div class="detail-card" style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);">
-        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--accent-amber);">🔧 Tangani Perbaikan</h3>
-        <button class="btn btn-amber" onclick="markAsInProgress('${defect.ID}')" style="width: 100%;">
-          Mulai Perbaikan
-        </button>
-      </div>
-    ` : ''}
+      <div class="form-card">
+        <div class="form-card-title">📋 Detail Kerusakan</div>
 
-    ${defect.Status === 'IN_PROGRESS' && window.currentRole === 'ENG' ? `
-      <div class="detail-card" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3);">
-        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--accent-blue);">✅ Selesaikan Perbaikan</h3>
-        <p style="font-size: 12px; color: var(--text-1); margin-bottom: 12px;">Upload foto AFTER untuk menyelesaikan perbaikan</p>
-        
         <div class="form-group">
-          <label class="form-label">📸 Foto Hasil Perbaikan (AFTER)</label>
-          <div class="photo-upload-area" id="after-upload" onclick="triggerFileInput('after')">
-            <div class="upload-icon">📷</div>
-            <div class="upload-text">Tap/Click untuk upload foto SETELAH perbaikan</div>
-            <img class="photo-preview" id="after-preview">
-            <input type="file" id="after-file" accept="image/*" hidden onchange="handlePhotoSelect('after', this)">
-            <div class="upload-progress" id="after-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" id="after-progress-fill"></div>
-              </div>
-              <div class="progress-text" id="after-progress-text">Uploading... 0%</div>
-            </div>
-            <div class="photo-status" id="after-status"></div>
-          </div>
+          <label class="form-label">Nomor Kamar</label>
+          <input class="form-input" id="f-room" type="text" placeholder="Contoh: 201, 315, Suite-A">
         </div>
 
-        <button class="btn btn-success" onclick="markAsResolved('${defect.ID}')" style="width: 100%; margin-top: 12px;">
-          ✅ Tandai Selesai
-        </button>
+        <div class="form-group">
+          <label class="form-label">Deskripsi Kerusakan</label>
+          <textarea class="form-textarea" id="f-desc" placeholder="Jelaskan kerusakan yang Anda temukan..."></textarea>
+        </div>
+
+        <!-- AI Auto-Categorize -->
+        <div class="ai-box" id="ai-cat-box">
+          <div class="ai-box-header">
+            <div class="ai-badge">AI</div>
+            <div class="ai-box-title">Auto-Kategorisasi</div>
+          </div>
+          <div id="ai-cat-result" class="ai-result text-muted text-sm">Ketik deskripsi untuk analisis otomatis...</div>
+        </div>
+
+        <div class="form-group mt-2">
+          <label class="form-label">Kategori (AI Suggestion)</label>
+          <select class="form-select" id="f-category">
+            <option value="">Pilih kategori...</option>
+            <option value="Plumbing">🚿 Plumbing (Pipa/Air)</option>
+            <option value="Electrical">⚡ Electrical (Listrik)</option>
+            <option value="AC_HVAC">❄️ AC/HVAC</option>
+            <option value="Furniture">🪑 Furniture</option>
+            <option value="Door_Lock">🔐 Door & Lock</option>
+            <option value="TV_Remote">📺 TV & Remote</option>
+            <option value="Ceiling_Wall">🏠 Ceiling/Wall</option>
+            <option value="Bathroom">🛁 Bathroom</option>
+            <option value="Lighting">💡 Lighting</option>
+            <option value="Other">📦 Lainnya</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tingkat Prioritas</label>
+          <select class="form-select" id="f-priority">
+            <option value="LOW">🟢 Low — Tidak mengganggu tamu</option>
+            <option value="MEDIUM" selected>🟡 Medium — Perlu perbaikan segera</option>
+            <option value="HIGH">🔴 High — Kamar tidak bisa dijual (OO)</option>
+          </select>
+        </div>
+
+        <!-- ── FOTO BEFORE ── -->
+        <div class="form-group">
+          <label class="form-label">📷 Foto Kerusakan (Before)</label>
+          <div class="photo-upload-area" id="upload-area-before" onclick="triggerUpload('before')">
+            <input type="file" id="f-photo-before" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this,'before')">
+            <div id="upload-placeholder-before">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">Tap untuk foto kondisi SEBELUM perbaikan</div>
+            </div>
+            <img class="photo-preview" id="photo-preview-before" src="" alt="Before">
+          </div>
+          <div id="photo-info-before" class="text-xs text-muted mt-2" style="display:none"></div>
+        </div>
+
+        <!-- ── REKOMENDASI MANUAL (ganti AI Vision) ── -->
+        <div class="form-card" id="rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);padding:14px;margin:0 0 16px;border-radius:var(--radius-md);display:none">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">REKOMENDASI</span>
+            <span style="font-size:13px;font-weight:600">Panduan Perbaikan</span>
+          </div>
+          <div id="rec-content" class="ai-result" style="font-size:13px;line-height:1.7;color:var(--text-1)"></div>
+        </div>
+
+        <!-- ── CATATAN TEKNIS MANUAL ── -->
+        <div class="form-group">
+          <label class="form-label">📝 Catatan Teknis (Opsional)</label>
+          <textarea class="form-textarea" id="f-notes" placeholder="Contoh: Kran sudah dicek, seal rusak. Butuh spare part valve 1/2 inch..." style="min-height:70px"></textarea>
+        </div>
       </div>
-    ` : ''}
-  `;
 
-  showPage('detail');
-}
+      <button class="btn btn-primary w-full" onclick="submitDefect()" id="submit-btn">
+        🚀 Kirim Laporan
+      </button>
+    </div>
 
-function markAsInProgress(defectId) {
-  google.script.run
-    .withSuccessHandler((res) => {
-      const result = JSON.parse(res);
-      if (result.updated) {
-        showToast('✅ Status diubah menjadi In Progress', 'success');
-        loadDefectsList();
-        setTimeout(() => showPage('defects'), 500);
-      }
-    })
-    .gasUpdateDefect(JSON.stringify({
-      id: defectId,
-      status: 'IN_PROGRESS',
-      engineer: window.currentUser,
-      updatedBy: window.currentUser
-    }));
-}
+    <!-- ═══ PAGE: QR SCAN ═══ -->
+    <div class="page" id="page-qr-scan">
+      <div class="section-header">
+        <div class="section-title">QR Scan & Code</div>
+      </div>
 
-function markAsResolved(defectId) {
-  if (!window.defectFormData || !window.defectFormData.photoAfter) {
-    showToast('❌ Mohon upload foto AFTER terlebih dahulu', 'error');
-    return;
-  }
+      <!-- SCAN MODE -->
+      <div class="form-card">
+        <div class="form-card-title">📷 Scan QR Kamar</div>
+        <div class="qr-scanner-area">
+          <div class="qr-overlay">
+            <video id="qr-video" autoplay playsinline muted></video>
+            <div class="qr-corner tl"></div>
+            <div class="qr-corner tr"></div>
+            <div class="qr-corner bl"></div>
+            <div class="qr-corner br"></div>
+          </div>
+        </div>
+        <div id="qr-result" class="ai-box hidden" style="margin-top:12px">
+          <div class="ai-box-header"><div class="ai-badge">SCANNED</div><div class="ai-box-title" id="qr-room-found"></div></div>
+          <button class="btn btn-primary w-full mt-2" onclick="reportFromQR()">+ Lapor Kerusakan Kamar Ini</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn btn-secondary w-full" onclick="startQRScan()">▶️ Mulai Scan</button>
+          <button class="btn btn-secondary w-full" onclick="stopQRScan()">⏹️ Stop</button>
+        </div>
+      </div>
 
-  google.script.run
-    .withSuccessHandler((res) => {
-      const result = JSON.parse(res);
-      if (result.updated) {
-        showToast('✅ Kerusakan berhasil diselesaikan!', 'success');
-        window.defectFormData = {};
-        loadDefectsList();
-        setTimeout(() => showPage('defects'), 500);
-      }
-    })
-    .gasUpdateDefectWithPhoto(JSON.stringify({
-      id: defectId,
-      status: 'RESOLVED',
-      photoAfter: window.defectFormData.photoAfter,
-      engineer: window.currentUser,
-      updatedBy: window.currentUser
-    }));
-}
+      <!-- QR GENERATOR -->
+      <div class="form-card" id="qr-gen-section">
+        <div class="form-card-title">🖨️ Generate QR per Kamar</div>
+        <div class="form-group">
+          <input class="form-input" id="qr-floor-input" type="number" placeholder="Lantai (misal: 1, 2, 3)">
+        </div>
+        <button class="btn btn-secondary w-full" onclick="generateQRGrid()">Generate QR Lantai</button>
+        <div class="qr-grid" id="qr-grid"></div>
+      </div>
+    </div>
 
-// ══════════════════════════════════════════════════════════
-// LOGOUT
-// ══════════════════════════════════════════════════════════
+    <!-- ═══ PAGE: GM ANALYTICS ═══ -->
+    <div class="page" id="page-analytics">
+      <div class="section-header">
+        <div class="section-title">📊 GM Analytics</div>
+        <div class="section-sub">Real-time Overview</div>
+      </div>
 
-function doLogout() {
-  if (confirm('Yakin ingin logout?')) {
-    window.currentUser = null;
-    window.currentRole = null;
-    window.defectFormData = {};
-    document.getElementById('auth-screen').style.display = 'flex';
-    document.getElementById('app-shell').classList.remove('visible');
-    document.getElementById('login-name').value = '';
-    location.reload();
-  }
-}
+      <!-- Status Donut -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">Status Breakdown</div>
+        <div class="donut-wrap">
+          <svg class="donut-svg" width="100" height="100" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--bg-3)" stroke-width="3.5"/>
+            <circle id="donut-open" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-red)" stroke-width="3.5"
+              stroke-dasharray="25 75" stroke-dashoffset="25" transform="rotate(-90 18 18)"/>
+            <circle id="donut-prog" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-amber)" stroke-width="3.5"
+              stroke-dasharray="30 70" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>
+            <circle id="donut-res" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-blue)" stroke-width="3.5"
+              stroke-dasharray="20 80" stroke-dashoffset="-30" transform="rotate(-90 18 18)"/>
+            <text x="18" y="20.5" text-anchor="middle" font-size="6" fill="white" font-weight="bold" id="donut-total">—</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-red)"></div>
+              <span class="legend-text">Open</span>
+              <span class="legend-val" id="leg-open">0</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-amber)"></div>
+              <span class="legend-text">In Progress</span>
+              <span class="legend-val" id="leg-prog">0</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-blue)"></div>
+              <span class="legend-text">Resolved</span>
+              <span class="legend-val" id="leg-res">0</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-green)"></div>
+              <span class="legend-text">Closed</span>
+              <span class="legend-val" id="leg-cls">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-// ══════════════════════════════════════════════════════════
-// INITIALIZATION
-// ═══════════════════════════════��══════════════════════════
+      <!-- Category Breakdown -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">🔧 Defect per Kategori</div>
+        <div class="bar-chart" id="cat-chart"></div>
+      </div>
 
-window.defectFormData = {};
+      <!-- Engineer Leaderboard -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">🏆 Engineering Performance</div>
+        <div class="leaderboard" id="eng-leaderboard"></div>
+      </div>
 
-// Load defects on startup
-loadDefectsList();
+      <!-- SLA Escalation Log -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">🚨 SLA Escalation Log</div>
+        <div id="escalation-log" class="text-sm text-muted">Tidak ada eskalasi aktif.</div>
+      </div>
+    </div>
 
-</script>
+  </div><!-- /main-content -->
+
   <!-- BOTTOM NAV -->
   <div class="bottom-nav">
     <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
@@ -1729,27 +1299,33 @@ loadDefectsList();
     <div class="modal-title" id="modal-room">Kamar 201</div>
     <div class="modal-sub" id="modal-meta">ID: DEF-001 · 2 jam lalu</div>
 
-    <div id="modal-ai-box" class="ai-box">
-      <div class="ai-box-header">
-        <div class="ai-badge">AI Analysis</div>
-        <div class="ai-box-title">Analisis Kerusakan</div>
+    <!-- REKOMENDASI: berdasarkan kategori + histori (bukan AI Vision) -->
+    <div id="modal-rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">PANDUAN</span>
+        <span style="font-size:13px;font-weight:600" id="modal-rec-title">Rekomendasi Perbaikan</span>
       </div>
-      <div id="modal-ai-result" class="ai-result ai-loading">
-        <div class="ai-dots"><span></span><span></span><span></span></div>
-        Menganalisis...
+      <div id="modal-rec-content" class="ai-result" style="font-size:13px;line-height:1.7;color:var(--text-1)">
+        Memuat panduan...
       </div>
     </div>
 
+    <!-- PHOTO COMPARE: Before (read-only) | After (upload by Engineering) -->
     <div class="photo-compare" id="modal-photos">
-      <div class="photo-slot" id="photo-before">
-        <div class="upload-icon" style="font-size:20px">📷</div>
-        <div class="photo-slot-label">BEFORE</div>
+      <div class="photo-slot" id="photo-before" style="cursor:default">
+        <div class="upload-icon" style="font-size:20px;opacity:0.4" id="photo-before-icon">📷</div>
+        <div class="photo-slot-label" id="photo-before-label">BEFORE</div>
       </div>
-      <div class="photo-slot" id="photo-after">
-        <div class="upload-icon" style="font-size:20px">📷</div>
-        <div class="photo-slot-label">AFTER</div>
+      <div class="photo-slot" id="photo-after" onclick="triggerAfterUpload()" style="cursor:pointer;position:relative">
+        <input type="file" id="f-photo-after-modal" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this,'after')">
+        <div id="photo-after-icon">
+          <div style="font-size:20px;opacity:0.4">📷</div>
+          <div style="font-size:10px;color:var(--accent-blue);margin-top:4px">Tap upload foto After</div>
+        </div>
+        <div class="photo-slot-label" id="photo-after-label">AFTER</div>
       </div>
     </div>
+    <div id="photo-after-info" class="text-xs text-muted" style="text-align:center;margin:-8px 0 12px;display:none"></div>
 
     <div class="timeline" id="modal-timeline"></div>
 
@@ -1761,70 +1337,398 @@ loadDefectsList();
 
 <!-- SCRIPTS -->
 <script>
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // CONFIG
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 const CONFIG = {
-  // ✅ URL GAS Web App kamu (sudah ada)
   GAS_URL: 'https://script.google.com/macros/s/AKfycbw6RDf9-eEWx0GbwIjD5ld65QWrvVAsY7tHwvlam-B-ybBtl0oWMPF_gNnXD0qeg_Xe/exec',
   WA_API_URL: 'https://api.fonnte.com/send',
   WA_TOKEN: 'YOUR_FONNTE_TOKEN',
   APP_URL: window.location.href.split('?')[0],
   SLA_HOURS: { HIGH: 2, MEDIUM: 8, LOW: 24 },
+  // Foto dikompres ke lebar max ini sebelum upload (hemat storage)
+  PHOTO_MAX_WIDTH: 1024,
+  PHOTO_QUALITY: 0.72,      // JPEG quality 72% — balance kualitas vs ukuran
+  PHOTO_MAX_SIZE_KB: 300,   // Kalau masih > 300KB setelah compress, kompres lagi
 };
 
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 let STATE = {
-  user: null,
-  role: 'HK',
-  defects: [],
-  activeFilter: 'ALL',
+  user: null, role: 'HK',
+  defects: [], activeFilter: 'ALL',
   currentDefect: null,
-  qrStream: null,
-  scannedRoom: null,
+  qrStream: null, scannedRoom: null,
   isLoading: false,
+  photoBeforeData: null,  // { compressed: base64string, mimeType, sizeKB, originalName }
+  photoAfterData:  null,  // same
 };
 
-// Fallback sample — HANYA tampil saat GAS belum bisa diakses
 const PREDICTIVE_DATA = [
   { room: 'Lantai 2', item: 'AC Unit', count: 7, riskScore: 85, risk: 'HIGH', nextFail: '~12 hari' },
   { room: 'Lantai 3', item: 'Plumbing System', count: 5, riskScore: 60, risk: 'MEDIUM', nextFail: '~3 minggu' },
   { room: 'Lantai 1', item: 'Door Lock', count: 3, riskScore: 35, risk: 'LOW', nextFail: '~6 minggu' },
 ];
 
-// ═══════════════════════════════════════════════════════════
-// CORE: GAS API — semua komunikasi ke spreadsheet lewat sini
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// REKOMENDASI DATABASE — manual, bukan AI
+// Berdasarkan pengalaman operasional hotel
+// ════════════════════════════════════════════════════
+const RECOMMENDATIONS = {
+  Plumbing: {
+    title: '🚿 Plumbing — Panduan Perbaikan',
+    steps: [
+      'Matikan stop kran / valve utama area tersebut sebelum mengerjakan',
+      'Identifikasi titik kebocoran: sambungan pipa, seal, atau body fixture',
+      'Cek apakah perlu penggantian washer, seal/O-ring, atau seluruh fixture',
+      'Untuk kebocoran pipa: gunakan pipe tape (teflon) atau solder jika diperlukan',
+      'Setelah perbaikan: nyalakan air perlahan, cek kebocoran minimal 5 menit',
+      'Keringkan area yang basah dan pastikan tidak ada jamur yang terbentuk',
+    ],
+    parts: ['Seal/O-ring', 'Teflon tape', 'Washer kran', 'Flexible hose', 'Valve stop kran'],
+    estimatedHours: '1–3 jam',
+    tips: 'Kamar yang banjir dari pipa harus segera di-OO-kan. Foto dokumentasi kebocoran dari beberapa sudut.',
+  },
+  Electrical: {
+    title: '⚡ Electrical — Panduan Perbaikan',
+    steps: [
+      'Matikan MCB/circuit breaker kamar tersebut di panel listrik SEBELUM bekerja',
+      'Gunakan tespen untuk memastikan tidak ada tegangan sebelum menyentuh kabel',
+      'Identifikasi: saklar rusak, kabel putus, fitting lampu, atau masalah MCB',
+      'Ganti komponen yang rusak dengan spesifikasi yang sama (voltase/ampere)',
+      'Pastikan sambungan kabel rapat dan terisolasi dengan baik (gunakan isolasi)',
+      'Nyalakan MCB, tes semua stop kontak dan saklar di kamar tersebut',
+    ],
+    parts: ['Saklar/stop kontak', 'Fitting lampu', 'Kabel NYM', 'Isolasi listrik', 'MCB pengganti'],
+    estimatedHours: '1–2 jam',
+    tips: 'WAJIB matikan MCB dulu. Jika masalah di panel utama, hubungi teknisi berlisensi. Jangan kerjakan seorang diri.',
+  },
+  AC_HVAC: {
+    title: '❄️ AC/HVAC — Panduan Perbaikan',
+    steps: [
+      'Cek remote: ganti baterai, coba manual button di unit indoor',
+      'Periksa filter indoor: jika kotor, cuci dengan air bersih dan keringkan',
+      'Cek kondensasi/drain pan: pastikan tidak tersumbat (penyebab bocor)',
+      'Cek kondisi refrigeran: jika AC tidak dingin sama sekali, kemungkinan perlu isi freon',
+      'Periksa MCB khusus AC di panel — reset jika trip',
+      'Bersihkan fin kondensor outdoor dari debu/kotoran dengan sikat lembut',
+    ],
+    parts: ['Filter AC', 'Baterai remote', 'Drain pipe', 'Freon (jika diperlukan)', 'Kapasitor'],
+    estimatedHours: '1–4 jam',
+    tips: 'Cuci filter setiap 2 minggu sebagai preventif. Jika perlu isi freon, pastikan teknisi berpengalaman yang mengerjakan.',
+  },
+  Furniture: {
+    title: '🪑 Furniture — Panduan Perbaikan',
+    steps: [
+      'Dokumentasikan kerusakan dari beberapa sudut sebelum memindahkan furniture',
+      'Jika kaki patah: gunakan lem kayu kuat + klem, diamkan 24 jam sebelum digunakan',
+      'Jika engsel pintu rusak: ganti engsel dengan ukuran sama, pastikan level/rata',
+      'Laci macet: periksa rel, bersihkan debu, aplikasikan pelumas (lilin/WD40)',
+      'Sofa/kasur rusak: hubungi vendor furniture untuk klaim garansi jika masih berlaku',
+      'Setelah perbaikan: tes beban/fungsi sebelum kamar dijual kembali',
+    ],
+    parts: ['Lem kayu', 'Engsel pengganti', 'Baut/sekrup', 'Pelumas', 'Cat senada'],
+    estimatedHours: '1–6 jam',
+    tips: 'Untuk furniture bernilai tinggi (sofa, headboard), pertimbangkan vendor perbaikan profesional daripada merusak permukaan.',
+  },
+  Door_Lock: {
+    title: '🔐 Door & Lock — Panduan Perbaikan',
+    steps: [
+      'Cek apakah masalah di handle, kunci silinder, atau sistem card reader',
+      'Untuk kunci macet: semprotkan pelumas ke lubang kunci, putar beberapa kali',
+      'Untuk card reader tidak respon: cek baterai (biasanya AA x4), ganti jika lemah',
+      'Untuk pintu tidak menutup rapat: setel strike plate atau engsel (kencangkan sekrup)',
+      'Jika perlu penggantian silinder/card lock: catat nomor kamar untuk reset di sistem',
+      'Test kunci dari dalam dan luar minimal 5x sebelum meninggalkan kamar',
+    ],
+    parts: ['Baterai AA', 'Pelumas kunci', 'Sekrup engsel', 'Strike plate', 'Silinder kunci'],
+    estimatedHours: '30 menit – 2 jam',
+    tips: 'Jika card reader perlu di-reset, koordinasi dengan Front Office untuk re-programming kunci tamu aktif.',
+  },
+  TV_Remote: {
+    title: '📺 TV & Remote — Panduan Perbaikan',
+    steps: [
+      'Cek baterai remote: ganti dengan baterai baru (AA atau AAA)',
+      'Cek kabel HDMI/power TV: pastikan terpasang kencang di belakang TV',
+      'Matikan TV dari tombol fisik di TV, tunggu 30 detik, nyalakan kembali',
+      'Cek channel: pastikan input source sesuai (HDMI/TV/AV)',
+      'Jika TV tidak menyala sama sekali: cek stop kontak dan kabel power',
+      'Jika layar rusak/gambar aneh: catat model TV untuk klaim garansi atau penggantian',
+    ],
+    parts: ['Baterai AA/AAA', 'Kabel HDMI', 'Remote pengganti'],
+    estimatedHours: '15–60 menit',
+    tips: 'Selalu sediakan remote pengganti di gudang. Labeli remote dengan nomor kamar untuk mencegah tertukar.',
+  },
+  Ceiling_Wall: {
+    title: '🏠 Ceiling & Wall — Panduan Perbaikan',
+    steps: [
+      'Identifikasi penyebab: rembes dari lantai atas, pipa bocor, atau kondensasi AC',
+      'Jika ada rembes aktif: tangani sumber air DULU sebelum perbaikan dinding',
+      'Keringkan area yang lembab menggunakan blower minimal 24–48 jam',
+      'Untuk cat mengelupas: amplas permukaan, cat dasar (primer), lalu cat warna senada',
+      'Untuk retak halus: gunakan compound/plamir, ratakan, amplas, cat ulang',
+      'Untuk plafon jebol: pastikan tidak ada beban di atas sebelum memasang gypsum baru',
+    ],
+    parts: ['Cat tembok (warna senada)', 'Primer/cat dasar', 'Compound/plamir', 'Amplas', 'Gypsum board', 'Kuas/roller'],
+    estimatedHours: '2–8 jam (termasuk waktu kering)',
+    tips: 'Selalu cek lantai di atas kamar terlebih dahulu. Rembes dari lantai atas paling sering tidak terdeteksi.',
+  },
+  Bathroom: {
+    title: '🛁 Bathroom — Panduan Perbaikan',
+    steps: [
+      'Identifikasi: shower bocor, toilet mampet, kran rusak, atau exhaust fan mati',
+      'Untuk toilet mampet: gunakan plunger dulu, jika gagal gunakan spring/drain snake',
+      'Untuk shower bocor: cek seal kepala shower dan sambungan flexible hose',
+      'Untuk exhaust fan mati: cek MCB dan kabel, bersihkan kisi-kisi dari debu',
+      'Untuk nat keramik hitam/rusak: bersihkan dengan cairan khusus atau grouting ulang',
+      'Setelah perbaikan: flush toilet 3x, tes shower 2 menit, cek tidak ada kebocoran',
+    ],
+    parts: ['Plunger', 'Drain snake', 'Seal shower', 'Flexible hose', 'Nat/grout', 'Cairan pembersih kerak'],
+    estimatedHours: '1–4 jam',
+    tips: 'Kamar dengan toilet mampet harus di-OO segera. Siapkan bucket/lap sebelum membuka pipa agar lantai tidak kotor.',
+  },
+  Lighting: {
+    title: '💡 Lighting — Panduan Perbaikan',
+    steps: [
+      'Matikan saklar terlebih dahulu sebelum mengganti lampu',
+      'Catat jenis lampu: LED, bohlam, downlight, strip light (perhatikan wattage & fitting)',
+      'Ganti lampu dengan spesifikasi sama — jangan melebihi wattage maksimum fitting',
+      'Jika lampu baru tetap tidak menyala: cek fitting/socket dengan tespen',
+      'Jika seluruh lampu kamar mati: cek MCB di panel listrik kamar',
+      'Pastikan lampu terpasang kencang dan tidak ada kabel yang terkelupas',
+    ],
+    parts: ['Lampu LED pengganti (warm/cool sesuai standar hotel)', 'Fitting lampu', 'Tespen'],
+    estimatedHours: '15–45 menit',
+    tips: 'Stok lampu pengganti per tipe harus selalu tersedia di gudang Engineering. Standarisasi merek/tipe untuk kemudahan.',
+  },
+  Other: {
+    title: '📦 Kerusakan Umum — Panduan',
+    steps: [
+      'Dokumentasikan kerusakan dengan foto sebelum memulai perbaikan',
+      'Identifikasi jenis kerusakan dan komponen yang terdampak',
+      'Tentukan apakah bisa ditangani internal atau perlu vendor/spesialis',
+      'Siapkan peralatan dan spare part yang diperlukan sebelum mulai',
+      'Kerjakan perbaikan dan tes hasilnya sebelum melaporkan selesai',
+      'Dokumentasikan dengan foto AFTER dan catat spare part yang digunakan',
+    ],
+    parts: ['Sesuai jenis kerusakan'],
+    estimatedHours: 'Bervariasi',
+    tips: 'Untuk kerusakan yang tidak familiar, lebih baik konsultasikan dengan senior Engineering sebelum mengerjakan.',
+  },
+};
+
+// ════════════════════════════════════════════════════
+// PHOTO COMPRESSION & HANDLING
+// ════════════════════════════════════════════════════
 
 /**
- * Kirim request ke GAS Web App.
- * Mendukung: google.script.run (dalam GAS) atau fetch (standalone).
+ * Kompres gambar menggunakan Canvas API sebelum upload ke GAS.
+ * Hemat storage Google Sheets: foto 3MB → ~150–250KB.
+ * @param {File} file - File dari input[type=file]
+ * @param {string} slot - 'before' | 'after'
+ * @returns {Promise<{compressed: string, mimeType: string, sizeKB: number, originalName: string}>}
  */
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        // Hitung dimensi baru — max width CONFIG.PHOTO_MAX_WIDTH, pertahankan aspect ratio
+        let w = img.width, h = img.height;
+        if (w > CONFIG.PHOTO_MAX_WIDTH) {
+          h = Math.round(h * CONFIG.PHOTO_MAX_WIDTH / w);
+          w = CONFIG.PHOTO_MAX_WIDTH;
+        }
+        // Juga batasi height max 768px
+        if (h > 768) { w = Math.round(w * 768 / h); h = 768; }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        // Background putih untuk PNG dengan transparansi
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        let quality = CONFIG.PHOTO_QUALITY;
+        let compressed = canvas.toDataURL('image/jpeg', quality);
+        let sizeKB = Math.round(compressed.length * 0.75 / 1024);
+
+        // Kompres lebih agresif jika masih > 300KB
+        while (sizeKB > CONFIG.PHOTO_MAX_SIZE_KB && quality > 0.3) {
+          quality -= 0.1;
+          compressed = canvas.toDataURL('image/jpeg', quality);
+          sizeKB = Math.round(compressed.length * 0.75 / 1024);
+        }
+
+        resolve({
+          compressed,                    // data URL base64 JPEG
+          mimeType: 'image/jpeg',
+          sizeKB,
+          originalName: file.name || 'photo.jpg',
+          originalSizeKB: Math.round(file.size / 1024),
+          quality: Math.round(quality * 100),
+          width: w, height: h,
+        });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Handler terpusat untuk upload foto Before & After.
+ * Kompres → preview → simpan ke STATE → tampilkan info ukuran.
+ */
+async function handlePhotoUpload(input, slot) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+
+  // Tampilkan loading di area upload
+  const area = document.getElementById(slot === 'before' ? 'upload-area-before' : 'photo-after');
+  if (area) area.style.opacity = '0.5';
+
+  showToast('info', '⏳ Mengompres foto...', `Ukuran asli: ${Math.round(file.size/1024)} KB`);
+
+  try {
+    const result = await compressImage(file);
+
+    // Simpan ke STATE
+    if (slot === 'before') {
+      STATE.photoBeforeData = result;
+    } else {
+      STATE.photoAfterData = result;
+    }
+
+    // Update preview — Before (form)
+    if (slot === 'before') {
+      const preview = document.getElementById('photo-preview-before');
+      const placeholder = document.getElementById('upload-placeholder-before');
+      const infoEl = document.getElementById('photo-info-before');
+      if (preview) { preview.src = result.compressed; preview.classList.add('visible'); }
+      if (placeholder) placeholder.style.display = 'none';
+      if (area) { area.classList.add('has-photo'); area.style.opacity = '1'; }
+      if (infoEl) {
+        infoEl.style.display = 'block';
+        infoEl.innerHTML = `✅ ${result.width}×${result.height}px · ${result.sizeKB} KB (dari ${result.originalSizeKB} KB · hemat ${Math.round((1-result.sizeKB/result.originalSizeKB)*100)}%)`;
+      }
+      // Tampilkan rekomendasi berdasarkan kategori yang sudah dipilih
+      showRecommendationInForm();
+
+    } else {
+      // After — di modal
+      const slotEl = document.getElementById('photo-after');
+      const iconEl = document.getElementById('photo-after-icon');
+      const labelEl = document.getElementById('photo-after-label');
+      const infoEl = document.getElementById('photo-after-info');
+      if (slotEl) {
+        slotEl.innerHTML = `<img src="${result.compressed}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">`;
+        slotEl.onclick = null;
+      }
+      if (infoEl) {
+        infoEl.style.display = 'block';
+        infoEl.textContent = `After: ${result.sizeKB} KB (dari ${result.originalSizeKB} KB)`;
+      }
+    }
+
+    showToast('success', '✅ Foto siap disimpan', `Terkompresi: ${result.sizeKB} KB · Hemat ${Math.round((1-result.sizeKB/result.originalSizeKB)*100)}%`);
+
+  } catch (err) {
+    showToast('error', 'Gagal proses foto', err.message);
+    if (area) area.style.opacity = '1';
+  }
+}
+
+function triggerUpload(slot) {
+  const id = slot === 'before' ? 'f-photo-before' : 'f-photo-after-modal';
+  document.getElementById(id)?.click();
+}
+
+function triggerAfterUpload() {
+  document.getElementById('f-photo-after-modal')?.click();
+}
+
+// ════════════════════════════════════════════════════
+// REKOMENDASI MANUAL (berdasarkan kategori)
+// ════════════════════════════════════════════════════
+
+/** Tampilkan rekomendasi di form laporan (setelah foto di-upload atau kategori berubah) */
+function showRecommendationInForm() {
+  const cat = document.getElementById('f-category')?.value;
+  const box = document.getElementById('rec-box');
+  const content = document.getElementById('rec-content');
+  if (!box || !content || !cat || !RECOMMENDATIONS[cat]) {
+    if (box) box.style.display = 'none';
+    return;
+  }
+  const rec = RECOMMENDATIONS[cat];
+  box.style.display = 'block';
+  content.innerHTML = buildRecHTML(rec);
+}
+
+/** Tampilkan rekomendasi di modal detail */
+function showRecommendationInModal(category) {
+  const titleEl = document.getElementById('modal-rec-title');
+  const contentEl = document.getElementById('modal-rec-content');
+  if (!contentEl) return;
+  const rec = RECOMMENDATIONS[category] || RECOMMENDATIONS['Other'];
+  if (titleEl) titleEl.textContent = rec.title;
+  contentEl.innerHTML = buildRecHTML(rec);
+}
+
+function buildRecHTML(rec) {
+  const steps = rec.steps.map((s, i) =>
+    `<div style="display:flex;gap:8px;margin-bottom:6px">
+      <span style="background:var(--accent-blue);color:white;font-size:9px;font-weight:800;min-width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</span>
+      <span>${s}</span>
+    </div>`
+  ).join('');
+
+  return `
+    ${steps}
+    <div style="margin-top:10px;padding:8px 10px;background:var(--bg-3);border-radius:6px;font-size:12px">
+      🔩 <strong>Part kemungkinan dibutuhkan:</strong> ${rec.parts.join(' · ')}
+    </div>
+    <div style="margin-top:6px;padding:8px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:6px;font-size:12px;color:var(--accent-amber)">
+      ⏱️ <strong>Estimasi waktu:</strong> ${rec.estimatedHours}
+    </div>
+    ${rec.tips ? `<div style="margin-top:6px;padding:8px 10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:6px;font-size:12px;color:var(--accent-green)">
+      💡 <strong>Tips:</strong> ${rec.tips}
+    </div>` : ''}`;
+}
+
+// ════════════════════════════════════════════════════
+// GAS COMMUNICATION
+// ════════════════════════════════════════════════════
+
 async function gasCall(action, payload = {}) {
-  // Mode: dalam GAS Web App
+  // Mode dalam GAS Web App
   if (typeof google !== 'undefined' && google.script) {
     return new Promise((resolve, reject) => {
-      google.script.run
-        .withSuccessHandler(r => {
-          try { resolve(typeof r === 'string' ? JSON.parse(r) : r); }
-          catch { resolve({ error: 'Parse error', raw: r }); }
-        })
-        .withFailureHandler(reject)
-        ['gas' + action.charAt(0).toUpperCase() + action.slice(1)](
-          payload ? JSON.stringify(payload) : null
-        );
+      const fnName = 'gas' + action.charAt(0).toUpperCase() + action.slice(1);
+      const fn = google.script.run.withSuccessHandler(r => {
+        try { resolve(typeof r === 'string' ? JSON.parse(r) : r); }
+        catch { resolve({ error: 'Parse error', raw: r }); }
+      }).withFailureHandler(reject);
+      if (typeof fn[fnName] === 'function') {
+        fn[fnName](payload ? JSON.stringify(payload) : null);
+      } else {
+        // Fallback: doPost
+        reject(new Error('Function not found: ' + fnName));
+      }
     });
   }
 
-  // Mode: standalone HTML → fetch ke GAS URL
-  if (!CONFIG.GAS_URL || CONFIG.GAS_URL.includes('YOUR_GAS')) {
-    throw new Error('GAS_URL belum dikonfigurasi');
-  }
+  // Mode standalone → fetch
+  if (!CONFIG.GAS_URL) throw new Error('GAS_URL belum dikonfigurasi');
   const resp = await fetch(CONFIG.GAS_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain' }, // GAS perlu text/plain untuk hindari CORS preflight
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action, payload }),
     redirect: 'follow',
   });
@@ -1833,24 +1737,22 @@ async function gasCall(action, payload = {}) {
     const json = JSON.parse(text);
     if (!json.success) throw new Error(json.error || 'GAS error');
     return json.data;
-  } catch (e) {
-    throw new Error('Response bukan JSON: ' + text.substring(0, 200));
+  } catch {
+    throw new Error('Response error: ' + text.substring(0, 200));
   }
 }
 
-// ─── Shorthand helpers ───────────────────────
-const gasGetDefects  = (f)  => gasCall('getDefects', f || {});
-const gasGetMetrics  = ()   => gasCall('getMetrics', {});
-const gasAddDefect   = (d)  => gasCall('addDefect', d);
-const gasUpdateDef   = (d)  => gasCall('updateDefect', d);
-const gasAiCat       = (t)  => gasCall('aiCategorize', { text: t });
-const gasAiPhoto     = (b, m) => gasCall('aiAnalyzePhoto', { base64: b, mimeType: m });
-const gasAiDefect    = (d)  => gasCall('aiAnalyzeDefect', d);
-const gasAiPredict   = ()   => gasCall('aiPredictive', {});
+const gasGetDefects = (f)     => gasCall('getDefects', f || {});
+const gasGetMetrics = ()      => gasCall('getMetrics', {});
+const gasAddDefect  = (d)     => gasCall('addDefect', d);
+const gasUpdateDef  = (d)     => gasCall('updateDefect', d);
+const gasAiCat      = (t)     => gasCall('aiCategorize', { text: t });
+const gasAiPredict  = ()      => gasCall('aiPredictive', {});
+const gasSavePhoto  = (d)     => gasCall('savePhoto', d);   // ← simpan foto ke Sheet_Photos
 
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // AUTH
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function selectRole(el) {
   document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
@@ -1860,23 +1762,17 @@ function selectRole(el) {
 async function doLogin() {
   const name = document.getElementById('login-name').value.trim();
   if (!name) { showToast('error', 'Nama diperlukan', 'Masukkan nama Anda'); return; }
-
   const btn = document.querySelector('#auth-screen .btn-primary');
-  btn.disabled = true;
-  btn.textContent = '⏳ Memuat data...';
+  btn.disabled = true; btn.textContent = '⏳ Memuat...';
 
   STATE.user = name;
   document.getElementById('auth-screen').style.display = 'none';
-  const shell = document.getElementById('app-shell');
-  shell.classList.add('visible');
+  document.getElementById('app-shell').classList.add('visible');
   document.getElementById('topbar-role').textContent = STATE.role;
   document.getElementById('dash-greeting').textContent = `Halo, ${name} 👋`;
 
-  // ✅ LIVE: fetch data dari spreadsheet saat login
   await fetchAndRender();
-
-  btn.disabled = false;
-  btn.textContent = '🚀 Masuk ke Sistem';
+  btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem';
   showToast('success', 'Berhasil masuk', `Selamat datang, ${name}!`);
 }
 
@@ -1884,66 +1780,33 @@ function doLogout() {
   stopQRScan();
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('auth-screen').style.display = 'flex';
-  STATE.user = null;
-  STATE.defects = [];
+  STATE.user = null; STATE.defects = [];
+  STATE.photoBeforeData = null; STATE.photoAfterData = null;
 }
 
-// ═══════════════════════════════════════════════════════════
-// LIVE DATA FETCH — ambil dari spreadsheet, render semua
-// ═══════════════════════════════════════════════════════════
-
-async function fetchAndRender(showLoadingToast = false) {
+// ════════════════════════════════════════════════════
+// LIVE FETCH FROM SPREADSHEET
+// ════════════════════════════════════════════════════
+async function fetchAndRender(toast = false) {
   if (STATE.isLoading) return;
   STATE.isLoading = true;
-
-  // Tampilkan loading state di defect list
   const listEl = document.getElementById('defect-list');
-  if (listEl) listEl.innerHTML = `
-    <div style="text-align:center;padding:40px;color:var(--text-1)">
-      <div class="ai-loading" style="justify-content:center;margin-bottom:8px">
-        <div class="ai-dots"><span></span><span></span><span></span></div>
-        Mengambil data dari Spreadsheet...
-      </div>
-    </div>`;
-
+  if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-1)">
+    <div class="ai-loading" style="justify-content:center;margin-bottom:8px">
+      <div class="ai-dots"><span></span><span></span><span></span></div> Mengambil data...
+    </div></div>`;
   try {
-    // Ambil defects dan metrics secara paralel
-    const [rawDefects, metrics] = await Promise.all([
-      gasGetDefects(),
-      gasGetMetrics().catch(() => null),  // metrics opsional
-    ]);
-
-    // Normalisasi field dari GAS (PascalCase) ke frontend (camelCase)
+    const rawDefects = await gasGetDefects();
     STATE.defects = (rawDefects || []).map(normalizeDefect);
-
-    if (showLoadingToast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect dari spreadsheet`);
-
-    // Update avg time chart dari metrics real jika ada
-    if (metrics?.avgByCategory) {
-      STATE.metricsCache = metrics;
-    }
-
-    renderDashboard();
-    renderDefectList();
-
+    if (toast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect dari spreadsheet`);
+    renderDashboard(); renderDefectList();
   } catch (err) {
-    console.error('fetchAndRender error:', err);
-    showToast('error', 'Gagal ambil data', err.message || 'Cek koneksi atau GAS URL');
-    // Jika gagal, tampilkan pesan kosong (bukan SAMPLE data)
-    STATE.defects = [];
-    renderDashboard();
-    renderDefectList();
-  } finally {
-    STATE.isLoading = false;
-  }
+    showToast('error', 'Gagal ambil data', err.message);
+    STATE.defects = []; renderDashboard(); renderDefectList();
+  } finally { STATE.isLoading = false; }
 }
 
-/**
- * Normalisasi field dari GAS (PascalCase/flat array) ke format frontend (camelCase object).
- * GAS mengembalikan objek dengan key = header spreadsheet (PascalCase).
- */
 function normalizeDefect(d) {
-  // Tangani kedua format: sudah camelCase atau masih PascalCase dari GAS
   return {
     id:          d.ID          || d.id          || '',
     room:        d.RoomNumber  || d.room        || '',
@@ -1953,129 +1816,115 @@ function normalizeDefect(d) {
     status:      d.Status      || d.status      || 'OPEN',
     reporter:    d.Reporter    || d.reporter    || '',
     engineer:    d.Engineer    || d.engineer    || null,
+    notes:       d.Notes       || d.notes       || '',
+    // Foto: simpan URL Google Drive (bukan base64) dari Sheet_Photos
     photoBefore: d.PhotoBefore || d.photoBefore || null,
     photoAfter:  d.PhotoAfter  || d.photoAfter  || null,
-    createdAt:   d.CreatedAt   ? new Date(d.CreatedAt).getTime()   : (d.createdAt || Date.now()),
-    startedAt:   d.StartedAt   ? new Date(d.StartedAt).getTime()   : (d.startedAt || null),
-    resolvedAt:  d.ResolvedAt  ? new Date(d.ResolvedAt).getTime()  : (d.resolvedAt || null),
-    closedAt:    d.ClosedAt    ? new Date(d.ClosedAt).getTime()    : (d.closedAt || null),
-    // Logs: GAS tidak simpan log terpisah per baris — reconstruct dari timestamps
-    logs: buildLogsFromTimestamps(d),
+    createdAt:   d.CreatedAt   ? new Date(d.CreatedAt).getTime()  : (d.createdAt  || Date.now()),
+    startedAt:   d.StartedAt   ? new Date(d.StartedAt).getTime()  : (d.startedAt  || null),
+    resolvedAt:  d.ResolvedAt  ? new Date(d.ResolvedAt).getTime() : (d.resolvedAt || null),
+    closedAt:    d.ClosedAt    ? new Date(d.ClosedAt).getTime()   : (d.closedAt   || null),
+    logs: buildLogs(d),
   };
 }
 
-function buildLogsFromTimestamps(d) {
+function buildLogs(d) {
   const logs = [];
-  const reporter = d.Reporter || d.reporter || 'Unknown';
-  const engineer = d.Engineer || d.engineer;
   const created  = d.CreatedAt  ? new Date(d.CreatedAt).getTime()  : null;
   const started  = d.StartedAt  ? new Date(d.StartedAt).getTime()  : null;
   const resolved = d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null;
   const closed   = d.ClosedAt   ? new Date(d.ClosedAt).getTime()   : null;
-
-  if (created)  logs.push({ action: `Dilaporkan oleh ${reporter}`, time: created });
-  if (started)  logs.push({ action: `Mulai dikerjakan oleh ${engineer || 'Engineering'}`, time: started });
-  if (resolved) logs.push({ action: `Selesai diperbaiki oleh ${engineer || 'Engineering'}`, time: resolved });
+  const rep      = d.Reporter   || d.reporter || '?';
+  const eng      = d.Engineer   || d.engineer || 'Engineering';
+  if (created)  logs.push({ action: `Dilaporkan oleh ${rep}`, time: created });
+  if (started)  logs.push({ action: `Mulai dikerjakan oleh ${eng}`, time: started });
+  if (resolved) logs.push({ action: `Selesai diperbaiki oleh ${eng}`, time: resolved });
   if (closed)   logs.push({ action: `Diverifikasi & ditutup`, time: closed });
   return logs;
 }
 
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // NAVIGATION
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
-  const navEl = document.getElementById(`nav-${page}`);
-  if (navEl) navEl.classList.add('active');
+  const nav = document.getElementById(`nav-${page}`);
+  if (nav) nav.classList.add('active');
   if (page === 'analytics') renderAnalytics();
   if (page !== 'qr-scan') stopQRScan();
 }
 
-// ═══════════════════════════════════════════════
-// DASHBOARD — render dari STATE.defects (live)
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════════
 function renderDashboard() {
-  const counts = { OPEN: 0, IN_PROGRESS: 0, RESOLVED: 0, CLOSED: 0 };
+  const counts = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 };
   STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
-  document.getElementById('m-open').textContent = counts.OPEN;
-  document.getElementById('m-inprog').textContent = counts.IN_PROGRESS;
+  document.getElementById('m-open').textContent    = counts.OPEN;
+  document.getElementById('m-inprog').textContent  = counts.IN_PROGRESS;
   document.getElementById('m-resolved').textContent = counts.RESOLVED;
-  document.getElementById('m-closed').textContent = counts.CLOSED;
+  document.getElementById('m-closed').textContent  = counts.CLOSED;
 
-  // SLA overdue check
   const overdueCount = STATE.defects.filter(d => {
-    if (d.status === 'CLOSED' || d.status === 'RESOLVED') return false;
-    return (Date.now() - d.createdAt) / 3600000 > (CONFIG.SLA_HOURS[d.priority] || 8);
+    if (d.status==='CLOSED'||d.status==='RESOLVED') return false;
+    return (Date.now()-d.createdAt)/3600000 > (CONFIG.SLA_HOURS[d.priority]||8);
   }).length;
   document.getElementById('sla-count').textContent = `${overdueCount} defect`;
   document.getElementById('sla-alert-banner').style.display = overdueCount > 0 ? 'flex' : 'none';
 
-  // Avg time chart — dari data REAL jika ada, hitung dari defects
+  // Avg repair time (dari data real)
   const catTimes = {};
-  STATE.defects
-    .filter(d => d.startedAt && d.resolvedAt)
-    .forEach(d => {
-      const h = (d.resolvedAt - d.startedAt) / 3600000;
-      if (!catTimes[d.category]) catTimes[d.category] = [];
-      catTimes[d.category].push(h);
-    });
-
-  const avgData = {};
-  Object.entries(catTimes).forEach(([cat, arr]) => {
-    avgData[cat] = (arr.reduce((s, v) => s + v, 0) / arr.length);
+  STATE.defects.filter(d => d.startedAt && d.resolvedAt).forEach(d => {
+    const h = (d.resolvedAt - d.startedAt) / 3600000;
+    if (!catTimes[d.category]) catTimes[d.category] = [];
+    catTimes[d.category].push(h);
   });
-
+  const avgData = {};
+  Object.entries(catTimes).forEach(([c, arr]) => {
+    avgData[c] = arr.reduce((s,v)=>s+v,0)/arr.length;
+  });
   const chartEl = document.getElementById('avg-time-chart');
-  if (Object.keys(avgData).length === 0) {
-    chartEl.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Belum ada data repair selesai untuk ditampilkan.</div>';
+  if (!Object.keys(avgData).length) {
+    chartEl.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Belum ada data repair selesai.</div>';
   } else {
     const maxH = Math.max(...Object.values(avgData));
-    chartEl.innerHTML = Object.entries(avgData)
-      .sort((a, b) => b[1] - a[1])
-      .map(([k, v]) => `
-        <div class="bar-row">
-          <div class="bar-label">${k.replace('_', '/')}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${(v/maxH)*100}%"></div></div>
-          <div class="bar-val">${v.toFixed(1)}h</div>
-        </div>`).join('');
+    chartEl.innerHTML = Object.entries(avgData).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+      <div class="bar-row">
+        <div class="bar-label">${k.replace('_','/')}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(v/maxH)*100}%"></div></div>
+        <div class="bar-val">${v.toFixed(1)}h</div>
+      </div>`).join('');
   }
 
-  // Predictive — async via Gemini AI
   loadAiPredictive();
 }
 
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // DEFECT LIST
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 function renderDefectList() {
   const filter = STATE.activeFilter;
-  const list = STATE.defects.filter(d => filter === 'ALL' || d.status === filter);
+  const list = STATE.defects.filter(d => filter==='ALL' || d.status===filter);
   const el = document.getElementById('defect-list');
   if (!list.length) {
     el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:40px">
-      ${STATE.defects.length === 0 ? '✅ Tidak ada defect. Spreadsheet kosong atau data belum dimuat.' : 'Tidak ada defect dengan filter ini.'}
-    </div>`;
+      ${STATE.defects.length===0 ? '✅ Spreadsheet kosong atau data belum termuat.' : 'Tidak ada defect dengan filter ini.'}</div>`;
     return;
   }
+  const colorMap = { OPEN:'var(--accent-red)', IN_PROGRESS:'var(--accent-amber)', RESOLVED:'var(--accent-blue)', CLOSED:'var(--accent-green)' };
   el.innerHTML = list.map(d => {
-    const slaH = CONFIG.SLA_HOURS[d.priority] || 8;
-    const elapsedH = (Date.now() - d.createdAt) / 3600000;
-    const isOverdue = (d.status === 'OPEN' || d.status === 'IN_PROGRESS') && elapsedH > slaH;
-    const slaText = isOverdue
-      ? `⚠️ SLA +${(elapsedH - slaH).toFixed(1)}h`
-      : `⏱ ${elapsedH.toFixed(1)}h / ${slaH}h`;
-    const statusColorMap = {
-      OPEN: 'var(--accent-red)', IN_PROGRESS: 'var(--accent-amber)',
-      RESOLVED: 'var(--accent-blue)', CLOSED: 'var(--accent-green)'
-    };
-    const descText = (d.desc || '').substring(0, 70);
+    const slaH = CONFIG.SLA_HOURS[d.priority]||8;
+    const elH = (Date.now()-d.createdAt)/3600000;
+    const overdue = (d.status==='OPEN'||d.status==='IN_PROGRESS') && elH>slaH;
+    const slaText = overdue ? `⚠️ SLA +${(elH-slaH).toFixed(1)}h` : `⏱ ${elH.toFixed(1)}h/${slaH}h`;
+    const hasPhoto = d.photoBefore ? '📷 ' : '';
     return `
-    <div class="defect-card stagger-child" style="--status-color:${statusColorMap[d.status]||'var(--accent-blue)'}" onclick="openDefect('${d.id}')">
+    <div class="defect-card stagger-child" style="--status-color:${colorMap[d.status]||'var(--accent-blue)'}" onclick="openDefect('${d.id}')">
       <div class="defect-header">
         <div>
-          <div class="defect-room">Kamar ${d.room}</div>
+          <div class="defect-room">${hasPhoto}Kamar ${d.room}</div>
           <div class="defect-id">${d.id}</div>
         </div>
         <div class="${getStatusClass(d.status)}">${getStatusLabel(d.status)}</div>
@@ -2084,46 +1933,48 @@ function renderDefectList() {
         <span class="defect-cat-tag">${(d.category||'').replace('_','/')}</span>
         <span class="defect-cat-tag" style="color:${d.priority==='HIGH'?'var(--accent-red)':d.priority==='MEDIUM'?'var(--accent-amber)':'var(--accent-green)'}">${d.priority}</span>
       </div>
-      <div class="text-sm text-muted mb-3">${descText}${d.desc && d.desc.length > 70 ? '...' : ''}</div>
+      <div class="text-sm text-muted mb-3">${(d.desc||'').substring(0,70)}${(d.desc||'').length>70?'...':''}</div>
       <div class="defect-meta">
         <span>${d.reporter}</span>
-        <span class="defect-sla ${isOverdue ? 'sla-overdue' : 'sla-timer'}">${slaText}</span>
+        <span class="defect-sla ${overdue?'sla-overdue':'sla-timer'}">${slaText}</span>
       </div>
     </div>`;
   }).join('');
 }
 
 function filterDefects(el) {
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   STATE.activeFilter = el.dataset.filter;
   renderDefectList();
 }
 
 function getStatusClass(s) {
-  return { OPEN:'status-badge status-open', IN_PROGRESS:'status-badge status-inprogress',
-           RESOLVED:'status-badge status-resolved', CLOSED:'status-badge status-closed' }[s] || 'status-badge';
+  return {OPEN:'status-badge status-open',IN_PROGRESS:'status-badge status-inprogress',
+          RESOLVED:'status-badge status-resolved',CLOSED:'status-badge status-closed'}[s]||'status-badge';
 }
 function getStatusLabel(s) {
-  return { OPEN:'🔴 Open', IN_PROGRESS:'🟡 In Progress', RESOLVED:'🔵 Resolved', CLOSED:'✅ Closed' }[s] || s;
+  return {OPEN:'🔴 Open',IN_PROGRESS:'🟡 In Progress',RESOLVED:'🔵 Resolved',CLOSED:'✅ Closed'}[s]||s;
 }
 
-// ═══════════════════════════════════════════════
-// DEFECT DETAIL MODAL
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// MODAL DETAIL
+// ════════════════════════════════════════════════════
 function openDefect(id) {
-  const d = STATE.defects.find(x => x.id === id);
+  const d = STATE.defects.find(x=>x.id===id);
   if (!d) return;
   STATE.currentDefect = d;
-  document.getElementById('modal-room').textContent = `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
-  document.getElementById('modal-meta').textContent = `${d.id} · ${d.priority} Priority · ${d.reporter}`;
+  STATE.photoAfterData = null; // reset foto after tiap buka modal baru
 
-  const tlEl = document.getElementById('modal-timeline');
-  tlEl.innerHTML = (d.logs||[]).map((l, i) => `
+  document.getElementById('modal-room').textContent = `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
+  document.getElementById('modal-meta').textContent = `${d.id} · ${d.priority} · ${d.reporter}`;
+
+  // Timeline
+  document.getElementById('modal-timeline').innerHTML = (d.logs||[]).map((l,i,arr) => `
     <div class="timeline-item">
       <div class="timeline-dot-wrap">
         <div class="timeline-dot"></div>
-        ${i < d.logs.length - 1 ? '<div class="timeline-line"></div>' : ''}
+        ${i<arr.length-1?'<div class="timeline-line"></div>':''}
       </div>
       <div class="timeline-body">
         <div class="timeline-action">${l.action}</div>
@@ -2131,23 +1982,50 @@ function openDefect(id) {
       </div>
     </div>`).join('');
 
+  // ── Foto Before (tampilkan dari URL/base64 yang tersimpan)
+  const beforeSlot = document.getElementById('photo-before');
+  if (d.photoBefore) {
+    // photoBefore bisa berupa URL Drive atau base64
+    beforeSlot.innerHTML = `<img src="${d.photoBefore}" style="width:100%;height:100%;object-fit:cover;border-radius:4px" onerror="this.parentNode.innerHTML='<div style=\\'font-size:20px;opacity:.4\\'>📷</div><div class=\\"photo-slot-label\\">BEFORE</div>'">`;
+  } else {
+    beforeSlot.innerHTML = `<div style="font-size:20px;opacity:0.4">📷</div><div class="photo-slot-label">BEFORE</div>`;
+  }
+
+  // ── Foto After — reset slot, tampilkan upload button
+  const afterSlot = document.getElementById('photo-after');
+  if (d.photoAfter) {
+    afterSlot.innerHTML = `<img src="${d.photoAfter}" style="width:100%;height:100%;object-fit:cover;border-radius:4px" onerror="this.parentNode.innerHTML='<div style=\\'font-size:20px;opacity:.4\\'>📷</div><div class=\\"photo-slot-label\\">AFTER</div>'">`;
+    afterSlot.onclick = null;
+  } else {
+    afterSlot.innerHTML = `
+      <input type="file" id="f-photo-after-modal" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this,'after')">
+      <div id="photo-after-icon">
+        <div style="font-size:20px;opacity:0.4">📷</div>
+        <div style="font-size:10px;color:var(--accent-blue);margin-top:4px">Upload foto After</div>
+      </div>
+      <div class="photo-slot-label">AFTER</div>`;
+    afterSlot.onclick = () => document.getElementById('f-photo-after-modal')?.click();
+  }
+  document.getElementById('photo-after-info').style.display = 'none';
+
+  // ── Rekomendasi manual
+  showRecommendationInModal(d.category);
+
+  // ── Action buttons
   renderModalActions(d);
-  document.getElementById('modal-ai-result').innerHTML = `
-    <div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div>Gemini menganalisis...</div>`;
   document.getElementById('detail-modal').classList.add('open');
-  setTimeout(() => aiAnalyzeDefect(d), 400);
 }
 
 function renderModalActions(d) {
   const el = document.getElementById('modal-actions');
   let html = `<button class="btn btn-secondary w-full" onclick="closeModal()">Tutup</button>`;
-  if (STATE.role === 'ENG') {
-    if (d.status === 'OPEN')
+  if (STATE.role==='ENG') {
+    if (d.status==='OPEN')
       html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
-    else if (d.status === 'IN_PROGRESS')
-      html = `<button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')">✅ Mark Resolved</button>` + html;
+    else if (d.status==='IN_PROGRESS')
+      html = `<button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')">✅ Selesai & Upload Foto After</button>` + html;
   }
-  if ((STATE.role === 'SPV' || STATE.role === 'GM') && d.status === 'RESOLVED') {
+  if ((STATE.role==='SPV'||STATE.role==='GM') && d.status==='RESOLVED') {
     html = `
       <button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
       <button class="btn btn-danger" onclick="updateStatus('OPEN')" style="flex:1">↩️ Re-open</button>`;
@@ -2157,159 +2035,178 @@ function renderModalActions(d) {
 
 function closeModal() {
   document.getElementById('detail-modal').classList.remove('open');
+  STATE.photoAfterData = null;
 }
 
 async function updateStatus(newStatus) {
   const d = STATE.currentDefect;
   if (!d) return;
 
+  // Jika RESOLVED, cek apakah foto After sudah diupload
+  if (newStatus === 'RESOLVED' && !STATE.photoAfterData) {
+    showToast('warn', 'Foto After diperlukan', 'Upload foto hasil perbaikan sebelum mark Resolved');
+    document.getElementById('f-photo-after-modal')?.click();
+    return;
+  }
+
   const actionMap = {
-    IN_PROGRESS: `Mulai dikerjakan oleh ${STATE.user} (${STATE.role})`,
-    RESOLVED:    `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})`,
-    CLOSED:      `Diverifikasi & ditutup oleh ${STATE.user} (${STATE.role})`,
-    OPEN:        `Di-reopen oleh ${STATE.user} (${STATE.role})`,
+    IN_PROGRESS:`Mulai dikerjakan oleh ${STATE.user} (${STATE.role})`,
+    RESOLVED:   `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})`,
+    CLOSED:     `Diverifikasi & ditutup oleh ${STATE.user} (${STATE.role})`,
+    OPEN:       `Di-reopen oleh ${STATE.user} (${STATE.role})`,
   };
 
-  // Update lokal dulu (optimistic UI)
+  // Optimistic update lokal
   d.status = newStatus;
   d.logs.push({ action: actionMap[newStatus], time: Date.now() });
-  if (newStatus === 'IN_PROGRESS') { d.startedAt = Date.now(); d.engineer = `${STATE.user} (${STATE.role})`; }
-  if (newStatus === 'RESOLVED') d.resolvedAt = Date.now();
-  if (newStatus === 'CLOSED') d.closedAt = Date.now();
+  if (newStatus==='IN_PROGRESS') { d.startedAt=Date.now(); d.engineer=`${STATE.user} (${STATE.role})`; }
+  if (newStatus==='RESOLVED')    { d.resolvedAt=Date.now(); }
+  if (newStatus==='CLOSED')      { d.closedAt=Date.now(); }
 
   closeModal();
   renderDefectList();
   renderDashboard();
-  showToast('info', 'Menyimpan...', `${d.id} → ${newStatus}`);
+  showToast('info', '⏳ Menyimpan ke Spreadsheet...', d.id);
 
-  // ✅ LIVE: simpan ke spreadsheet
   try {
+    // Simpan foto After ke Sheet_Photos (terpisah dari Sheet_Defects)
+    let photoAfterRef = null;
+    if (newStatus==='RESOLVED' && STATE.photoAfterData) {
+      const photoResult = await gasSavePhoto({
+        defectId: d.id,
+        slot: 'after',
+        base64: STATE.photoAfterData.compressed,
+        mimeType: STATE.photoAfterData.mimeType,
+        sizeKB: STATE.photoAfterData.sizeKB,
+        uploadedBy: `${STATE.user} (${STATE.role})`,
+      });
+      photoAfterRef = photoResult?.driveUrl || photoResult?.dataRef || null;
+      if (photoAfterRef) { d.photoAfter = photoAfterRef; }
+    }
+
+    // Update defect di Sheet_Defects
     await gasUpdateDef({
-      id: d.id,
-      status: newStatus,
+      id: d.id, status: newStatus,
       engineer: d.engineer,
       updatedBy: `${STATE.user} (${STATE.role})`,
-      resolvedAt: d.resolvedAt,
-      closedAt: d.closedAt,
+      photoAfter: photoAfterRef,
     });
-    showToast('success', 'Tersimpan ke Spreadsheet ✅', `${d.id} → ${newStatus}`);
+
+    STATE.photoAfterData = null;
+    showToast('success', '✅ Tersimpan!', `${d.id} → ${newStatus}`);
   } catch (err) {
     showToast('error', 'Gagal simpan ke GAS', err.message);
   }
 }
 
-// ═══════════════════════════════════════════════
-// REPORT FORM
-// ═══════════════════════════════════════════════
-function triggerUpload() { document.getElementById('f-photo').click(); }
-
-function previewPhoto(input) {
-  if (!input.files || !input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('photo-preview');
-    img.src = e.target.result;
-    img.classList.add('visible');
-    document.getElementById('upload-placeholder').style.display = 'none';
-    document.getElementById('upload-area').classList.add('has-photo');
-    document.getElementById('ai-photo-box').classList.remove('hidden');
-    aiAnalyzePhoto(e.target.result);
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-let aiDebounce = null;
-document.addEventListener('DOMContentLoaded', () => {
-  const descInput = document.getElementById('f-desc');
-  if (descInput) {
-    descInput.addEventListener('input', () => {
-      clearTimeout(aiDebounce);
-      aiDebounce = setTimeout(() => {
-        const txt = descInput.value.trim();
-        if (txt.length > 10) aiCategorize(txt);
-      }, 800);
-    });
-  }
-});
-
+// ════════════════════════════════════════════════════
+// SUBMIT DEFECT (with compressed photo)
+// ════════════════════════════════════════════════════
 async function submitDefect() {
   const room = document.getElementById('f-room').value.trim();
   const desc = document.getElementById('f-desc').value.trim();
   const cat  = document.getElementById('f-category').value;
   const prio = document.getElementById('f-priority').value;
-  if (!room || !desc || !cat) {
+  const notes = document.getElementById('f-notes')?.value.trim() || '';
+
+  if (!room||!desc||!cat) {
     showToast('error', 'Form belum lengkap', 'Isi nomor kamar, deskripsi, dan kategori');
     return;
   }
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
-  btn.textContent = '⏳ Menyimpan ke Spreadsheet...';
-
-  const payload = {
-    room, desc, description: desc,
-    category: cat, priority: prio,
-    reporter: `${STATE.user} (${STATE.role})`,
-  };
+  btn.textContent = '⏳ Menyimpan...';
 
   try {
-    // ✅ LIVE: simpan ke spreadsheet dulu, dapat ID real dari GAS
-    const result = await gasAddDefect(payload);
+    // ── 1. Simpan foto Before ke Sheet_Photos (jika ada)
+    let photoBeforeRef = null;
+    if (STATE.photoBeforeData) {
+      showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
+      const photoResult = await gasSavePhoto({
+        defectId: 'PENDING', // akan di-update setelah dapat ID
+        slot: 'before',
+        base64: STATE.photoBeforeData.compressed,
+        mimeType: STATE.photoBeforeData.mimeType,
+        sizeKB: STATE.photoBeforeData.sizeKB,
+        uploadedBy: `${STATE.user} (${STATE.role})`,
+        room, category: cat,
+      });
+      photoBeforeRef = photoResult?.driveUrl || photoResult?.dataRef || null;
+    }
 
-    const realId = result?.id || `DEF-${String(STATE.defects.length + 1).padStart(4, '0')}`;
+    // ── 2. Simpan defect ke Sheet_Defects
+    const result = await gasAddDefect({
+      room, desc, description: desc, category: cat,
+      priority: prio, notes,
+      reporter: `${STATE.user} (${STATE.role})`,
+      photoBefore: photoBeforeRef,
+    });
+
+    const realId = result?.id || `DEF-${String(STATE.defects.length+1).padStart(4,'0')}`;
+
+    // Tambah ke local state
     const newDefect = normalizeDefect({
       ID: realId, RoomNumber: room, Description: desc,
       Category: cat, Priority: prio, Status: 'OPEN',
       Reporter: `${STATE.user} (${STATE.role})`,
+      Notes: notes, PhotoBefore: photoBeforeRef,
       CreatedAt: new Date().toISOString(),
     });
-
     STATE.defects.unshift(newDefect);
-    showToast('success', '✅ Tersimpan ke Spreadsheet!', `${realId} — Engineering dinotifikasi via WA`);
+
+    // Reset form
+    resetReportForm();
+    renderDefectList(); renderDashboard();
+    showPage('defects');
+    showToast('success', `✅ ${realId} tersimpan!`, `Foto: ${photoBeforeRef ? 'tersimpan di Google Drive' : 'tidak ada'}`);
 
   } catch (err) {
-    showToast('error', 'Gagal simpan ke GAS', err.message || 'Cek GAS URL dan koneksi');
+    showToast('error', 'Gagal simpan', err.message);
+  } finally {
     btn.disabled = false;
     btn.textContent = '🚀 Kirim Laporan';
-    return;
   }
-
-  // Reset form
-  btn.disabled = false;
-  btn.textContent = '🚀 Kirim Laporan';
-  document.getElementById('f-room').value = '';
-  document.getElementById('f-desc').value = '';
-  document.getElementById('f-category').value = '';
-  document.getElementById('f-photo').value = '';
-  document.getElementById('photo-preview').classList.remove('visible');
-  document.getElementById('upload-placeholder').style.display = 'block';
-  document.getElementById('ai-photo-box').classList.add('hidden');
-  document.getElementById('ai-cat-result').textContent = 'Ketik deskripsi untuk analisis otomatis...';
-
-  renderDefectList();
-  renderDashboard();
-  showPage('defects');
 }
 
-// ═══════════════════════════════════════════════
-// ANALYTICS (live dari STATE.defects)
-// ═══════════════════════════════════════════════
+function resetReportForm() {
+  ['f-room','f-desc','f-notes','f-category','f-priority'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { if (id==='f-priority') el.value='MEDIUM'; else el.value=''; }
+  });
+  const preview = document.getElementById('photo-preview-before');
+  if (preview) { preview.classList.remove('visible'); preview.src=''; }
+  const placeholder = document.getElementById('upload-placeholder-before');
+  if (placeholder) placeholder.style.display='block';
+  const area = document.getElementById('upload-area-before');
+  if (area) { area.classList.remove('has-photo'); area.style.opacity='1'; }
+  const infoEl = document.getElementById('photo-info-before');
+  if (infoEl) infoEl.style.display='none';
+  const recBox = document.getElementById('rec-box');
+  if (recBox) recBox.style.display='none';
+  const aiCat = document.getElementById('ai-cat-result');
+  if (aiCat) aiCat.textContent='Ketik deskripsi untuk saran kategori otomatis...';
+  STATE.photoBeforeData = null;
+}
+
+// ════════════════════════════════════════════════════
+// ANALYTICS
+// ════════════════════════════════════════════════════
 function renderAnalytics() {
-  const counts = { OPEN: 0, IN_PROGRESS: 0, RESOLVED: 0, CLOSED: 0 };
-  STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
+  const counts = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 };
+  STATE.defects.forEach(d => { if (counts[d.status]!==undefined) counts[d.status]++; });
   const total = STATE.defects.length;
   document.getElementById('leg-open').textContent = counts.OPEN;
   document.getElementById('leg-prog').textContent = counts.IN_PROGRESS;
-  document.getElementById('leg-res').textContent = counts.RESOLVED;
-  document.getElementById('leg-cls').textContent = counts.CLOSED;
+  document.getElementById('leg-res').textContent  = counts.RESOLVED;
+  document.getElementById('leg-cls').textContent  = counts.CLOSED;
   document.getElementById('donut-total').textContent = total;
 
-  // Category chart
   const cats = {};
-  STATE.defects.forEach(d => { cats[d.category] = (cats[d.category] || 0) + 1; });
+  STATE.defects.forEach(d => { cats[d.category]=(cats[d.category]||0)+1; });
   const maxC = Object.values(cats).length ? Math.max(...Object.values(cats)) : 1;
   document.getElementById('cat-chart').innerHTML = Object.entries(cats).length
-    ? Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+    ? Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
         <div class="bar-row">
           <div class="bar-label">${k.replace('_','/')}</div>
           <div class="bar-track"><div class="bar-fill" style="width:${(v/maxC)*100}%"></div></div>
@@ -2317,13 +2214,12 @@ function renderAnalytics() {
         </div>`).join('')
     : '<div class="text-muted text-sm">Belum ada data.</div>';
 
-  // Engineer leaderboard
   const eng = {};
-  STATE.defects.forEach(d => { if (d.engineer) eng[d.engineer] = (eng[d.engineer] || 0) + 1; });
+  STATE.defects.forEach(d => { if (d.engineer) eng[d.engineer]=(eng[d.engineer]||0)+1; });
   const sorted = Object.entries(eng).sort((a,b)=>b[1]-a[1]);
   const rankClass = ['gold','silver','bronze'];
   document.getElementById('eng-leaderboard').innerHTML = sorted.length
-    ? sorted.map(([name, count], i) => `
+    ? sorted.map(([name,count],i)=>`
         <div class="lb-item">
           <div class="lb-rank ${rankClass[i]||''}">#${i+1}</div>
           <div class="lb-name">${name}</div>
@@ -2331,15 +2227,13 @@ function renderAnalytics() {
         </div>`).join('')
     : '<div class="text-muted text-sm">Belum ada data engineering.</div>';
 
-  // SLA Escalation log
   const overdue = STATE.defects.filter(d => {
-    if (d.status === 'CLOSED' || d.status === 'RESOLVED') return false;
-    return (Date.now() - d.createdAt) / 3600000 > (CONFIG.SLA_HOURS[d.priority] || 8);
+    if (d.status==='CLOSED'||d.status==='RESOLVED') return false;
+    return (Date.now()-d.createdAt)/3600000 > (CONFIG.SLA_HOURS[d.priority]||8);
   });
   document.getElementById('escalation-log').innerHTML = overdue.length
     ? overdue.map(d => {
-        const slaH = CONFIG.SLA_HOURS[d.priority] || 8;
-        const late = ((Date.now() - d.createdAt) / 3600000 - slaH).toFixed(1);
+        const late = ((Date.now()-d.createdAt)/3600000-(CONFIG.SLA_HOURS[d.priority]||8)).toFixed(1);
         return `<div class="flex items-center gap-2 mb-2">
           <span style="color:var(--accent-red)">🚨</span>
           <span>${d.id} — Kamar ${d.room} — ${d.category} — Terlambat <strong>${late}h</strong></span>
@@ -2348,20 +2242,17 @@ function renderAnalytics() {
     : '<div class="text-muted text-sm">✅ Tidak ada eskalasi aktif.</div>';
 }
 
-// ═══════════════════════════════════════════════
-// QR CODE
-// ═══════════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// QR
+// ════════════════════════════════════════════════════
 function generateQRGrid() {
   const floor = document.getElementById('qr-floor-input').value || '1';
-  const rooms = Array.from({ length: 10 }, (_, i) => `${floor}${String(i + 1).padStart(2, '0')}`);
-  const grid = document.getElementById('qr-grid');
-  grid.innerHTML = rooms.map(r => {
+  const rooms = Array.from({length:10},(_,i)=>`${floor}${String(i+1).padStart(2,'0')}`);
+  document.getElementById('qr-grid').innerHTML = rooms.map(r => {
     const url = encodeURIComponent(`${CONFIG.APP_URL}?room=${r}`);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${url}`;
-    return `
-    <div class="qr-room-card" onclick="preSelectRoom('${r}')">
+    return `<div class="qr-room-card" onclick="preSelectRoom('${r}')">
       <div class="qr-room-number">${r}</div>
-      <img src="${qrUrl}" width="80" height="80" style="border-radius:6px;margin:0 auto 6px;display:block" alt="QR ${r}">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${url}" width="80" height="80" style="border-radius:6px;margin:0 auto 6px;display:block">
       <div class="text-xs text-muted">Scan to report</div>
     </div>`;
   }).join('');
@@ -2371,102 +2262,72 @@ function preSelectRoom(room) {
   STATE.scannedRoom = room;
   showPage('report');
   document.getElementById('f-room').value = room;
-  showToast('info', 'Kamar dipilih', `Kamar ${room} — Isi form laporan`);
+  showToast('info', 'Kamar dipilih', `Kamar ${room}`);
 }
 
 async function startQRScan() {
   const video = document.getElementById('qr-video');
   try {
-    STATE.qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    STATE.qrStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     video.srcObject = STATE.qrStream;
     showToast('info', 'Kamera aktif', 'Arahkan ke QR code kamar');
     if ('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      const detector = new BarcodeDetector({formats:['qr_code']});
       const scan = async () => {
         try {
           const codes = await detector.detect(video);
-          if (codes.length > 0) {
-            const raw = codes[0].rawValue;
-            const m = raw.match(/room=([^&]+)/);
+          if (codes.length) {
+            const m = codes[0].rawValue.match(/room=([^&]+)/);
             if (m) {
               const room = decodeURIComponent(m[1]);
               document.getElementById('qr-room-found').textContent = `Kamar ${room} terdeteksi`;
               document.getElementById('qr-result').classList.remove('hidden');
-              STATE.scannedRoom = room;
-              stopQRScan();
-              return;
+              STATE.scannedRoom = room; stopQRScan(); return;
             }
           }
         } catch {}
         if (STATE.qrStream) requestAnimationFrame(scan);
       };
       video.onloadedmetadata = () => requestAnimationFrame(scan);
-    } else {
-      showToast('warn', 'BarcodeDetector tidak tersedia', 'Gunakan Chrome/Edge terbaru');
     }
-  } catch (e) {
-    showToast('error', 'Kamera gagal', 'Izin kamera diperlukan');
-  }
+  } catch { showToast('error','Kamera gagal','Izin kamera diperlukan'); }
 }
 
 function stopQRScan() {
-  if (STATE.qrStream) {
-    STATE.qrStream.getTracks().forEach(t => t.stop());
-    STATE.qrStream = null;
-  }
+  if (STATE.qrStream) { STATE.qrStream.getTracks().forEach(t=>t.stop()); STATE.qrStream=null; }
 }
+function reportFromQR() { if (STATE.scannedRoom) preSelectRoom(STATE.scannedRoom); }
 
-function reportFromQR() {
-  if (STATE.scannedRoom) preSelectRoom(STATE.scannedRoom);
-}
+// ════════════════════════════════════════════════════
+// AI — Auto-kategorisasi teks saja (bukan analisis foto)
+// ════════════════════════════════════════════════════
+let aiDebounce = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const descInput = document.getElementById('f-desc');
+  if (descInput) descInput.addEventListener('input', () => {
+    clearTimeout(aiDebounce);
+    aiDebounce = setTimeout(() => {
+      const txt = descInput.value.trim();
+      if (txt.length > 10) aiCategorize(txt);
+    }, 800);
+  });
 
-// ═══════════════════════════════════════════════
-// AI — via GAS/Gemini (server-side)
-// ═══════════════════════════════════════════════
+  // Listener kategori berubah → update rekomendasi
+  const catInput = document.getElementById('f-category');
+  if (catInput) catInput.addEventListener('change', showRecommendationInForm);
+});
+
 async function aiCategorize(text) {
   const el = document.getElementById('ai-cat-result');
-  el.innerHTML = `<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div>Gemini menganalisis...</div>`;
+  el.innerHTML = `<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div>Menganalisis...</div>`;
   try {
     const data = await gasAiCat(text);
     if (data?.error) { el.innerHTML = `<span style="color:var(--accent-amber)">⚠️ ${data.error}</span>`; return; }
-    el.innerHTML = `<strong>${data.category}</strong> · Prioritas: <strong>${data.priority}</strong> · Est: <strong>${data.estimatedHours}h</strong><br>${data.reason}`;
-    if (data.category) document.getElementById('f-category').value = data.category;
+    el.innerHTML = `Saran: <strong>${data.category}</strong> · <strong>${data.priority}</strong> · Est: <strong>${data.estimatedHours}h</strong><br><span class="text-xs">${data.reason}</span>`;
+    if (data.category) { document.getElementById('f-category').value = data.category; showRecommendationInForm(); }
     if (data.priority) document.getElementById('f-priority').value = data.priority;
   } catch {
-    el.innerHTML = `<span class="text-muted">AI tidak tersedia — isi kategori manual.</span>`;
-  }
-}
-
-async function aiAnalyzePhoto(base64) {
-  const el = document.getElementById('ai-photo-result');
-  el.innerHTML = `<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div>Gemini Vision menganalisis foto...</div>`;
-  try {
-    const mimeType = base64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-    const data = await gasAiPhoto(base64, mimeType);
-    if (data?.error) { el.innerHTML = `<span style="color:var(--accent-amber)">⚠️ ${data.error}</span>`; return; }
-    el.innerHTML = `<strong>${data.category}</strong> — Severity: <strong>${data.severity}</strong><br>${data.description}
-      ${data.partsNeeded?.length ? `<br>🔩 Part: <em>${data.partsNeeded.join(', ')}</em>` : ''}
-      <br>💡 <em>${data.recommendation}</em>`;
-    if (data.category) document.getElementById('f-category').value = data.category;
-    if (data.severity) document.getElementById('f-priority').value = data.severity;
-  } catch {
-    el.innerHTML = `<span class="text-muted">Analisis foto tidak tersedia.</span>`;
-  }
-}
-
-async function aiAnalyzeDefect(defect) {
-  const el = document.getElementById('modal-ai-result');
-  try {
-    const data = await gasAiDefect(defect);
-    if (data?.error) { el.innerHTML = `<span style="color:var(--accent-amber)">⚠️ ${data.error}</span>`; return; }
-    el.innerHTML = `
-      <strong>Root Cause:</strong> ${data.rootCause}<br>
-      <strong>Rekomendasi:</strong> ${data.recommendation}<br>
-      ${data.partsNeeded?.length ? `<strong>Part:</strong> ${data.partsNeeded.join(', ')}<br>` : ''}
-      <strong>Estimasi:</strong> ${data.estimatedHours} jam · Recurrence: <strong>${data.recurrenceRisk}</strong>
-      ${data.preventiveAction ? `<br>💡 <em>${data.preventiveAction}</em>` : ''}`;
-  } catch {
-    el.innerHTML = `Kategori: <strong>${defect.category}</strong> · Prioritas: <strong>${defect.priority}</strong><br><span class="text-muted">Gemini tidak tersedia.</span>`;
+    el.innerHTML = `<span class="text-muted">Gemini tidak tersedia — pilih kategori manual.</span>`;
   }
 }
 
@@ -2474,13 +2335,13 @@ async function loadAiPredictive() {
   const el = document.getElementById('predict-list');
   if (!el) return;
   el.innerHTML = `<div class="ai-loading" style="padding:16px;justify-content:center">
-    <div class="ai-dots"><span></span><span></span><span></span></div> Gemini menganalisis pola kerusakan...
+    <div class="ai-dots"><span></span><span></span><span></span></div> Memuat prediksi...
   </div>`;
   try {
     const data = await gasAiPredict();
-    if (!data?.predictions?.length || data.error) { renderPredictiveFallback(); return; }
-    const scoreHtml = data.overallHealthScore !== undefined ? `
-      <div class="predict-card" style="margin-bottom:12px;border-color:${data.overallHealthScore>=70?'var(--accent-green)':data.overallHealthScore>=50?'var(--accent-amber)':'var(--accent-red)'}">
+    if (!data?.predictions?.length||data.error) { renderPredictiveFallback(); return; }
+    const scoreHtml = data.overallHealthScore!==undefined ? `
+      <div class="predict-card" style="margin-bottom:12px">
         <div class="predict-header">
           <div class="predict-title">🏥 Hotel Health Score</div>
           <div class="risk-level" style="color:${data.overallHealthScore>=70?'var(--accent-green)':data.overallHealthScore>=50?'var(--accent-amber)':'var(--accent-red)'}">
@@ -2490,103 +2351,73 @@ async function loadAiPredictive() {
         <div class="predict-bar"><div class="predict-fill" style="width:${data.overallHealthScore}%"></div></div>
         <div class="predict-meta">${data.summary||''}</div>
       </div>` : '';
-
-    el.innerHTML = scoreHtml + data.predictions.map(p => `
+    el.innerHTML = scoreHtml + data.predictions.map(p=>`
       <div class="predict-card">
         <div class="predict-header">
           <div class="predict-title">${p.item} — ${p.location}</div>
           <div class="risk-level risk-${(p.risk||'').toLowerCase()}">${p.risk}</div>
         </div>
         <div class="predict-bar"><div class="predict-fill" style="width:${p.riskScore}%"></div></div>
-        <div class="predict-meta">
-          Risk Score: <strong>${p.riskScore}%</strong> · ${p.count}x · Prediksi gagal: <strong>${p.nextFailEstimate}</strong>
-          ${p.budgetEstimate ? `<br>💰 Budget preventif: ${p.budgetEstimate}` : ''}
-          ${p.preventiveAction ? `<br>💡 ${p.preventiveAction}` : ''}
+        <div class="predict-meta">Risk Score: <strong>${p.riskScore}%</strong> · ${p.count}x · Prediksi: <strong>${p.nextFailEstimate}</strong>
+          ${p.budgetEstimate?`<br>💰 ${p.budgetEstimate}`:''}${p.preventiveAction?`<br>💡 ${p.preventiveAction}`:''}
         </div>
       </div>`).join('');
-  } catch {
-    renderPredictiveFallback();
-  }
+  } catch { renderPredictiveFallback(); }
 }
 
 function renderPredictiveFallback() {
   const el = document.getElementById('predict-list');
   if (!el) return;
-  if (STATE.defects.length === 0) {
-    el.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Belum ada data defect untuk prediksi.</div>';
-    return;
-  }
-  el.innerHTML = `<div class="ai-box" style="margin-bottom:12px">
-    <div class="ai-box-header"><div class="ai-badge">INFO</div><div class="ai-box-title">Prediksi dari data lokal</div></div>
-    <div class="ai-result text-sm">Gemini AI belum terhubung. Menampilkan analisis sederhana dari data spreadsheet.</div>
-  </div>` + buildLocalPrediction();
-}
-
-function buildLocalPrediction() {
+  if (!STATE.defects.length) { el.innerHTML='<div class="text-muted text-sm" style="padding:8px">Belum ada data.</div>'; return; }
   const catCount = {};
-  STATE.defects.forEach(d => { catCount[d.category] = (catCount[d.category] || 0) + 1; });
-  return Object.entries(catCount).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([cat, count]) => {
-    const score = Math.min(95, count * 15);
-    const risk = score >= 60 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';
+  STATE.defects.forEach(d=>{ catCount[d.category]=(catCount[d.category]||0)+1; });
+  el.innerHTML = Object.entries(catCount).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([cat,count])=>{
+    const score = Math.min(95,count*15);
+    const risk = score>=60?'HIGH':score>=35?'MEDIUM':'LOW';
     return `<div class="predict-card">
-      <div class="predict-header">
-        <div class="predict-title">${cat.replace('_','/')} — Paling Sering</div>
-        <div class="risk-level risk-${risk.toLowerCase()}">${risk}</div>
-      </div>
+      <div class="predict-header"><div class="predict-title">${cat.replace('_','/')} — Paling Sering</div>
+        <div class="risk-level risk-${risk.toLowerCase()}">${risk}</div></div>
       <div class="predict-bar"><div class="predict-fill" style="width:${score}%"></div></div>
       <div class="predict-meta">${count}x kejadian · Score: ${score}%</div>
     </div>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════
-// REFRESH
-// ═══════════════════════════════════════════════
-async function refreshData() {
-  await fetchAndRender(true);
-  if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
-}
+// ════════════════════════════════════════════════════
+// REFRESH & WA & TOAST & UTILS
+// ════════════════════════════════════════════════════
+async function refreshData() { await fetchAndRender(true); }
 
-// ═══════════════════════════════════════════════
-// WA NOTIFICATION (opsional, jika token diisi)
-// ═══════════════════════════════════════════════
 async function sendWANotification(msg) {
-  if (!CONFIG.WA_TOKEN || CONFIG.WA_TOKEN === 'YOUR_FONNTE_TOKEN') return;
+  if (!CONFIG.WA_TOKEN||CONFIG.WA_TOKEN==='YOUR_FONNTE_TOKEN') return;
   try {
-    await fetch(CONFIG.WA_API_URL, {
-      method: 'POST',
-      headers: { 'Authorization': CONFIG.WA_TOKEN },
-      body: JSON.stringify({ target: 'ENGINEERING_WA_NUMBER', message: msg })
+    await fetch(CONFIG.WA_API_URL,{
+      method:'POST', headers:{Authorization:CONFIG.WA_TOKEN},
+      body:JSON.stringify({target:'ENGINEERING_WA_NUMBER',message:msg})
     });
   } catch {}
 }
 
-// ═══════════════════════════════════════════════
-// TOAST
-// ═══════════════════════════════════════════════
 function showToast(type, title, msg) {
-  const icons  = { success:'✅', error:'🚨', info:'ℹ️', warn:'⚠️' };
-  const colors = { success:'var(--accent-green)', error:'var(--accent-red)', info:'var(--accent-blue)', warn:'var(--accent-amber)' };
+  const icons  = {success:'✅',error:'🚨',info:'ℹ️',warn:'⚠️'};
+  const colors = {success:'var(--accent-green)',error:'var(--accent-red)',info:'var(--accent-blue)',warn:'var(--accent-amber)'};
   const el = document.createElement('div');
   el.className = 'toast';
-  el.style.setProperty('--toast-color', colors[type] || colors.info);
+  el.style.setProperty('--toast-color', colors[type]||colors.info);
   el.innerHTML = `<div class="toast-icon">${icons[type]}</div><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div>`;
   document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => { el.classList.add('exit'); setTimeout(() => el.remove(), 300); }, 3500);
+  setTimeout(()=>{ el.classList.add('exit'); setTimeout(()=>el.remove(),300); }, 3500);
 }
 
-// ═══════════════════════════════════════════════
-// UTILS
-// ═══════════════════════════════════════════════
 function timeAgo(ts) {
-  const diff = (Date.now() - ts) / 1000;
-  if (diff < 60)    return 'Baru saja';
-  if (diff < 3600)  return `${Math.floor(diff/60)} menit lalu`;
-  if (diff < 86400) return `${Math.floor(diff/3600)} jam lalu`;
-  return `${Math.floor(diff/86400)} hari lalu`;
+  const d = (Date.now()-ts)/1000;
+  if (d<60) return 'Baru saja';
+  if (d<3600) return `${Math.floor(d/60)} menit lalu`;
+  if (d<86400) return `${Math.floor(d/3600)} jam lalu`;
+  return `${Math.floor(d/86400)} hari lalu`;
 }
 
-// Auto pre-fill room dari QR deep-link
+// URL param untuk QR deep-link
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('room')) STATE.scannedRoom = urlParams.get('room');
 </script>
