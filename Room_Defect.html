@@ -1617,17 +1617,17 @@ async function handlePhotoUpload(input, slot) {
 
     // Update preview — Before (form)
     if (slot === 'before') {
+      const uploadArea = document.getElementById('upload-area-before');
       const preview = document.getElementById('photo-preview-before');
       const placeholder = document.getElementById('upload-placeholder-before');
       const infoEl = document.getElementById('photo-info-before');
       if (preview) { preview.src = result.compressed; preview.classList.add('visible'); }
       if (placeholder) placeholder.style.display = 'none';
-      if (area) { area.classList.add('has-photo'); area.style.opacity = '1'; }
+      if (uploadArea) { uploadArea.classList.add('has-photo'); uploadArea.style.opacity = '1'; }
       if (infoEl) {
         infoEl.style.display = 'block';
         infoEl.innerHTML = `✅ ${result.width}×${result.height}px · ${result.sizeKB} KB (dari ${result.originalSizeKB} KB · hemat ${Math.round((1-result.sizeKB/result.originalSizeKB)*100)}%)`;
       }
-      // Tampilkan rekomendasi berdasarkan kategori yang sudah dipilih
       showRecommendationInForm();
 
     } else {
@@ -1762,6 +1762,57 @@ const gasSavePhoto  = (d)     => gasCall('savePhoto', d);   // ← simpan foto k
 const gasValidateUser = (d)   => gasCall('validateUser', d); // ← validasi login dari Sheet_Users
 
 // ════════════════════════════════════════════════════
+// SESSION PERSISTENCE (localStorage)
+// ════════════════════════════════════════════════════
+const SESSION_KEY = 'rdv_session_v1';
+
+function saveSession() {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      user: STATE.user,
+      role: STATE.role,
+      savedAt: Date.now(),
+    }));
+  } catch(e) { /* localStorage tidak tersedia (private mode) */ }
+}
+
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    // Session kadaluarsa setelah 12 jam
+    if (!s.user || !s.role || (Date.now() - s.savedAt) > 12 * 3600 * 1000) {
+      clearSession(); return false;
+    }
+    return s;
+  } catch(e) { return false; }
+}
+
+function applySession(s) {
+  STATE.user = s.user;
+  STATE.role = s.role;
+
+  // Sync UI auth → app shell
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-shell').classList.add('visible');
+  document.getElementById('topbar-role').textContent = STATE.role;
+  document.getElementById('dash-greeting').textContent = `Halo, ${STATE.user} 👋`;
+
+  // Sync role card visual
+  document.querySelectorAll('.role-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.role === STATE.role);
+  });
+  document.getElementById('login-name').value = STATE.user;
+
+  updateNavForRole(STATE.role);
+}
+
+// ════════════════════════════════════════════════════
 // AUTH
 // ════════════════════════════════════════════════════
 function selectRole(el) {
@@ -1802,6 +1853,8 @@ async function doLogin() {
 
     // ── Atur nav sesuai role ──
     updateNavForRole(STATE.role);
+    // ── Simpan session ke localStorage ──
+    saveSession();
 
     await fetchAndRender();
     showToast('success', 'Berhasil masuk', `Selamat datang, ${name}! (${STATE.role})`);
@@ -1814,6 +1867,7 @@ async function doLogin() {
 
 function doLogout() {
   stopQRScan();
+  clearSession();
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('auth-screen').style.display = 'flex';
   STATE.user = null; STATE.defects = [];
@@ -2023,6 +2077,66 @@ function getStatusLabel(s) {
 }
 
 // ════════════════════════════════════════════════════
+// PHOTO SLOT HELPERS
+// ════════════════════════════════════════════════════
+
+/**
+ * Normalise Drive URL agar selalu pakai format lh3 (tidak diblokir browser).
+ * Mendukung: lh3 (baru), uc?export=view (lama), thumbnail, base64 data URI, dan URL biasa.
+ */
+function driveImgUrl(src) {
+  if (!src) return '';
+  // Sudah pakai lh3 → langsung pakai
+  if (src.startsWith('https://lh3.googleusercontent.com/d/')) return src;
+  // Format lama uc?export=view → konversi ke lh3
+  const ucMatch = src.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
+  if (ucMatch) return `https://lh3.googleusercontent.com/d/${ucMatch[1]}=w600`;
+  // Format /file/d/{id}/view atau /uc?id={id} pendek
+  const pathMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})\//);
+  if (pathMatch) return `https://lh3.googleusercontent.com/d/${pathMatch[1]}=w600`;
+  // base64 / URL lain → pakai apa adanya
+  return src;
+}
+
+/**
+ * Render foto dengan label overlay absolut + onerror fallback tanpa escaped-quote hell.
+ * @param {string} src  - URL gambar (sudah di-normalise)
+ * @param {string} label - 'BEFORE' | 'AFTER'
+ */
+function photoSlotWithImage(src, label) {
+  // Buat img element via DOM agar onerror tidak perlu string-escape
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:relative;width:100%;height:100%';
+
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;display:block';
+  img.onerror = function() {
+    this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label + ' (gagal muat)');
+  };
+
+  const badge = document.createElement('div');
+  badge.className = 'photo-slot-label';
+  badge.style.cssText = 'position:absolute;bottom:6px;left:50%;transform:translateX(-50%);z-index:2;pointer-events:none';
+  badge.textContent = label;
+
+  wrapper.appendChild(img);
+  wrapper.appendChild(badge);
+
+  // Kembalikan outerHTML dari wrapper
+  const tmp = document.createElement('div');
+  tmp.appendChild(wrapper);
+  return tmp.innerHTML;
+}
+
+/**
+ * Render slot kosong (belum ada foto / error).
+ */
+function photoSlotEmpty(icon, label) {
+  return `<div style="font-size:20px;opacity:0.4">${icon}</div><div class="photo-slot-label">${label}</div>`;
+}
+
+// ════════════════════════════════════════════════════
 // MODAL DETAIL
 // ════════════════════════════════════════════════════
 function openDefect(id) {
@@ -2049,26 +2163,26 @@ function openDefect(id) {
 
   // ── Foto Before (tampilkan dari URL/base64 yang tersimpan)
   const beforeSlot = document.getElementById('photo-before');
-  if (d.photoBefore) {
-    // photoBefore bisa berupa URL Drive atau base64
-    beforeSlot.innerHTML = `<img src="${d.photoBefore}" style="width:100%;height:100%;object-fit:cover;border-radius:4px" onerror="this.parentNode.innerHTML='<div style=\\'font-size:20px;opacity:.4\\'>📷</div><div class=\\"photo-slot-label\\">BEFORE</div>'">`;
-  } else {
-    beforeSlot.innerHTML = `<div style="font-size:20px;opacity:0.4">📷</div><div class="photo-slot-label">BEFORE</div>`;
-  }
+  beforeSlot.innerHTML = d.photoBefore
+    ? photoSlotWithImage(driveImgUrl(d.photoBefore), 'BEFORE')
+    : photoSlotEmpty('📷', 'BEFORE');
 
-  // ── Foto After — reset slot, tampilkan upload button
+  // ── Foto After — upload jika belum ada, read-only jika sudah
   const afterSlot = document.getElementById('photo-after');
   if (d.photoAfter) {
-    afterSlot.innerHTML = `<img src="${d.photoAfter}" style="width:100%;height:100%;object-fit:cover;border-radius:4px" onerror="this.parentNode.innerHTML='<div style=\\'font-size:20px;opacity:.4\\'>📷</div><div class=\\"photo-slot-label\\">AFTER</div>'">`;
+    afterSlot.innerHTML = photoSlotWithImage(driveImgUrl(d.photoAfter), 'AFTER');
     afterSlot.onclick = null;
+    afterSlot.style.cursor = 'default';
   } else {
     afterSlot.innerHTML = `
-      <input type="file" id="f-photo-after-modal" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this,'after')">
-      <div id="photo-after-icon">
+      <input type="file" id="f-photo-after-modal" accept="image/*" capture="environment"
+             style="display:none" onchange="handlePhotoUpload(this,'after')">
+      <div id="photo-after-icon" style="display:flex;flex-direction:column;align-items:center;gap:4px">
         <div style="font-size:20px;opacity:0.4">📷</div>
-        <div style="font-size:10px;color:var(--accent-blue);margin-top:4px">Upload foto After</div>
+        <div style="font-size:10px;color:var(--accent-blue)">Upload foto After</div>
       </div>
       <div class="photo-slot-label">AFTER</div>`;
+    afterSlot.style.cursor = 'pointer';
     afterSlot.onclick = () => document.getElementById('f-photo-after-modal')?.click();
   }
   document.getElementById('photo-after-info').style.display = 'none';
@@ -2377,6 +2491,16 @@ function reportFromQR() { if (STATE.scannedRoom) preSelectRoom(STATE.scannedRoom
 // ════════════════════════════════════════════════════
 let aiDebounce = null;
 document.addEventListener('DOMContentLoaded', () => {
+
+  // ── Restore session dari localStorage (Fix 3) ──
+  const savedSession = restoreSession();
+  if (savedSession) {
+    applySession(savedSession);
+    fetchAndRender().then(() => {
+      showToast('info', `👋 Selamat datang kembali, ${savedSession.user}!`, `Role: ${savedSession.role} · Session dipulihkan`);
+    });
+  }
+
   const descInput = document.getElementById('f-desc');
   if (descInput) descInput.addEventListener('input', () => {
     clearTimeout(aiDebounce);
