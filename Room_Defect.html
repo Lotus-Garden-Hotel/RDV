@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0f1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Room Defects — Lotus Garden Hotel</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN SYSTEM — Industrial Precision Dark
+   ═══════════════════════════════════════════ */
+:root {
+  --bg-0: #060b18;
+  --bg-1: #0d1529;
+  --bg-2: #121d38;
+  --bg-3: #1a2744;
+  --border: rgba(255,255,255,0.07);
+  --border-active: rgba(99,179,237,0.4);
+
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-green: #10b981;
+  --accent-purple: #8b5cf6;
+
+  --text-0: #f0f4ff;
+  --text-1: #94a3b8;
+  --text-2: #4a5568;
+
+  --status-open: #ef4444;
+  --status-inprogress: #f59e0b;
+  --status-resolved: #3b82f6;
+  --status-closed: #10b981;
+
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 40px rgba(59,130,246,0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-0);
+  color: var(--text-0);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE TEXTURE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ══════════════════════════════
+   AUTH / LOGIN SCREEN
+   ══════════════════════════════ */
+#auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.12) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 20%, rgba(6,182,212,0.08) 0%, transparent 50%),
+              var(--bg-0);
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+  animation: fadeSlideUp 0.6s cubic-bezier(0.16,1,0.3,1);
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.auth-logo-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.auth-logo-text {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-0);
+  line-height: 1.3;
+}
+
+.auth-logo-sub {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  color: var(--text-1);
+  text-transform: uppercase;
+}
+
+.auth-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  line-height: 1.1;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: var(--text-1);
+  margin-bottom: 32px;
+  font-weight: 300;
+}
+
+.form-group { margin-bottom: 18px; }
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  margin-bottom: 8px;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-0);
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+.form-select option { background: var(--bg-1); }
+.form-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 20px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.btn-primary {
+  background: var(--accent-blue);
+  color: white;
+  width: 100%;
+}
+.btn-primary:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,0.4); }
+.btn-secondary { background: var(--bg-3); color: var(--text-0); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--border-active); }
+.btn-danger { background: var(--accent-red); color: white; }
+.btn-success { background: var(--accent-green); color: white; }
+.btn-amber { background: var(--accent-amber); color: #000; }
+.btn-sm { padding: 7px 14px; font-size: 11px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+.role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.role-card {
+  background: var(--bg-2);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.role-card:hover { border-color: rgba(59,130,246,0.4); }
+.role-card.active { border-color: var(--accent-blue); background: rgba(59,130,246,0.1); }
+.role-card-icon { font-size: 22px; margin-bottom: 6px; }
+.role-card-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-0);
+}
+.role-card-desc { font-size: 10px; color: var(--text-1); margin-top: 2px; }
+
+/* ══════════════════════════════
+   APP SHELL
+   ══════════════════════════════ */
+#app-shell { display: none; min-height: 100vh; flex-direction: column; }
+#app-shell.visible { display: flex; }
+
+/* TOPBAR */
+.topbar {
+  height: 60px;
+  background: rgba(13,21,41,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-brand {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  flex: 1;
+  white-space: nowrap;
+}
+.topbar-brand span { color: var(--accent-cyan); }
+
+.topbar-badge {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.topbar-actions { display: flex; gap: 8px; }
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+.icon-btn:hover { border-color: var(--border-active); color: var(--text-0); }
+
+/* BOTTOM NAV (mobile) */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(13,21,41,0.97);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  z-index: 100;
+  padding: 0 8px;
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  cursor: pointer;
+  color: var(--text-2);
+  transition: color 0.2s;
+  border-radius: var(--radius-sm);
+}
+.nav-item:hover { color: var(--text-1); }
+.nav-item.active { color: var(--accent-blue); }
+.nav-item svg { width: 20px; height: 20px; }
+.nav-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* MAIN CONTENT */
+.main-content {
+  flex: 1;
+  padding: 20px 16px 84px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* PAGES */
+.page { display: none; animation: fadeSlideUp 0.3s ease; }
+.page.active { display: block; }
+
+/* ══════════════════════════════
+   DASHBOARD METRICS
+   ══════════════════════════════ */
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+.section-sub { font-size: 12px; color: var(--text-1); }
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.metric-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--metric-color, var(--accent-blue));
+}
+
+.metric-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+  color: var(--metric-color, var(--text-0));
+}
+.metric-label { font-size: 11px; color: var(--text-1); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+.metric-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 28px;
+  opacity: 0.15;
+}
+
+/* SLA ALERT BANNER */
+.sla-alert {
+  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  animation: pulse-border 2s infinite;
+}
+.sla-alert-icon { font-size: 20px; flex-shrink: 0; }
+.sla-alert-text { font-size: 13px; flex: 1; }
+.sla-alert-text strong { color: var(--accent-red); font-weight: 700; }
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(239,68,68,0.3); }
+  50% { border-color: rgba(239,68,68,0.7); }
+}
+
+/* ══════════════════════════════
+   AI ANALYSIS BOX
+   ══════════════════════════════ */
+.ai-box {
+  background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.08));
+  border: 1px solid rgba(139,92,246,0.25);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin: 16px 0;
+}
+.ai-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ai-badge {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 100px;
+}
+.ai-box-title { font-size: 13px; font-weight: 600; color: var(--text-0); }
+.ai-result { font-size: 13px; color: var(--text-1); line-height: 1.6; }
+.ai-result strong { color: var(--text-0); }
+.ai-loading { display: flex; align-items: center; gap: 8px; color: var(--text-1); font-size: 13px; }
+.ai-dots span {
+  display: inline-block;
+  width: 5px; height: 5px;
+  background: var(--accent-purple);
+  border-radius: 50%;
+  animation: dot-bounce 1.2s infinite;
+}
+.ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dot-bounce { 0%,80%,100%{transform:scale(0.8);opacity:0.5} 40%{transform:scale(1.2);opacity:1} }
+
+/* ══════════════════════════════
+   DEFECT LIST
+   ══════════════════════════════ */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+
+.filter-chip {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.filter-chip.active { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+
+.defect-list { display: flex; flex-direction: column; gap: 10px; }
+
+.defect-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.defect-card:hover { border-color: var(--border-active); transform: translateX(2px); }
+.defect-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--status-color, var(--accent-blue));
+}
+
+.defect-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.defect-room {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+}
+.defect-id { font-size: 10px; color: var(--text-2); letter-spacing: 0.1em; font-family: monospace; }
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.status-open { background: rgba(239,68,68,0.15); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.3); }
+.status-inprogress { background: rgba(245,158,11,0.15); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.3); }
+.status-resolved { background: rgba(59,130,246,0.15); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.3); }
+.status-closed { background: rgba(16,185,129,0.15); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.3); }
+
+.defect-category { font-size: 12px; color: var(--text-1); margin-bottom: 10px; }
+.defect-cat-tag {
+  display: inline-block;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-1);
+  margin-right: 4px;
+}
+
+.defect-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.defect-sla {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sla-timer { color: var(--accent-amber); font-weight: 600; font-family: monospace; }
+.sla-overdue { color: var(--accent-red); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* ══════════════════════════════
+   REPORT FORM
+   ══════════════════════════════ */
+.form-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  margin-bottom: 20px;
+}
+.form-card-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 32px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-2);
+}
+.photo-upload-area:hover { border-color: var(--accent-blue); }
+.photo-upload-area.has-photo { border-style: solid; border-color: var(--accent-green); }
+.photo-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: none;
+}
+.photo-preview.visible { display: block; }
+.upload-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.5; }
+.upload-text { font-size: 13px; color: var(--text-1); }
+
+/* QR SCANNER */
+.qr-scanner-area {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+#qr-video {
+  width: 100%;
+  max-width: 300px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--accent-blue);
+}
+.qr-overlay {
+  position: relative;
+  display: inline-block;
+}
+.qr-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--accent-cyan);
+  border-style: solid;
+}
+.qr-corner.tl { top: 8px; left: 8px; border-width: 3px 0 0 3px; }
+.qr-corner.tr { top: 8px; right: 8px; border-width: 3px 3px 0 0; }
+.qr-corner.bl { bottom: 8px; left: 8px; border-width: 0 0 3px 3px; }
+.qr-corner.br { bottom: 8px; right: 8px; border-width: 0 3px 3px 0; }
+
+/* ══════════════════════════════
+   PREDICTIVE MAINTENANCE
+   ══════════════════════════════ */
+.predict-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.predict-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.predict-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; }
+.risk-level {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.risk-high { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+.risk-medium { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+.risk-low { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+
+.predict-bar {
+  background: var(--bg-3);
+  border-radius: 100px;
+  height: 6px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.predict-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+  transition: width 1s cubic-bezier(0.16,1,0.3,1);
+}
+.predict-meta { font-size: 12px; color: var(--text-1); }
+
+/* ══════════════════════════════
+   MODAL
+   ══════════════════════════════ */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+
+.modal {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+  padding: 24px 20px;
+  padding-bottom: 40px;
+}
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+.modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.modal-sub { font-size: 13px; color: var(--text-1); margin-bottom: 24px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+
+/* PHOTO COMPARE */
+.photo-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0;
+}
+.photo-slot {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  aspect-ratio: 4/3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+  text-align: center;
+  overflow: hidden;
+}
+.photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+.photo-slot-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 4px;
+}
+
+/* TIMELINE */
+.timeline { margin: 16px 0; }
+.timeline-item { display: flex; gap: 12px; margin-bottom: 16px; }
+.timeline-dot-wrap { display: flex; flex-direction: column; align-items: center; }
+.timeline-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-blue); flex-shrink: 0; margin-top: 3px; }
+.timeline-line { width: 1px; flex: 1; background: var(--border); margin-top: 4px; }
+.timeline-body { flex: 1; padding-bottom: 12px; }
+.timeline-action { font-size: 13px; font-weight: 500; color: var(--text-0); }
+.timeline-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+/* ══════════════════════════════
+   GM DASHBOARD — CHARTS
+   ══════════════════════════════ */
+.chart-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.chart-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+
+.bar-chart { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: flex; align-items: center; gap: 10px; }
+.bar-label { font-size: 11px; color: var(--text-1); width: 80px; flex-shrink: 0; }
+.bar-track { flex: 1; background: var(--bg-3); border-radius: 100px; height: 8px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+.bar-val { font-size: 11px; color: var(--text-1); width: 30px; text-align: right; font-family: monospace; }
+
+.donut-wrap { display: flex; align-items: center; gap: 20px; }
+.donut-svg { flex-shrink: 0; }
+.donut-legend { flex: 1; }
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-text { font-size: 12px; color: var(--text-1); }
+.legend-val { margin-left: auto; font-family: monospace; font-size: 12px; font-weight: 600; }
+
+/* ENGINEER LEADERBOARD */
+.leaderboard { display: flex; flex-direction: column; gap: 8px; }
+.lb-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-2); border-radius: var(--radius-sm); }
+.lb-rank { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--text-2); width: 28px; }
+.lb-rank.gold { color: #f59e0b; }
+.lb-rank.silver { color: #94a3b8; }
+.lb-rank.bronze { color: #cd7f32; }
+.lb-name { flex: 1; font-size: 14px; font-weight: 500; }
+.lb-stat { font-family: monospace; font-size: 13px; color: var(--accent-cyan); }
+
+/* ══════════════════════════════
+   QR CODE GENERATOR
+   ══════════════════════════════ */
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.qr-room-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.qr-room-card:hover { border-color: var(--border-active); }
+.qr-room-number {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.qr-placeholder {
+  width: 80px;
+  height: 80px;
+  background: white;
+  border-radius: 4px;
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #333;
+}
+
+/* ══════════════════════════════
+   TOAST NOTIFICATION
+   ══════════════════════════════ */
+#toast-container {
+  position: fixed;
+  top: 70px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 320px;
+  box-shadow: var(--shadow-card);
+  animation: slideInRight 0.3s cubic-bezier(0.16,1,0.3,1);
+  border-left: 3px solid var(--toast-color, var(--accent-blue));
+}
+.toast-icon { font-size: 18px; flex-shrink: 0; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.toast-msg { font-size: 12px; color: var(--text-1); }
+.toast.exit { animation: slideOutRight 0.3s ease forwards; }
+
+/* ══════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════ */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(20px); }
+}
+
+/* Stagger animation utility */
+.stagger-child { animation: fadeSlideUp 0.4s cubic-bezier(0.16,1,0.3,1) backwards; }
+.stagger-child:nth-child(1) { animation-delay: 0.05s; }
+.stagger-child:nth-child(2) { animation-delay: 0.1s; }
+.stagger-child:nth-child(3) { animation-delay: 0.15s; }
+.stagger-child:nth-child(4) { animation-delay: 0.2s; }
+.stagger-child:nth-child(5) { animation-delay: 0.25s; }
+
+/* ══════════════════════════════
+   UTILS
+   ══════════════════════════════ */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.text-muted { color: var(--text-1); }
+.text-sm { font-size: 12px; }
+.text-xs { font-size: 11px; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
+.mb-3 { margin-bottom: 12px; }
+.hidden { display: none !important; }
+.w-full { width: 100%; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-0); }
+::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     AUTH SCREEN
+     ═══════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🌸</div>
+      <div>
+        <div class="auth-logo-text">Lotus Garden Hotel</div>
+        <div class="auth-logo-sub">Waringinhospitality · Kediri</div>
+      </div>
+    </div>
+
+    <div class="auth-title">Room Defects<br>System</div>
+    <div class="auth-subtitle">Pilih peran Anda untuk melanjutkan</div>
+
+    <div class="role-grid" id="role-grid">
+      <div class="role-card active" data-role="HK" onclick="selectRole(this)">
+        <div class="role-card-icon">🛏️</div>
+        <div class="role-card-label">Housekeeping</div>
+        <div class="role-card-desc">Lapor kerusakan</div>
+      </div>
+      <div class="role-card" data-role="ENG" onclick="selectRole(this)">
+        <div class="role-card-icon">🔧</div>
+        <div class="role-card-label">Engineering</div>
+        <div class="role-card-desc">Tangani perbaikan</div>
+      </div>
+      <div class="role-card" data-role="SPV" onclick="selectRole(this)">
+        <div class="role-card-icon">✅</div>
+        <div class="role-card-label">Supervisor</div>
+        <div class="role-card-desc">Verifikasi & close</div>
+      </div>
+      <div class="role-card" data-role="GM" onclick="selectRole(this)">
+        <div class="role-card-icon">📊</div>
+        <div class="role-card-label">GM / Admin</div>
+        <div class="role-card-desc">Full dashboard</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Nama</label>
+      <input class="form-input" id="login-name" type="text" placeholder="Masukkan nama Anda">
+    </div>
+
+    <button class="btn btn-primary" onclick="doLogin()">
+      <span>🚀</span> Masuk ke Sistem
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     APP SHELL
+     ═══════════════════════════════════ -->
+<div id="app-shell">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">Room<span>Defects</span></div>
+    <div class="topbar-badge" id="topbar-role">HK</div>
+    <div class="topbar-actions">
+      <div class="icon-btn" onclick="showPage('qr-scan')" title="QR Scan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </div>
+      <div class="icon-btn" onclick="doLogout()" title="Keluar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- ═══ PAGE: DASHBOARD ═══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Dashboard</div>
+          <div class="section-sub" id="dash-greeting">Selamat datang</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="refreshData()">↻ Refresh</button>
+      </div>
+
+      <!-- SLA Alert -->
+      <div class="sla-alert stagger-child" id="sla-alert-banner">
+        <div class="sla-alert-icon">🚨</div>
+        <div class="sla-alert-text">
+          <strong id="sla-count">2 defect</strong> melewati batas SLA — Eskalasi ke GM sedang berjalan
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-red)">
+          <div class="metric-value" id="m-open">0</div>
+          <div class="metric-label">Open</div>
+          <div class="metric-icon">🔴</div>
+        </div>
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-amber)">
+          <div class="metric-value" id="m-inprog">0</div>
+          <div class="metric-label">In Progress</div>
+          <div class="metric-icon">🟡</div>
+        </div>
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-blue)">
+          <div class="metric-value" id="m-resolved">0</div>
+          <div class="metric-label">Resolved</div>
+          <div class="metric-icon">🔵</div>
+        </div>
+        <div class="metric-card stagger-child" style="--metric-color: var(--accent-green)">
+          <div class="metric-value" id="m-closed">0</div>
+          <div class="metric-label">Closed Today</div>
+          <div class="metric-icon">✅</div>
+        </div>
+      </div>
+
+      <!-- Avg SLA -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">⏱️ Rata-rata Waktu Perbaikan</div>
+        <div class="bar-chart" id="avg-time-chart">
+          <!-- JS fill -->
+        </div>
+      </div>
+
+      <!-- Predictive Maintenance -->
+      <div class="section-header mt-3">
+        <div class="section-title">🔮 Predictive Maintenance</div>
+        <div class="ai-badge">AI</div>
+      </div>
+      <div id="predict-list">
+        <!-- JS fill -->
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: DEFECT LIST ═══ -->
+    <div class="page" id="page-defects">
+      <div class="section-header">
+        <div class="section-title">Defect Tracker</div>
+        <button class="btn btn-primary btn-sm" onclick="showPage('report')">+ Lapor</button>
+      </div>
+
+      <div class="filter-bar" id="status-filter">
+        <div class="filter-chip active" data-filter="ALL" onclick="filterDefects(this)">Semua</div>
+        <div class="filter-chip" data-filter="OPEN" onclick="filterDefects(this)">🔴 Open</div>
+        <div class="filter-chip" data-filter="IN_PROGRESS" onclick="filterDefects(this)">🟡 In Progress</div>
+        <div class="filter-chip" data-filter="RESOLVED" onclick="filterDefects(this)">🔵 Resolved</div>
+        <div class="filter-chip" data-filter="CLOSED" onclick="filterDefects(this)">✅ Closed</div>
+      </div>
+
+      <div class="defect-list" id="defect-list">
+        <!-- JS fill -->
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: REPORT FORM ═══ -->
+    <div class="page" id="page-report">
+      <div class="section-header">
+        <button class="btn btn-secondary btn-sm" onclick="showPage('defects')">← Kembali</button>
+        <div class="section-title">Lapor Kerusakan</div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-card-title">📋 Detail Kerusakan</div>
+
+        <div class="form-group">
+          <label class="form-label">Nomor Kamar</label>
+          <input class="form-input" id="f-room" type="text" placeholder="Contoh: 201, 315, Suite-A">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Deskripsi Kerusakan</label>
+          <textarea class="form-textarea" id="f-desc" placeholder="Jelaskan kerusakan yang Anda temukan..."></textarea>
+        </div>
+
+        <!-- AI Auto-Categorize -->
+        <div class="ai-box" id="ai-cat-box">
+          <div class="ai-box-header">
+            <div class="ai-badge">AI</div>
+            <div class="ai-box-title">Auto-Kategorisasi</div>
+          </div>
+          <div id="ai-cat-result" class="ai-result text-muted text-sm">Ketik deskripsi untuk analisis otomatis...</div>
+        </div>
+
+        <div class="form-group mt-2">
+          <label class="form-label">Kategori (AI Suggestion)</label>
+          <select class="form-select" id="f-category">
+            <option value="">Pilih kategori...</option>
+            <option value="Plumbing">🚿 Plumbing (Pipa/Air)</option>
+            <option value="Electrical">⚡ Electrical (Listrik)</option>
+            <option value="AC_HVAC">❄️ AC/HVAC</option>
+            <option value="Furniture">🪑 Furniture</option>
+            <option value="Door_Lock">🔐 Door & Lock</option>
+            <option value="TV_Remote">📺 TV & Remote</option>
+            <option value="Ceiling_Wall">🏠 Ceiling/Wall</option>
+            <option value="Bathroom">🛁 Bathroom</option>
+            <option value="Lighting">💡 Lighting</option>
+            <option value="Other">📦 Lainnya</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tingkat Prioritas</label>
+          <select class="form-select" id="f-priority">
+            <option value="LOW">🟢 Low — Tidak mengganggu tamu</option>
+            <option value="MEDIUM" selected>🟡 Medium — Perlu perbaikan segera</option>
+            <option value="HIGH">🔴 High — Kamar tidak bisa dijual (OO)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Foto Kerusakan (Before)</label>
+          <div class="photo-upload-area" id="upload-area" onclick="triggerUpload()">
+            <input type="file" id="f-photo" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
+            <div id="upload-placeholder">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">Tap untuk ambil foto atau upload</div>
+            </div>
+            <img class="photo-preview" id="photo-preview" src="" alt="Preview">
+          </div>
+        </div>
+
+        <!-- AI Photo Analysis -->
+        <div class="ai-box hidden" id="ai-photo-box">
+          <div class="ai-box-header">
+            <div class="ai-badge">AI Vision</div>
+            <div class="ai-box-title">Analisis Foto Otomatis</div>
+          </div>
+          <div id="ai-photo-result" class="ai-result">
+            <div class="ai-loading">
+              <div class="ai-dots"><span></span><span></span><span></span></div>
+              Menganalisis foto...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary w-full" onclick="submitDefect()" id="submit-btn">
+        🚀 Kirim Laporan
+      </button>
+    </div>
+
+    <!-- ═══ PAGE: QR SCAN ═══ -->
+    <div class="page" id="page-qr-scan">
+      <div class="section-header">
+        <div class="section-title">QR Scan & Code</div>
+      </div>
+
+      <!-- SCAN MODE -->
+      <div class="form-card">
+        <div class="form-card-title">📷 Scan QR Kamar</div>
+        <div class="qr-scanner-area">
+          <div class="qr-overlay">
+            <video id="qr-video" autoplay playsinline muted></video>
+            <div class="qr-corner tl"></div>
+            <div class="qr-corner tr"></div>
+            <div class="qr-corner bl"></div>
+            <div class="qr-corner br"></div>
+          </div>
+        </div>
+        <div id="qr-result" class="ai-box hidden" style="margin-top:12px">
+          <div class="ai-box-header"><div class="ai-badge">SCANNED</div><div class="ai-box-title" id="qr-room-found"></div></div>
+          <button class="btn btn-primary w-full mt-2" onclick="reportFromQR()">+ Lapor Kerusakan Kamar Ini</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn btn-secondary w-full" onclick="startQRScan()">▶️ Mulai Scan</button>
+          <button class="btn btn-secondary w-full" onclick="stopQRScan()">⏹️ Stop</button>
+        </div>
+      </div>
+
+      <!-- QR GENERATOR -->
+      <div class="form-card" id="qr-gen-section">
+        <div class="form-card-title">🖨️ Generate QR per Kamar</div>
+        <div class="form-group">
+          <input class="form-input" id="qr-floor-input" type="number" placeholder="Lantai (misal: 1, 2, 3)">
+        </div>
+        <button class="btn btn-secondary w-full" onclick="generateQRGrid()">Generate QR Lantai</button>
+        <div class="qr-grid" id="qr-grid"></div>
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: GM ANALYTICS ═══ -->
+    <div class="page" id="page-analytics">
+      <div class="section-header">
+        <div class="section-title">📊 GM Analytics</div>
+        <div class="section-sub">Real-time Overview</div>
+      </div>
+
+      <!-- Status Donut -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">Status Breakdown</div>
+        <div class="donut-wrap">
+          <svg class="donut-svg" width="100" height="100" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--bg-3)" stroke-width="3.5"/>
+            <circle id="donut-open" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-red)" stroke-width="3.5"
+              stroke-dasharray="25 75" stroke-dashoffset="25" transform="rotate(-90 18 18)"/>
+            <circle id="donut-prog" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-amber)" stroke-width="3.5"
+              stroke-dasharray="30 70" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>
+            <circle id="donut-res" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-blue)" stroke-width="3.5"
+              stroke-dasharray="20 80" stroke-dashoffset="-30" transform="rotate(-90 18 18)"/>
+            <text x="18" y="20.5" text-anchor="middle" font-size="6" fill="white" font-weight="bold" id="donut-total">—</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-red)"></div>
+              <span class="legend-text">Open</span>
+              <span class="legend-val" id="leg-open">0</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-amber)"></div>
+              <span class="legend-text">In Progress</span>
+              <span class="legend-val" id="leg-prog">0</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-blue)"></div>
+              <span class="legend-text">Resolved</span>
+              <span class="legend-val" id="leg-res">0</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background:var(--accent-green)"></div>
+              <span class="legend-text">Closed</span>
+              <span class="legend-val" id="leg-cls">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Breakdown -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">🔧 Defect per Kategori</div>
+        <div class="bar-chart" id="cat-chart"></div>
+      </div>
+
+      <!-- Engineer Leaderboard -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">🏆 Engineering Performance</div>
+        <div class="leaderboard" id="eng-leaderboard"></div>
+      </div>
+
+      <!-- SLA Escalation Log -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">🚨 SLA Escalation Log</div>
+        <div id="escalation-log" class="text-sm text-muted">Tidak ada eskalasi aktif.</div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span class="nav-label">Dashboard</span>
+    </div>
+    <div class="nav-item" id="nav-defects" onclick="showPage('defects')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span class="nav-label">Defects</span>
+    </div>
+    <div class="nav-item" id="nav-report" onclick="showPage('report')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span class="nav-label">Lapor</span>
+    </div>
+    <div class="nav-item" id="nav-qr-scan" onclick="showPage('qr-scan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span class="nav-label">QR</span>
+    </div>
+    <div class="nav-item" id="nav-analytics" onclick="showPage('analytics')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="nav-label">Analytics</span>
+    </div>
+  </div>
+</div><!-- /app-shell -->
+
+<!-- ═══ TOAST CONTAINER ═══ -->
+<div id="toast-container"></div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+<div class="modal-backdrop" id="detail-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-room">Kamar 201</div>
+    <div class="modal-sub" id="modal-meta">ID: DEF-001 · 2 jam lalu</div>
+
+    <div id="modal-ai-box" class="ai-box">
+      <div class="ai-box-header">
+        <div class="ai-badge">AI Analysis</div>
+        <div class="ai-box-title">Analisis Kerusakan</div>
+      </div>
+      <div id="modal-ai-result" class="ai-result ai-loading">
+        <div class="ai-dots"><span></span><span></span><span></span></div>
+        Menganalisis...
+      </div>
+    </div>
+
+    <div class="photo-compare" id="modal-photos">
+      <div class="photo-slot" id="photo-before">
+        <div class="upload-icon" style="font-size:20px">📷</div>
+        <div class="photo-slot-label">BEFORE</div>
+      </div>
+      <div class="photo-slot" id="photo-after">
+        <div class="upload-icon" style="font-size:20px">📷</div>
+        <div class="photo-slot-label">AFTER</div>
+      </div>
+    </div>
+
+    <div class="timeline" id="modal-timeline"></div>
+
+    <div class="modal-actions" id="modal-actions">
+      <!-- filled by JS based on role + status -->
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const CONFIG = {
+  // ✅ URL GAS Web App kamu (sudah ada)
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbw6RDf9-eEWx0GbwIjD5ld65QWrvVAsY7tHwvlam-B-ybBtl0oWMPF_gNnXD0qeg_Xe/exec',
+  WA_API_URL: 'https://api.fonnte.com/send',
+  WA_TOKEN: 'YOUR_FONNTE_TOKEN',
+  APP_URL: window.location.href.split('?')[0],
+  SLA_HOURS: { HIGH: 2, MEDIUM: 8, LOW: 24 },
+};
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let STATE = {
+  user: null,
+  role: 'HK',
+  defects: [],
+  activeFilter: 'ALL',
+  currentDefect: null,
+  qrStream: null,
+  scannedRoom: null,
+  isLoading: false,
+};
+
+// Fallback sample — HANYA tampil saat GAS belum bisa diakses
+const PREDICTIVE_DATA = [
+  { room: 'Lantai 2', item: 'AC Unit', count: 7, riskScore: 85, risk: 'HIGH', nextFail: '~12 hari' },
+  { room: 'Lantai 3', item: 'Plumbing System', count: 5, riskScore: 60, risk: 'MEDIUM', nextFail: '~3 minggu' },
+  { room: 'Lantai 1', item: 'Door Lock', count: 3, riskScore: 35, risk: 'LOW', nextFail: '~6 minggu' },
+];
+
+// ═══════════════════════════════════════════════════════════
+// CORE: GAS API — semua komunikasi ke spreadsheet lewat sini
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Kirim request ke GAS Web App.
+ * Mendukung: google.script.run (dalam GAS) atau fetch (standalone).
+ */
+async function gasCall(action, payload = {}) {
+  // Mode: dalam GAS Web App
+  if (typeof google !== 'undefined' && google.script) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(r => {
+          try { resolve(typeof r === 'string' ? JSON.parse(r) : r); }
+          catch { resolve({ error: 'Parse error', raw: r }); }
+        })
+        .withFailureHandler(reject)
+        ['gas' + action.charAt(0).toUpperCase() + action.slice(1)](
+          payload ? JSON.stringify(payload) : null
+        );
+    });
+  }
+
+  // Mode: standalone HTML → fetch ke GAS URL
+  if (!CONFIG.GAS_URL || CONFIG.GAS_URL.includes('YOUR_GAS')) {
+    throw new Error('GAS_URL belum dikonfigurasi');
+  }
+  const resp = await fetch(CONFIG.GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // GAS perlu text/plain untuk hindari CORS preflight
+    body: JSON.stringify({ action, payload }),
+    redirect: 'follow',
+  });
+  const text = await resp.text();
+  try {
+    const json = JSON.parse(text);
+    if (!json.success) throw new Error(json.error || 'GAS error');
+    return json.data;
+  } catch (e) {
+    throw new Error('Response bukan JSON: ' + text.substring(0, 200));
+  }
+}
+
+// ─── Shorthand helpers ───────────────────────
+const gasGetDefects  = (f)  => gasCall('getDefects', f || {});
+const gasGetMetrics  = ()   => gasCall('getMetrics', {});
+const gasAddDefect   = (d)  => gasCall('addDefect', d);
+const gasUpdateDef   = (d)  => gasCall('updateDefect', d);
+const gasAiCat       = (t)  => gasCall('aiCategorize', { text: t });
+const gasAiPhoto     = (b, m) => gasCall('aiAnalyzePhoto', { base64: b, mimeType: m });
+const gasAiDefect    = (d)  => gasCall('aiAnalyzeDefect', d);
+const gasAiPredict   = ()   => gasCall('aiPredictive', {});
+
+// ═══════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════
+function selectRole(el) {
+  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  STATE.role = el.dataset.role;
+}
+
+async function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  if (!name) { showToast('error', 'Nama diperlukan', 'Masukkan nama Anda'); return; }
+
+  const btn = document.querySelector('#auth-screen .btn-primary');
+  btn.disabled = true;
+  btn.textContent = '⏳ Memuat data...';
+
+  STATE.user = name;
+  document.getElementById('auth-screen').style.display = 'none';
+  const shell = document.getElementById('app-shell');
+  shell.classList.add('visible');
+  document.getElementById('topbar-role').textContent = STATE.role;
+  document.getElementById('dash-greeting').textContent = `Halo, ${name} 👋`;
+
+  // ✅ LIVE: fetch data dari spreadsheet saat login
+  await fetchAndRender();
+
+  btn.disabled = false;
+  btn.textContent = '🚀 Masuk ke Sistem';
+  showToast('success', 'Berhasil masuk', `Selamat datang, ${name}!`);
+}
+
+function doLogout() {
+  stopQRScan();
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('auth-screen').style.display = 'flex';
+  STATE.user = null;
+  STATE.defects = [];
+}
+
+// ═══════════════════════════════════════════════════════════
+// LIVE DATA FETCH — ambil dari spreadsheet, render semua
+// ═══════════════════════════════════════════════════════════
+
+async function fetchAndRender(showLoadingToast = false) {
+  if (STATE.isLoading) return;
+  STATE.isLoading = true;
+
+  // Tampilkan loading state di defect list
+  const listEl = document.getElementById('defect-list');
+  if (listEl) listEl.innerHTML = `
+    <div style="text-align:center;padding:40px;color:var(--text-1)">
+      <div class="ai-loading" style="justify-content:center;margin-bottom:8px">
+        <div class="ai-dots"><span></span><span></span><span></span></div>
+        Mengambil data dari Spreadsheet...
+      </div>
+    </div>`;
+
+  try {
+    // Ambil defects dan metrics secara paralel
+    const [rawDefects, metrics] = await Promise.all([
+      gasGetDefects(),
+      gasGetMetrics().catch(() => null),  // metrics opsional
+    ]);
+
+    // Normalisasi field dari GAS (PascalCase) ke frontend (camelCase)
+    STATE.defects = (rawDefects || []).map(normalizeDefect);
+
+    if (showLoadingToast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect dari spreadsheet`);
+
+    // Update avg time chart dari metrics real jika ada
+    if (metrics?.avgByCategory) {
+      STATE.metricsCache = metrics;
+    }
+
+    renderDashboard();
+    renderDefectList();
+
+  } catch (err) {
+    console.error('fetchAndRender error:', err);
+    showToast('error', 'Gagal ambil data', err.message || 'Cek koneksi atau GAS URL');
+    // Jika gagal, tampilkan pesan kosong (bukan SAMPLE data)
+    STATE.defects = [];
+    renderDashboard();
+    renderDefectList();
+  } finally {
+    STATE.isLoading = false;
+  }
+}
+
+/**
+ * Normalisasi field dari GAS (PascalCase/flat array) ke format frontend (camelCase object).
+ * GAS mengembalikan objek dengan key = header spreadsheet (PascalCase).
+ */
+function normalizeDefect(d) {
+  // Tangani kedua format: sudah camelCase atau masih PascalCase dari GAS
+  return {
+    id:          d.ID          || d.id          || '',
+    room:        d.RoomNumber  || d.room        || '',
+    category:    d.Category    || d.category    || '',
+    desc:        d.Description || d.desc        || d.description || '',
+    priority:    d.Priority    || d.priority    || 'MEDIUM',
+    status:      d.Status      || d.status      || 'OPEN',
+    reporter:    d.Reporter    || d.reporter    || '',
+    engineer:    d.Engineer    || d.engineer    || null,
+    photoBefore: d.PhotoBefore || d.photoBefore || null,
+    photoAfter:  d.PhotoAfter  || d.photoAfter  || null,
+    createdAt:   d.CreatedAt   ? new Date(d.CreatedAt).getTime()   : (d.createdAt || Date.now()),
+    startedAt:   d.StartedAt   ? new Date(d.StartedAt).getTime()   : (d.startedAt || null),
+    resolvedAt:  d.ResolvedAt  ? new Date(d.ResolvedAt).getTime()  : (d.resolvedAt || null),
+    closedAt:    d.ClosedAt    ? new Date(d.ClosedAt).getTime()    : (d.closedAt || null),
+    // Logs: GAS tidak simpan log terpisah per baris — reconstruct dari timestamps
+    logs: buildLogsFromTimestamps(d),
+  };
+}
+
+function buildLogsFromTimestamps(d) {
+  const logs = [];
+  const reporter = d.Reporter || d.reporter || 'Unknown';
+  const engineer = d.Engineer || d.engineer;
+  const created  = d.CreatedAt  ? new Date(d.CreatedAt).getTime()  : null;
+  const started  = d.StartedAt  ? new Date(d.StartedAt).getTime()  : null;
+  const resolved = d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null;
+  const closed   = d.ClosedAt   ? new Date(d.ClosedAt).getTime()   : null;
+
+  if (created)  logs.push({ action: `Dilaporkan oleh ${reporter}`, time: created });
+  if (started)  logs.push({ action: `Mulai dikerjakan oleh ${engineer || 'Engineering'}`, time: started });
+  if (resolved) logs.push({ action: `Selesai diperbaiki oleh ${engineer || 'Engineering'}`, time: resolved });
+  if (closed)   logs.push({ action: `Diverifikasi & ditutup`, time: closed });
+  return logs;
+}
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  const navEl = document.getElementById(`nav-${page}`);
+  if (navEl) navEl.classList.add('active');
+  if (page === 'analytics') renderAnalytics();
+  if (page !== 'qr-scan') stopQRScan();
+}
+
+// ═══════════════════════════════════════════════
+// DASHBOARD — render dari STATE.defects (live)
+// ═══════════════════════════════════════════════
+function renderDashboard() {
+  const counts = { OPEN: 0, IN_PROGRESS: 0, RESOLVED: 0, CLOSED: 0 };
+  STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
+  document.getElementById('m-open').textContent = counts.OPEN;
+  document.getElementById('m-inprog').textContent = counts.IN_PROGRESS;
+  document.getElementById('m-resolved').textContent = counts.RESOLVED;
+  document.getElementById('m-closed').textContent = counts.CLOSED;
+
+  // SLA overdue check
+  const overdueCount = STATE.defects.filter(d => {
+    if (d.status === 'CLOSED' || d.status === 'RESOLVED') return false;
+    return (Date.now() - d.createdAt) / 3600000 > (CONFIG.SLA_HOURS[d.priority] || 8);
+  }).length;
+  document.getElementById('sla-count').textContent = `${overdueCount} defect`;
+  document.getElementById('sla-alert-banner').style.display = overdueCount > 0 ? 'flex' : 'none';
+
+  // Avg time chart — dari data REAL jika ada, hitung dari defects
+  const catTimes = {};
+  STATE.defects
+    .filter(d => d.startedAt && d.resolvedAt)
+    .forEach(d => {
+      const h = (d.resolvedAt - d.startedAt) / 3600000;
+      if (!catTimes[d.category]) catTimes[d.category] = [];
+      catTimes[d.category].push(h);
+    });
+
+  const avgData = {};
+  Object.entries(catTimes).forEach(([cat, arr]) => {
+    avgData[cat] = (arr.reduce((s, v) => s + v, 0) / arr.length);
+  });
+
+  const chartEl = document.getElementById('avg-time-chart');
+  if (Object.keys(avgData).length === 0) {
+    chartEl.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Belum ada data repair selesai untuk ditampilkan.</div>';
+  } else {
+    const maxH = Math.max(...Object.values(avgData));
+    chartEl.innerHTML = Object.entries(avgData)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `
+        <div class="bar-row">
+          <div class="bar-label">${k.replace('_', '/')}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(v/maxH)*100}%"></div></div>
+          <div class="bar-val">${v.toFixed(1)}h</div>
+        </div>`).join('');
+  }
+
+  // Predictive — async via Gemini AI
+  loadAiPredictive();
+}
+
+// ═══════════════════════════════════════════════
+// DEFECT LIST
+// ═══════════════════════════════════════════════
+function renderDefectList() {
+  const filter = STATE.activeFilter;
+  const list = STATE.defects.filter(d => filter === 'ALL' || d.status === filter);
+  const el = document.getElementById('defect-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:40px">
+      ${STATE.defects.length === 0 ? '✅ Tidak ada defect. Spreadsheet kosong atau data belum dimuat.' : 'Tidak ada defect dengan filter ini.'}
+    </div>`;
+    return;
+  }
+  el.innerHTML = list.map(d => {
+    const slaH = CONFIG.SLA_HOURS[d.priority] || 8;
+    const elapsedH = (Date.now() - d.createdAt) / 3600000;
+    const isOverdue = (d.status === 'OPEN' || d.status === 'IN_PROGRESS') && elapsedH > slaH;
+    const slaText = isOverdue
+      ? `⚠️ SLA +${(elapsedH - slaH).toFixed(1)}h`
+      : `⏱ ${elapsedH.toFixed(1)}h / ${slaH}h`;
+    const statusColorMap = {
+      OPEN: 'var(--accent-red)', IN_PROGRESS: 'var(--accent-amber)',
+      RESOLVED: 'var(--accent-blue)', CLOSED: 'var(--accent-green)'
+    };
+    const descText = (d.desc || '').substring(0, 70);
+    return `
+    <div class="defect-card stagger-child" style="--status-color:${statusColorMap[d.status]||'var(--accent-blue)'}" onclick="openDefect('${d.id}')">
+      <div class="defect-header">
+        <div>
+          <div class="defect-room">Kamar ${d.room}</div>
+          <div class="defect-id">${d.id}</div>
+        </div>
+        <div class="${getStatusClass(d.status)}">${getStatusLabel(d.status)}</div>
+      </div>
+      <div class="defect-category">
+        <span class="defect-cat-tag">${(d.category||'').replace('_','/')}</span>
+        <span class="defect-cat-tag" style="color:${d.priority==='HIGH'?'var(--accent-red)':d.priority==='MEDIUM'?'var(--accent-amber)':'var(--accent-green)'}">${d.priority}</span>
+      </div>
+      <div class="text-sm text-muted mb-3">${descText}${d.desc && d.desc.length > 70 ? '...' : ''}</div>
+      <div class="defect-meta">
+        <span>${d.reporter}</span>
+        <span class="defect-sla ${isOverdue ? 'sla-overdue' : 'sla-timer'}">${slaText}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterDefects(el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  STATE.activeFilter = el.dataset.filter;
+  renderDefectList();
+}
+
+function getStatusClass(s) {
+  return { OPEN:'status-badge status-open', IN_PROGRESS:'status-badge status-inprogress',
+           RESOLVED:'status-badge status-resolved', CLOSED:'status-badge status-closed' }[s] || 'status-badge';
+}
+function getStatusLabel(s) {
+  return { OPEN:'🔴 Open', IN_PROGRESS:'🟡 In Progress', RESOLVED:'🔵 Resolved', CLOSED:'✅ Closed' }[s] || s;
+}
+
+// ═══════════════════════════════════════════════
+// DEFECT DETAIL MODAL
+// ═══════════════════════════════════════════════
+function openDefect(id) {
+  const d = STATE.defects.find(x => x.id === id);
+  if (!d) return;
+  STATE.currentDefect = d;
+  document.getElementById('modal-room').textContent = `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
+  document.getElementById('modal-meta').textContent = `${d.id} · ${d.priority} Priority · ${d.reporter}`;
+
+  const tlEl = document.getElementById('modal-timeline');
+  tlEl.innerHTML = (d.logs||[]).map((l, i) => `
+    <div class="timeline-item">
+      <div class="timeline-dot-wrap">
+        <div class="timeline-dot"></div>
+        ${i < d.logs.length - 1 ? '<div class="timeline-line"></div>' : ''}
+      </div>
+      <div class="timeline-body">
+        <div class="timeline-action">${l.action}</div>
+        <div class="timeline-meta">${timeAgo(l.time)}</div>
+      </div>
+    </div>`).join('');
+
+  renderModalActions(d);
+  document.getElementById('modal-ai-result').innerHTML = `
+    <div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div>Gemini menganalisis...</div>`;
+  document.getElementById('detail-modal').classList.add('open');
+  setTimeout(() => aiAnalyzeDefect(d), 400);
+}
+
+function renderModalActions(d) {
+  const el = document.getElementById('modal-actions');
+  let html = `<button class="btn btn-secondary w-full" onclick="closeModal()">Tutup</button>`;
+  if (STATE.role === 'ENG') {
+    if (d.status === 'OPEN')
+      html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
+    else if (d.status === 'IN_PROGRESS')
+      html = `<button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')">✅ Mark Resolved</button>` + html;
+  }
+  if ((STATE.role === 'SPV' || STATE.role === 'GM') && d.status === 'RESOLVED') {
+    html = `
+      <button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
+      <button class="btn btn-danger" onclick="updateStatus('OPEN')" style="flex:1">↩️ Re-open</button>`;
+  }
+  el.innerHTML = html;
+}
+
+function closeModal() {
+  document.getElementById('detail-modal').classList.remove('open');
+}
+
+async function updateStatus(newStatus) {
+  const d = STATE.currentDefect;
+  if (!d) return;
+
+  const actionMap = {
+    IN_PROGRESS: `Mulai dikerjakan oleh ${STATE.user} (${STATE.role})`,
+    RESOLVED:    `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})`,
+    CLOSED:      `Diverifikasi & ditutup oleh ${STATE.user} (${STATE.role})`,
+    OPEN:        `Di-reopen oleh ${STATE.user} (${STATE.role})`,
+  };
+
+  // Update lokal dulu (optimistic UI)
+  d.status = newStatus;
+  d.logs.push({ action: actionMap[newStatus], time: Date.now() });
+  if (newStatus === 'IN_PROGRESS') { d.startedAt = Date.now(); d.engineer = `${STATE.user} (${STATE.role})`; }
+  if (newStatus === 'RESOLVED') d.resolvedAt = Date.now();
+  if (newStatus === 'CLOSED') d.closedAt = Date.now();
+
+  closeModal();
+  renderDefectList();
+  renderDashboard();
+  showToast('info', 'Menyimpan...', `${d.id} → ${newStatus}`);
+
+  // ✅ LIVE: simpan ke spreadsheet
+  try {
+    await gasUpdateDef({
+      id: d.id,
+      status: newStatus,
+      engineer: d.engineer,
+      updatedBy: `${STATE.user} (${STATE.role})`,
+      resolvedAt: d.resolvedAt,
+      closedAt: d.closedAt,
+    });
+    showToast('success', 'Tersimpan ke Spreadsheet ✅', `${d.id} → ${newStatus}`);
+  } catch (err) {
+    showToast('error', 'Gagal simpan ke GAS', err.message);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// REPORT FORM
+// ═══════════════════════════════════════════════
+function triggerUpload() { document.getElementById('f-photo').click(); }
+
+function previewPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('photo-preview');
+    img.src = e.target.result;
+    img.classList.add('visible');
+    document.getElementById('upload-placeholder').style.display = 'none';
+    document.getElementById('upload-area').classList.add('has-photo');
+    document.getElementById('ai-photo-box').classList.remove('hidden');
+    aiAnalyzePhoto(e.target.result);
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+let aiDebounce = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const descInput = document.getElementById('f-desc');
+  if (descInput) {
+    descInput.addEventListener('input', () => {
+      clearTimeout(aiDebounce);
+      aiDebounce = setTimeout(() => {
+        const txt = descInput.value.trim();
+        if (txt.length > 10) aiCategorize(txt);
+      }, 800);
+    });
+  }
+});
+
+async function submitDefect() {
+  const room = document.getElementById('f-room').value.trim();
+  const desc = document.getElementById('f-desc').value.trim();
+  const cat  = document.getElementById('f-category').value;
+  const prio = document.getElementById('f-priority').value;
+  if (!room || !desc || !cat) {
+    showToast('error', 'Form belum lengkap', 'Isi nomor kamar, deskripsi, dan kategori');
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Menyimpan ke Spreadsheet...';
+
+  const payload = {
+    room, desc, description: desc,
+    category: cat, priority: prio,
+    reporter: `${STATE.user} (${STATE.role})`,
+  };
+
+  try {
+    // ✅ LIVE: simpan ke spreadsheet dulu, dapat ID real dari GAS
+    const result = await gasAddDefect(payload);
+
+    const realId = result?.id || `DEF-${String(STATE.defects.length + 1).padStart(4, '0')}`;
+    const newDefect = normalizeDefect({
+      ID: realId, RoomNumber: room, Description: desc,
+      Category: cat, Priority: prio, Status: 'OPEN',
+      Reporter: `${STATE.user} (${STATE.role})`,
+      CreatedAt: new Date().toISOString(),
+    });
+
+    STATE.defects.unshift(newDefect);
+    showToast('success', '✅ Tersimpan ke Spreadsheet!', `${realId} — Engineering dinotifikasi via WA`);
+
+  } catch (err) {
+    showToast('error', 'Gagal simpan ke GAS', err.message || 'Cek GAS URL dan koneksi');
+    btn.disabled = false;
+    btn.textContent = '🚀 Kirim Laporan';
+    return;
+  }
+
+  // Reset form
+  btn.disabled = false;
+  btn.textContent = '🚀 Kirim Laporan';
+  document.getElementById('f-room').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-category').value = '';
+  document.getElementById('f-photo').value = '';
+  document.getElementById('photo-preview').classList.remove('visible');
+  document.getElementById('upload-placeholder').style.display = 'block';
+  document.getElementById('ai-photo-box').classList.add('hidden');
+  document.getElementById('ai-cat-result').textContent = 'Ketik deskripsi untuk analisis otomatis...';
+
+  renderDefectList();
+  renderDashboard();
+  showPage('defects');
+}
+
+// ═══════════════════════════════════════════════
+// ANALYTICS (live dari STATE.defects)
+// ═══════════════════════════════════════════════
+function renderAnalytics() {
+  const counts = { OPEN: 0, IN_PROGRESS: 0, RESOLVED: 0, CLOSED: 0 };
+  STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
+  const total = STATE.defects.length;
+  document.getElementById('leg-open').textContent = counts.OPEN;
+  document.getElementById('leg-prog').textContent = counts.IN_PROGRESS;
+  document.getElementById('leg-res').textContent = counts.RESOLVED;
+  document.getElementById('leg-cls').textContent = counts.CLOSED;
+  document.getElementById('donut-total').textContent = total;
+
+  // Category chart
+  const cats = {};
+  STATE.defects.forEach(d => { cats[d.category] = (cats[d.category] || 0) + 1; });
+  const maxC = Object.values(cats).length ? Math.max(...Object.values(cats)) : 1;
+  document.getElementById('cat-chart').innerHTML = Object.entries(cats).length
+    ? Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+        <div class="bar-row">
+          <div class="bar-label">${k.replace('_','/')}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(v/maxC)*100}%"></div></div>
+          <div class="bar-val">${v}</div>
+        </div>`).join('')
+    : '<div class="text-muted text-sm">Belum ada data.</div>';
+
+  // Engineer leaderboard
+  const eng = {};
+  STATE.defects.forEach(d => { if (d.engineer) eng[d.engineer] = (eng[d.engineer] || 0) + 1; });
+  const sorted = Object.entries(eng).sort((a,b)=>b[1]-a[1]);
+  const rankClass = ['gold','silver','bronze'];
+  document.getElementById('eng-leaderboard').innerHTML = sorted.length
+    ? sorted.map(([name, count], i) => `
+        <div class="lb-item">
+          <div class="lb-rank ${rankClass[i]||''}">#${i+1}</div>
+          <div class="lb-name">${name}</div>
+          <div class="lb-stat">${count} selesai</div>
+        </div>`).join('')
+    : '<div class="text-muted text-sm">Belum ada data engineering.</div>';
+
+  // SLA Escalation log
+  const overdue = STATE.defects.filter(d => {
+    if (d.status === 'CLOSED' || d.status === 'RESOLVED') return false;
+    return (Date.now() - d.createdAt) / 3600000 > (CONFIG.SLA_HOURS[d.priority] || 8);
+  });
+  document.getElementById('escalation-log').innerHTML = overdue.length
+    ? overdue.map(d => {
+        const slaH = CONFIG.SLA_HOURS[d.priority] || 8;
+        const late = ((Date.now() - d.createdAt) / 3600000 - slaH).toFixed(1);
+        return `<div class="flex items-center gap-2 mb-2">
+          <span style="color:var(--accent-red)">🚨</span>
+          <span>${d.id} — Kamar ${d.room} — ${d.category} — Terlambat <strong>${late}h</strong></span>
+        </div>`;
+      }).join('')
+    : '<div class="text-muted text-sm">✅ Tidak ada eskalasi aktif.</div>';
+}
+
+// ═══════════════════════════════════════════════
+// QR CODE
+// ═══════════════════════════════════════════════
+function generateQRGrid() {
+  const floor = document.getElementById('qr-floor-input').value || '1';
+  const rooms = Array.from({ length: 10 }, (_, i) => `${floor}${String(i + 1).padStart(2, '0')}`);
+  const grid = document.getElementById('qr-grid');
+  grid.innerHTML = rooms.map(r => {
+    const url = encodeURIComponent(`${CONFIG.APP_URL}?room=${r}`);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${url}`;
+    return `
+    <div class="qr-room-card" onclick="preSelectRoom('${r}')">
+      <div class="qr-room-number">${r}</div>
+      <img src="${qrUrl}" width="80" height="80" style="border-radius:6px;margin:0 auto 6px;display:block" alt="QR ${r}">
+      <div class="text-xs text-muted">Scan to report</div>
+    </div>`;
+  }).join('');
+}
+
+function preSelectRoom(room) {
+  STATE.scannedRoom = room;
+  showPage('report');
+  document.getElementById('f-room').value = room;
+  showToast('info', 'Kamar dipilih', `Kamar ${room} — Isi form laporan`);
+}
+
+async function startQRScan() {
+  const video = document.getElementById('qr-video');
+  try {
+    STATE.qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = STATE.qrStream;
+    showToast('info', 'Kamera aktif', 'Arahkan ke QR code kamar');
+    if ('BarcodeDetector' in window) {
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      const scan = async () => {
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0) {
+            const raw = codes[0].rawValue;
+            const m = raw.match(/room=([^&]+)/);
+            if (m) {
+              const room = decodeURIComponent(m[1]);
+              document.getElementById('qr-room-found').textContent = `Kamar ${room} terdeteksi`;
+              document.getElementById('qr-result').classList.remove('hidden');
+              STATE.scannedRoom = room;
+              stopQRScan();
+              return;
+            }
+          }
+        } catch {}
+        if (STATE.qrStream) requestAnimationFrame(scan);
+      };
+      video.onloadedmetadata = () => requestAnimationFrame(scan);
+    } else {
+      showToast('warn', 'BarcodeDetector tidak tersedia', 'Gunakan Chrome/Edge terbaru');
+    }
+  } catch (e) {
+    showToast('error', 'Kamera gagal', 'Izin kamera diperlukan');
+  }
+}
+
+function stopQRScan() {
+  if (STATE.qrStream) {
+    STATE.qrStream.getTracks().forEach(t => t.stop());
+    STATE.qrStream = null;
+  }
+}
+
+function reportFromQR() {
+  if (STATE.scannedRoom) preSelectRoom(STATE.scannedRoom);
+}
+
+// ═══════════════════════════════════════════════
+// AI — via GAS/Gemini (server-side)
+// ═══════════════════════════════════════════════
+async function aiCategorize(text) {
+  const el = document.getElementById('ai-cat-result');
+  el.innerHTML = `<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div>Gemini menganalisis...</div>`;
+  try {
+    const data = await gasAiCat(text);
+    if (data?.error) { el.innerHTML = `<span style="color:var(--accent-amber)">⚠️ ${data.error}</span>`; return; }
+    el.innerHTML = `<strong>${data.category}</strong> · Prioritas: <strong>${data.priority}</strong> · Est: <strong>${data.estimatedHours}h</strong><br>${data.reason}`;
+    if (data.category) document.getElementById('f-category').value = data.category;
+    if (data.priority) document.getElementById('f-priority').value = data.priority;
+  } catch {
+    el.innerHTML = `<span class="text-muted">AI tidak tersedia — isi kategori manual.</span>`;
+  }
+}
+
+async function aiAnalyzePhoto(base64) {
+  const el = document.getElementById('ai-photo-result');
+  el.innerHTML = `<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div>Gemini Vision menganalisis foto...</div>`;
+  try {
+    const mimeType = base64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+    const data = await gasAiPhoto(base64, mimeType);
+    if (data?.error) { el.innerHTML = `<span style="color:var(--accent-amber)">⚠️ ${data.error}</span>`; return; }
+    el.innerHTML = `<strong>${data.category}</strong> — Severity: <strong>${data.severity}</strong><br>${data.description}
+      ${data.partsNeeded?.length ? `<br>🔩 Part: <em>${data.partsNeeded.join(', ')}</em>` : ''}
+      <br>💡 <em>${data.recommendation}</em>`;
+    if (data.category) document.getElementById('f-category').value = data.category;
+    if (data.severity) document.getElementById('f-priority').value = data.severity;
+  } catch {
+    el.innerHTML = `<span class="text-muted">Analisis foto tidak tersedia.</span>`;
+  }
+}
+
+async function aiAnalyzeDefect(defect) {
+  const el = document.getElementById('modal-ai-result');
+  try {
+    const data = await gasAiDefect(defect);
+    if (data?.error) { el.innerHTML = `<span style="color:var(--accent-amber)">⚠️ ${data.error}</span>`; return; }
+    el.innerHTML = `
+      <strong>Root Cause:</strong> ${data.rootCause}<br>
+      <strong>Rekomendasi:</strong> ${data.recommendation}<br>
+      ${data.partsNeeded?.length ? `<strong>Part:</strong> ${data.partsNeeded.join(', ')}<br>` : ''}
+      <strong>Estimasi:</strong> ${data.estimatedHours} jam · Recurrence: <strong>${data.recurrenceRisk}</strong>
+      ${data.preventiveAction ? `<br>💡 <em>${data.preventiveAction}</em>` : ''}`;
+  } catch {
+    el.innerHTML = `Kategori: <strong>${defect.category}</strong> · Prioritas: <strong>${defect.priority}</strong><br><span class="text-muted">Gemini tidak tersedia.</span>`;
+  }
+}
+
+async function loadAiPredictive() {
+  const el = document.getElementById('predict-list');
+  if (!el) return;
+  el.innerHTML = `<div class="ai-loading" style="padding:16px;justify-content:center">
+    <div class="ai-dots"><span></span><span></span><span></span></div> Gemini menganalisis pola kerusakan...
+  </div>`;
+  try {
+    const data = await gasAiPredict();
+    if (!data?.predictions?.length || data.error) { renderPredictiveFallback(); return; }
+    const scoreHtml = data.overallHealthScore !== undefined ? `
+      <div class="predict-card" style="margin-bottom:12px;border-color:${data.overallHealthScore>=70?'var(--accent-green)':data.overallHealthScore>=50?'var(--accent-amber)':'var(--accent-red)'}">
+        <div class="predict-header">
+          <div class="predict-title">🏥 Hotel Health Score</div>
+          <div class="risk-level" style="color:${data.overallHealthScore>=70?'var(--accent-green)':data.overallHealthScore>=50?'var(--accent-amber)':'var(--accent-red)'}">
+            ${data.overallHealthScore}/100
+          </div>
+        </div>
+        <div class="predict-bar"><div class="predict-fill" style="width:${data.overallHealthScore}%"></div></div>
+        <div class="predict-meta">${data.summary||''}</div>
+      </div>` : '';
+
+    el.innerHTML = scoreHtml + data.predictions.map(p => `
+      <div class="predict-card">
+        <div class="predict-header">
+          <div class="predict-title">${p.item} — ${p.location}</div>
+          <div class="risk-level risk-${(p.risk||'').toLowerCase()}">${p.risk}</div>
+        </div>
+        <div class="predict-bar"><div class="predict-fill" style="width:${p.riskScore}%"></div></div>
+        <div class="predict-meta">
+          Risk Score: <strong>${p.riskScore}%</strong> · ${p.count}x · Prediksi gagal: <strong>${p.nextFailEstimate}</strong>
+          ${p.budgetEstimate ? `<br>💰 Budget preventif: ${p.budgetEstimate}` : ''}
+          ${p.preventiveAction ? `<br>💡 ${p.preventiveAction}` : ''}
+        </div>
+      </div>`).join('');
+  } catch {
+    renderPredictiveFallback();
+  }
+}
+
+function renderPredictiveFallback() {
+  const el = document.getElementById('predict-list');
+  if (!el) return;
+  if (STATE.defects.length === 0) {
+    el.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Belum ada data defect untuk prediksi.</div>';
+    return;
+  }
+  el.innerHTML = `<div class="ai-box" style="margin-bottom:12px">
+    <div class="ai-box-header"><div class="ai-badge">INFO</div><div class="ai-box-title">Prediksi dari data lokal</div></div>
+    <div class="ai-result text-sm">Gemini AI belum terhubung. Menampilkan analisis sederhana dari data spreadsheet.</div>
+  </div>` + buildLocalPrediction();
+}
+
+function buildLocalPrediction() {
+  const catCount = {};
+  STATE.defects.forEach(d => { catCount[d.category] = (catCount[d.category] || 0) + 1; });
+  return Object.entries(catCount).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([cat, count]) => {
+    const score = Math.min(95, count * 15);
+    const risk = score >= 60 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';
+    return `<div class="predict-card">
+      <div class="predict-header">
+        <div class="predict-title">${cat.replace('_','/')} — Paling Sering</div>
+        <div class="risk-level risk-${risk.toLowerCase()}">${risk}</div>
+      </div>
+      <div class="predict-bar"><div class="predict-fill" style="width:${score}%"></div></div>
+      <div class="predict-meta">${count}x kejadian · Score: ${score}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// REFRESH
+// ═══════════════════════════════════════════════
+async function refreshData() {
+  await fetchAndRender(true);
+  if (document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+}
+
+// ═══════════════════════════════════════════════
+// WA NOTIFICATION (opsional, jika token diisi)
+// ═══════════════════════════════════════════════
+async function sendWANotification(msg) {
+  if (!CONFIG.WA_TOKEN || CONFIG.WA_TOKEN === 'YOUR_FONNTE_TOKEN') return;
+  try {
+    await fetch(CONFIG.WA_API_URL, {
+      method: 'POST',
+      headers: { 'Authorization': CONFIG.WA_TOKEN },
+      body: JSON.stringify({ target: 'ENGINEERING_WA_NUMBER', message: msg })
+    });
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════
+function showToast(type, title, msg) {
+  const icons  = { success:'✅', error:'🚨', info:'ℹ️', warn:'⚠️' };
+  const colors = { success:'var(--accent-green)', error:'var(--accent-red)', info:'var(--accent-blue)', warn:'var(--accent-amber)' };
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.setProperty('--toast-color', colors[type] || colors.info);
+  el.innerHTML = `<div class="toast-icon">${icons[type]}</div><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => { el.classList.add('exit'); setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function timeAgo(ts) {
+  const diff = (Date.now() - ts) / 1000;
+  if (diff < 60)    return 'Baru saja';
+  if (diff < 3600)  return `${Math.floor(diff/60)} menit lalu`;
+  if (diff < 86400) return `${Math.floor(diff/3600)} jam lalu`;
+  return `${Math.floor(diff/86400)} hari lalu`;
+}
+
+// Auto pre-fill room dari QR deep-link
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('room')) STATE.scannedRoom = urlParams.get('room');
+</script>
+</body>
+</html>
