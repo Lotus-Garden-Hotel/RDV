@@ -1365,6 +1365,16 @@ let STATE = {
   photoAfterData:  null,  // same
 };
 
+// ════════════════════════════════════════════════════
+// ROLE ACCESS CONTROL
+// ════════════════════════════════════════════════════
+const ROLE_ACCESS = {
+  HK:  ['dashboard', 'defects', 'report', 'qr-scan'],                    // Housekeeping: lapor & lihat
+  ENG: ['dashboard', 'defects', 'report', 'qr-scan'],                    // Engineering: tangani
+  SPV: ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],       // Supervisor: verifikasi + analytics
+  GM:  ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],       // GM: full access
+};
+
 const PREDICTIVE_DATA = [
   { room: 'Lantai 2', item: 'AC Unit', count: 7, riskScore: 85, risk: 'HIGH', nextFail: '~12 hari' },
   { room: 'Lantai 3', item: 'Plumbing System', count: 5, riskScore: 60, risk: 'MEDIUM', nextFail: '~3 minggu' },
@@ -1416,7 +1426,7 @@ const RECOMMENDATIONS = {
     ],
     parts: ['Filter AC', 'Baterai remote', 'Drain pipe', 'Freon (jika diperlukan)', 'Kapasitor'],
     estimatedHours: '1–4 jam',
-    tips: 'Cuci filter setiap 2 minggu sebagai preventif. Jika perlu isi freon, pastikan teknisi berpengalaman yang mengerjakan.',
+    tips: 'Cuci filter setiap 2 minggu sebagai preventif. Jika perlu isi freon, pastikan teknisi bersertifikat yang mengerjakan.',
   },
   Furniture: {
     title: '🪑 Furniture — Panduan Perbaikan',
@@ -1749,6 +1759,7 @@ const gasUpdateDef  = (d)     => gasCall('updateDefect', d);
 const gasAiCat      = (t)     => gasCall('aiCategorize', { text: t });
 const gasAiPredict  = ()      => gasCall('aiPredictive', {});
 const gasSavePhoto  = (d)     => gasCall('savePhoto', d);   // ← simpan foto ke Sheet_Photos
+const gasValidateUser = (d)   => gasCall('validateUser', d); // ← validasi login dari Sheet_Users
 
 // ════════════════════════════════════════════════════
 // AUTH
@@ -1763,17 +1774,42 @@ async function doLogin() {
   const name = document.getElementById('login-name').value.trim();
   if (!name) { showToast('error', 'Nama diperlukan', 'Masukkan nama Anda'); return; }
   const btn = document.querySelector('#auth-screen .btn-primary');
-  btn.disabled = true; btn.textContent = '⏳ Memuat...';
+  btn.disabled = true; btn.textContent = '⏳ Memvalidasi...';
 
-  STATE.user = name;
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app-shell').classList.add('visible');
-  document.getElementById('topbar-role').textContent = STATE.role;
-  document.getElementById('dash-greeting').textContent = `Halo, ${name} 👋`;
+  try {
+    // ── Validasi nama + role terhadap Sheet_Users ──
+    // Jika Sheet_Users kosong/belum dibuat → graceful degradation (izinkan login)
+    try {
+      const vResult = await gasValidateUser({ name, role: STATE.role });
+      if (vResult?.valid === false) {
+        showToast('error', 'Akses Ditolak', vResult.error || 'Nama/role tidak terdaftar');
+        btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem';
+        return;
+      }
+      if (vResult?.warning) {
+        showToast('warn', 'Validasi dilewati', vResult.warning);
+      }
+    } catch {
+      // GAS belum di-deploy / Sheet_Users tidak ada → izinkan login
+      showToast('warn', 'Validasi tidak tersedia', 'Login tanpa verifikasi Sheet_Users');
+    }
 
-  await fetchAndRender();
-  btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem';
-  showToast('success', 'Berhasil masuk', `Selamat datang, ${name}!`);
+    STATE.user = name;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-shell').classList.add('visible');
+    document.getElementById('topbar-role').textContent = STATE.role;
+    document.getElementById('dash-greeting').textContent = `Halo, ${name} 👋`;
+
+    // ── Atur nav sesuai role ──
+    updateNavForRole(STATE.role);
+
+    await fetchAndRender();
+    showToast('success', 'Berhasil masuk', `Selamat datang, ${name}! (${STATE.role})`);
+  } catch (err) {
+    showToast('error', 'Login gagal', err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem';
+  }
 }
 
 function doLogout() {
@@ -1782,6 +1818,8 @@ function doLogout() {
   document.getElementById('auth-screen').style.display = 'flex';
   STATE.user = null; STATE.defects = [];
   STATE.photoBeforeData = null; STATE.photoAfterData = null;
+  // Reset nav visibility untuk login berikutnya
+  document.querySelectorAll('.nav-item').forEach(n => n.style.display = '');
 }
 
 // ════════════════════════════════════════════════════
@@ -1846,7 +1884,34 @@ function buildLogs(d) {
 // ════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════
+
+/**
+ * Sembunyikan / tampilkan nav item sesuai role setelah login.
+ * Dipanggil sekali saat doLogin() sukses.
+ */
+function updateNavForRole(role) {
+  const allowed = ROLE_ACCESS[role] || [];
+  document.querySelectorAll('.nav-item').forEach(navItem => {
+    const page = navItem.id.replace('nav-', ''); // nav-analytics → analytics
+    navItem.style.display = allowed.includes(page) ? '' : 'none';
+  });
+  // Juga sembunyikan tombol QR Scan di topbar jika tidak punya akses
+  const topbarQr = document.querySelector('.topbar-actions .icon-btn[title="QR Scan"]');
+  if (topbarQr) topbarQr.style.display = allowed.includes('qr-scan') ? '' : 'none';
+}
+
+/**
+ * Navigasi ke halaman tertentu — DENGAN role guard.
+ * Jika role tidak punya akses, tampilkan toast error dan batalkan navigasi.
+ */
 function showPage(page) {
+  // ── Role Guard ──
+  const allowed = ROLE_ACCESS[STATE.role] || [];
+  if (STATE.user && !allowed.includes(page)) {
+    showToast('error', 'Akses Ditolak', `Role ${STATE.role} tidak dapat mengakses halaman ini`);
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
@@ -2081,6 +2146,9 @@ async function updateStatus(newStatus) {
         uploadedBy: `${STATE.user} (${STATE.role})`,
       });
       photoAfterRef = photoResult?.driveUrl || photoResult?.dataRef || null;
+      if (photoResult?.driveError) {
+        showToast('warn', '⚠️ Drive gagal, disimpan ke Sheets', `Foto After: ${photoResult.driveError.substring(0,60)}`);
+      }
       if (photoAfterRef) { d.photoAfter = photoAfterRef; }
     }
 
@@ -2133,6 +2201,12 @@ async function submitDefect() {
         room, category: cat,
       });
       photoBeforeRef = photoResult?.driveUrl || photoResult?.dataRef || null;
+      // ── Informasikan apakah foto tersimpan di Drive atau Sheets (fallback)
+      if (photoResult?.driveError) {
+        showToast('warn', '⚠️ Drive gagal, disimpan ke Sheets', `${photoResult.driveError.substring(0,80)}`);
+      } else if (photoResult?.driveUrl) {
+        showToast('info', '📁 Foto tersimpan di Drive', photoResult.driveUrl.substring(0,60) + '...');
+      }
     }
 
     // ── 2. Simpan defect ke Sheet_Defects
