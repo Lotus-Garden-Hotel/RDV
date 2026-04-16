@@ -2315,19 +2315,31 @@ async function updateStatus(newStatus) {
     // Simpan foto After ke Sheet_Photos (terpisah dari Sheet_Defects)
     let photoAfterRef = null;
     if (newStatus==='RESOLVED' && STATE.photoAfterData) {
-      const photoResult = await gasSavePhoto({
-        defectId: d.id,
-        slot: 'after',
-        base64: STATE.photoAfterData.compressed,
-        mimeType: STATE.photoAfterData.mimeType,
-        sizeKB: STATE.photoAfterData.sizeKB,
-        uploadedBy: `${STATE.user} (${STATE.role})`,
-      });
-      photoAfterRef = photoResult?.driveUrl || photoResult?.dataRef || null;
-      if (photoResult?.driveError) {
-        showToast('warn', '⚠️ Drive gagal, disimpan ke Sheets', `Foto After: ${photoResult.driveError.substring(0,60)}`);
+      // ★ FIX: simpan base64 lokal sebagai fallback untuk preview langsung
+      photoAfterRef = STATE.photoAfterData.compressed;  // fallback lokal
+      try {
+        const photoResult = await gasSavePhoto({
+          defectId: d.id,
+          slot: 'after',
+          base64: STATE.photoAfterData.compressed,
+          mimeType: STATE.photoAfterData.mimeType,
+          sizeKB: STATE.photoAfterData.sizeKB,
+          uploadedBy: `${STATE.user} (${STATE.role})`,
+          room: d.room,
+        });
+        // ★ FIX: pakai Drive URL jika ada, jika tidak pakai base64 lokal (bukan '[stored-in-sheets]')
+        if (photoResult?.driveUrl) {
+          photoAfterRef = photoResult.driveUrl;
+        } else if (photoResult?.driveError) {
+          showToast('warn', '⚠️ Drive gagal', 'Foto After tampil dari memori lokal');
+          // photoAfterRef tetap base64 lokal
+        }
+      } catch (photoErr) {
+        showToast('warn', '⚠️ Upload foto After gagal', photoErr.message.substring(0, 60));
+        // photoAfterRef tetap base64 lokal
       }
-      if (photoAfterRef) { d.photoAfter = photoAfterRef; }
+      // ★ FIX: update local state SEKARANG agar preview langsung tampil
+      d.photoAfter = photoAfterRef;
     }
 
     // Update defect di Sheet_Defects
@@ -2365,39 +2377,59 @@ async function submitDefect() {
   btn.textContent = '⏳ Menyimpan...';
 
   try {
-    // ── 1. Simpan foto Before ke Sheet_Photos (jika ada)
-    let photoBeforeRef = null;
-    if (STATE.photoBeforeData) {
-      showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
-      const photoResult = await gasSavePhoto({
-        defectId: 'PENDING', // akan di-update setelah dapat ID
-        slot: 'before',
-        base64: STATE.photoBeforeData.compressed,
-        mimeType: STATE.photoBeforeData.mimeType,
-        sizeKB: STATE.photoBeforeData.sizeKB,
-        uploadedBy: `${STATE.user} (${STATE.role})`,
-        room, category: cat,
-      });
-      photoBeforeRef = photoResult?.driveUrl || photoResult?.dataRef || null;
-      // ── Informasikan apakah foto tersimpan di Drive atau Sheets (fallback)
-      if (photoResult?.driveError) {
-        showToast('warn', '⚠️ Drive gagal, disimpan ke Sheets', `${photoResult.driveError.substring(0,80)}`);
-      } else if (photoResult?.driveUrl) {
-        showToast('info', '📁 Foto tersimpan di Drive', photoResult.driveUrl.substring(0,60) + '...');
-      }
-    }
+    // ★ FIX URUTAN: Buat defect DULU untuk dapat real ID, baru upload foto dengan ID benar.
+    // (Sebelumnya: foto diupload dengan defectId='PENDING' → GAS tidak bisa update Sheet_Defects)
 
-    // ── 2. Simpan defect ke Sheet_Defects
+    // ── 1. Simpan defect ke Sheet_Defects (tanpa foto dulu)
+    showToast('info', '⏳ Menyimpan laporan...', 'Menghubungi server...');
     const result = await gasAddDefect({
       room, desc, description: desc, category: cat,
       priority: prio, notes,
       reporter: `${STATE.user} (${STATE.role})`,
-      photoBefore: photoBeforeRef,
+      photoBefore: '',  // akan di-update setelah foto selesai upload
     });
 
     const realId = result?.id || `DEF-${String(STATE.defects.length+1).padStart(4,'0')}`;
 
-    // Tambah ke local state
+    // ── 2. Upload foto Before dengan realId yang sudah diketahui
+    // Simpan base64 lokal sebagai fallback preview jika Drive gagal
+    let photoBeforeRef = STATE.photoBeforeData?.compressed || null;  // ★ fallback: base64 lokal
+    if (STATE.photoBeforeData) {
+      showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
+      try {
+        const photoResult = await gasSavePhoto({
+          defectId: realId,  // ★ FIX: pakai realId bukan 'PENDING'
+          slot: 'before',
+          base64: STATE.photoBeforeData.compressed,
+          mimeType: STATE.photoBeforeData.mimeType,
+          sizeKB: STATE.photoBeforeData.sizeKB,
+          uploadedBy: `${STATE.user} (${STATE.role})`,
+          room, category: cat,
+        });
+        // ★ FIX: jika Drive berhasil pakai URL-nya, jika tidak pakai base64 lokal (bukan '[stored-in-sheets]')
+        if (photoResult?.driveUrl) {
+          photoBeforeRef = photoResult.driveUrl;
+          showToast('info', '📁 Foto tersimpan di Drive', '');
+          // ★ FIX: Update Sheet_Defects dengan URL Drive yang benar
+          try {
+            await gasUpdateDef({
+              id: realId,
+              status: 'OPEN',
+              photoBefore: photoBeforeRef,
+              updatedBy: `${STATE.user} (${STATE.role})`,
+            });
+          } catch (_) { /* non-critical, local state sudah benar */ }
+        } else if (photoResult?.driveError) {
+          showToast('warn', '⚠️ Drive gagal', 'Foto tampil dari memori lokal, tidak tersimpan permanen');
+          // photoBeforeRef tetap base64 lokal — bisa preview tapi tidak persistent
+        }
+      } catch (photoErr) {
+        showToast('warn', '⚠️ Upload foto gagal', photoErr.message.substring(0, 60));
+        // photoBeforeRef tetap base64 lokal sebagai fallback
+      }
+    }
+
+    // Tambah ke local state dengan referensi foto yang benar
     const newDefect = normalizeDefect({
       ID: realId, RoomNumber: room, Description: desc,
       Category: cat, Priority: prio, Status: 'OPEN',
@@ -2411,7 +2443,7 @@ async function submitDefect() {
     resetReportForm();
     renderDefectList(); renderDashboard();
     showPage('defects');
-    showToast('success', `✅ ${realId} tersimpan!`, `Foto: ${photoBeforeRef ? 'tersimpan di Google Drive' : 'tidak ada'}`);
+    showToast('success', `✅ ${realId} tersimpan!`, `Foto: ${photoBeforeRef ? (photoBeforeRef.startsWith('data:') ? 'lokal (Drive gagal)' : 'di Google Drive') : 'tidak ada'}`);
 
   } catch (err) {
     showToast('error', 'Gagal simpan', err.message);
