@@ -1002,7 +1002,7 @@ body::before {
       <div class="sla-alert stagger-child" id="sla-alert-banner">
         <div class="sla-alert-icon">🚨</div>
         <div class="sla-alert-text">
-          <strong id="sla-count"></strong>
+          <strong id="sla-count">2 defect</strong> melewati batas SLA — Eskalasi ke GM sedang berjalan
         </div>
       </div>
 
@@ -1316,13 +1316,10 @@ body::before {
         <div class="upload-icon" style="font-size:20px;opacity:0.4" id="photo-before-icon">📷</div>
         <div class="photo-slot-label" id="photo-before-label">BEFORE</div>
       </div>
-      <div class="photo-slot" id="photo-after" onclick="triggerAfterUpload()" style="cursor:pointer;position:relative">
-        <input type="file" id="f-photo-after-modal" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this,'after')">
-        <div id="photo-after-icon">
-          <div style="font-size:20px;opacity:0.4">📷</div>
-          <div style="font-size:10px;color:var(--accent-blue);margin-top:4px">Tap upload foto After</div>
-        </div>
-        <div class="photo-slot-label" id="photo-after-label">AFTER</div>
+      <div class="photo-slot" id="photo-after" style="cursor:pointer;position:relative">
+        <!-- Input file After dibuat secara dinamis oleh openDefect() agar tidak konflik ID -->
+        <div style="font-size:20px;opacity:0.4">📷</div>
+        <div class="photo-slot-label">AFTER</div>
       </div>
     </div>
     <div id="photo-after-info" class="text-xs text-muted" style="text-align:center;margin:-8px 0 12px;display:none"></div>
@@ -1661,6 +1658,35 @@ function triggerUpload(slot) {
 
 function triggerAfterUpload() {
   document.getElementById('f-photo-after-modal')?.click();
+}
+
+/**
+ * FIX B+D: Handler khusus upload foto After di modal.
+ * Setelah foto dikompresi → langsung auto-submit RESOLVED
+ * tanpa perlu user klik tombol "Selesai" lagi.
+ */
+async function handlePhotoUploadModal(input) {
+  await handlePhotoUpload(input, 'after');
+  // Jika ada defect aktif dan statusnya IN_PROGRESS → auto-proceed ke RESOLVED
+  if (STATE.currentDefect && STATE.currentDefect.status === 'IN_PROGRESS' && STATE.photoAfterData) {
+    // Update tampilan slot after dengan preview
+    const afterSlot = document.getElementById('photo-after');
+    if (afterSlot && STATE.photoAfterData) {
+      afterSlot.innerHTML = `<img src="${STATE.photoAfterData.compressed}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">`;
+      afterSlot.onclick = null;
+      afterSlot.style.cursor = 'default';
+    }
+    // Ubah tombol action → konfirmasi simpan
+    const actionsEl = document.getElementById('modal-actions');
+    if (actionsEl) {
+      actionsEl.innerHTML = `
+        <button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')" id="btn-confirm-resolved">
+          ✅ Konfirmasi Selesai & Simpan Foto
+        </button>
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Batal</button>`;
+    }
+    showToast('success', '📷 Foto After siap', 'Tekan "Konfirmasi Selesai" untuk menyimpan');
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -2081,20 +2107,30 @@ function getStatusLabel(s) {
 // ════════════════════════════════════════════════════
 
 /**
- * Normalise Drive URL agar selalu pakai format lh3 (tidak diblokir browser).
- * Mendukung: lh3 (baru), uc?export=view (lama), thumbnail, base64 data URI, dan URL biasa.
+ * Normalise Drive URL agar selalu bisa ditampilkan di tag <img>.
+ * Urutan pengecekan:
+ *   1. Kosong / placeholder "[stored-in-sheets]" → kembalikan ''
+ *   2. data URI base64 → langsung pakai
+ *   3. Sudah format lh3 → langsung pakai
+ *   4. Format uc?id=xxx  → konversi ke lh3
+ *   5. Format /d/{id}/   → konversi ke lh3
+ *   6. URL lain          → coba pakai apa adanya
  */
 function driveImgUrl(src) {
   if (!src) return '';
-  // Sudah pakai lh3 → langsung pakai
+  // Bug E fix: GAS menyimpan placeholder ini ketika base64 terlalu panjang
+  if (src === '[stored-in-sheets]' || src.startsWith('[stored')) return '';
+  // Base64 data URI → langsung render
+  if (src.startsWith('data:image')) return src;
+  // Sudah lh3 → langsung pakai
   if (src.startsWith('https://lh3.googleusercontent.com/d/')) return src;
-  // Format lama uc?export=view → konversi ke lh3
+  // Format uc?export=view&id=xxx atau ?id=xxx
   const ucMatch = src.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
   if (ucMatch) return `https://lh3.googleusercontent.com/d/${ucMatch[1]}=w600`;
-  // Format /file/d/{id}/view atau /uc?id={id} pendek
+  // Format /d/{id}/view
   const pathMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})\//);
   if (pathMatch) return `https://lh3.googleusercontent.com/d/${pathMatch[1]}=w600`;
-  // base64 / URL lain → pakai apa adanya
+  // Fallback: URL lain (thumbnail, dsb) → pakai apa adanya
   return src;
 }
 
@@ -2167,23 +2203,38 @@ function openDefect(id) {
     ? photoSlotWithImage(driveImgUrl(d.photoBefore), 'BEFORE')
     : photoSlotEmpty('📷', 'BEFORE');
 
-  // ── Foto After — upload jika belum ada, read-only jika sudah
+  // ── Foto After — upload jika belum ada, read-only jika sudah ──
   const afterSlot = document.getElementById('photo-after');
+  // Reset onclick dulu agar tidak menumpuk listener lama
+  afterSlot.onclick = null;
   if (d.photoAfter) {
-    afterSlot.innerHTML = photoSlotWithImage(driveImgUrl(d.photoAfter), 'AFTER');
-    afterSlot.onclick = null;
+    const url = driveImgUrl(d.photoAfter);
+    if (url) {
+      afterSlot.innerHTML = photoSlotWithImage(url, 'AFTER');
+    } else {
+      // FIX E: URL adalah placeholder [stored-in-sheets] → tampilkan pesan informatif
+      afterSlot.innerHTML = photoSlotEmpty('🗄️', 'AFTER (di Sheets)');
+    }
     afterSlot.style.cursor = 'default';
   } else {
+    // Buat fresh input file dengan ID unik agar tidak konflik dengan instans sebelumnya
+    const inputId = 'f-photo-after-modal-' + Date.now();
     afterSlot.innerHTML = `
-      <input type="file" id="f-photo-after-modal" accept="image/*" capture="environment"
-             style="display:none" onchange="handlePhotoUpload(this,'after')">
-      <div id="photo-after-icon" style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <input type="file" id="${inputId}" accept="image/*" capture="environment" style="display:none">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
         <div style="font-size:20px;opacity:0.4">📷</div>
-        <div style="font-size:10px;color:var(--accent-blue)">Upload foto After</div>
+        <div style="font-size:10px;color:var(--accent-blue)">Tap upload foto After</div>
       </div>
       <div class="photo-slot-label">AFTER</div>`;
     afterSlot.style.cursor = 'pointer';
-    afterSlot.onclick = () => document.getElementById('f-photo-after-modal')?.click();
+    // Pasang listener langsung ke input baru (tidak pakai inline onchange)
+    const newInput = document.getElementById(inputId);
+    if (newInput) {
+      newInput.addEventListener('change', function() {
+        handlePhotoUploadModal(this);
+      });
+    }
+    afterSlot.onclick = () => newInput?.click();
   }
   document.getElementById('photo-after-info').style.display = 'none';
 
@@ -2221,11 +2272,24 @@ async function updateStatus(newStatus) {
   const d = STATE.currentDefect;
   if (!d) return;
 
-  // Jika RESOLVED, cek apakah foto After sudah diupload
-  if (newStatus === 'RESOLVED' && !STATE.photoAfterData) {
-    showToast('warn', 'Foto After diperlukan', 'Upload foto hasil perbaikan sebelum mark Resolved');
-    document.getElementById('f-photo-after-modal')?.click();
-    return;
+  // ── FIX B+D: Jika RESOLVED, cek foto After ──
+  if (newStatus === 'RESOLVED') {
+    if (!STATE.photoAfterData) {
+      // Belum ada foto → trigger upload dengan instruksi yang lebih jelas
+      showToast('warn', '📷 Upload foto After dulu', 'Pilih foto hasil perbaikan, lalu sistem otomatis menyimpan');
+      // Ubah tampilan tombol agar user tahu foto diperlukan
+      const btn = document.querySelector('#modal-actions .btn-success');
+      if (btn) {
+        btn.textContent = '📷 Pilih Foto After...';
+        btn.style.background = 'var(--accent-amber)';
+        btn.style.color = '#000';
+      }
+      // Trigger input file yang dibuat secara dinamis oleh openDefect()
+      const dynInput = document.querySelector('#photo-after input[type="file"]');
+      if (dynInput) dynInput.click();
+      return;
+    }
+    // Ada fotoAfterData → lanjut simpan otomatis (tidak perlu klik tombol lagi)
   }
 
   const actionMap = {
