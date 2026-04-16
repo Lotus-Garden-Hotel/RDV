@@ -988,279 +988,712 @@ body::before {
   <!-- MAIN CONTENT -->
   <div class="main-content">
 
+    <!-- ═══════════════════════════════════
+     APP SHELL
+     ═══════════════════════════════════ -->
+<div id="app-shell">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">Room<span>Defects</span></div>
+    <div class="topbar-badge" id="topbar-role">HK</div>
+    <div class="topbar-actions">
+      <div class="icon-btn" onclick="showPage('dashboard')" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </div>
+      <div class="icon-btn" onclick="doLogout()" title="Logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
     <!-- ═══ PAGE: DASHBOARD ═══ -->
     <div class="page active" id="page-dashboard">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Dashboard</div>
-          <div class="section-sub" id="dash-greeting">Selamat datang</div>
+      <div style="text-align: center; padding: 40px 20px;">
+        <h1 style="font-size: 24px; margin-bottom: 20px;">📊 Room Defects Dashboard</h1>
+        <p style="color: var(--text-1); margin-bottom: 30px;">Selamat datang ke Room Defects Management System</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 500px; margin: 0 auto;">
+          <button class="btn btn-primary" onclick="showPage('report')">
+            <span>📝</span> Lapor Kerusakan
+          </button>
+          <button class="btn btn-secondary" onclick="showPage('defects')">
+            <span>📋</span> Lihat Daftar
+          </button>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="refreshData()">↻ Refresh</button>
-      </div>
-
-      <!-- SLA Alert -->
-      <div class="sla-alert stagger-child" id="sla-alert-banner">
-        <div class="sla-alert-icon">🚨</div>
-        <div class="sla-alert-text">
-          <strong id="sla-count">2 defect</strong> melewati batas SLA — Eskalasi ke GM sedang berjalan
-        </div>
-      </div>
-
-      <!-- Metrics -->
-      <div class="metrics-grid">
-        <div class="metric-card stagger-child" style="--metric-color: var(--accent-red)">
-          <div class="metric-value" id="m-open">0</div>
-          <div class="metric-label">Open</div>
-          <div class="metric-icon">🔴</div>
-        </div>
-        <div class="metric-card stagger-child" style="--metric-color: var(--accent-amber)">
-          <div class="metric-value" id="m-inprog">0</div>
-          <div class="metric-label">In Progress</div>
-          <div class="metric-icon">🟡</div>
-        </div>
-        <div class="metric-card stagger-child" style="--metric-color: var(--accent-blue)">
-          <div class="metric-value" id="m-resolved">0</div>
-          <div class="metric-label">Resolved</div>
-          <div class="metric-icon">🔵</div>
-        </div>
-        <div class="metric-card stagger-child" style="--metric-color: var(--accent-green)">
-          <div class="metric-value" id="m-closed">0</div>
-          <div class="metric-label">Closed Today</div>
-          <div class="metric-icon">✅</div>
-        </div>
-      </div>
-
-      <!-- Avg SLA -->
-      <div class="chart-card stagger-child">
-        <div class="chart-title">⏱️ Rata-rata Waktu Perbaikan</div>
-        <div class="bar-chart" id="avg-time-chart">
-          <!-- JS fill -->
-        </div>
-      </div>
-
-      <!-- Predictive Maintenance -->
-      <div class="section-header mt-3">
-        <div class="section-title">🔮 Predictive Maintenance</div>
-        <div class="ai-badge">AI</div>
-      </div>
-      <div id="predict-list">
-        <!-- JS fill -->
       </div>
     </div>
 
-    <!-- ═══ PAGE: DEFECT LIST ═══ -->
-    <div class="page" id="page-defects">
-      <div class="section-header">
-        <div class="section-title">Defect Tracker</div>
-        <button class="btn btn-primary btn-sm" onclick="showPage('report')">+ Lapor</button>
-      </div>
-
-      <div class="filter-bar" id="status-filter">
-        <div class="filter-chip active" data-filter="ALL" onclick="filterDefects(this)">Semua</div>
-        <div class="filter-chip" data-filter="OPEN" onclick="filterDefects(this)">🔴 Open</div>
-        <div class="filter-chip" data-filter="IN_PROGRESS" onclick="filterDefects(this)">🟡 In Progress</div>
-        <div class="filter-chip" data-filter="RESOLVED" onclick="filterDefects(this)">🔵 Resolved</div>
-        <div class="filter-chip" data-filter="CLOSED" onclick="filterDefects(this)">✅ Closed</div>
-      </div>
-
-      <div class="defect-list" id="defect-list">
-        <!-- JS fill -->
-      </div>
-    </div>
-
-    <!-- ═══ PAGE: REPORT FORM ═══ -->
+    <!-- ═══ PAGE: REPORT DEFECT ═══ -->
     <div class="page" id="page-report">
-      <div class="section-header">
-        <button class="btn btn-secondary btn-sm" onclick="showPage('defects')">← Kembali</button>
-        <div class="section-title">Lapor Kerusakan</div>
+      <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 20px; margin-bottom: 8px;">📝 Lapor Kerusakan Kamar</h2>
+        <p style="color: var(--text-1); font-size: 13px;">Silakan isi detail kerusakan dan upload foto</p>
       </div>
 
-      <div class="form-card">
-        <div class="form-card-title">📋 Detail Kerusakan</div>
-
+      <!-- DEFECT FORM CARD -->
+      <div style="background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px 20px; margin-bottom: 20px;">
+        
+        <!-- ROOM NUMBER -->
         <div class="form-group">
-          <label class="form-label">Nomor Kamar</label>
-          <input class="form-input" id="f-room" type="text" placeholder="Contoh: 201, 315, Suite-A">
+          <label class="form-label">🏨 Nomor Kamar</label>
+          <input class="form-input" id="defect-room" type="text" placeholder="e.g., 101, 205" required>
         </div>
 
+        <!-- CATEGORY -->
         <div class="form-group">
-          <label class="form-label">Deskripsi Kerusakan</label>
-          <textarea class="form-textarea" id="f-desc" placeholder="Jelaskan kerusakan yang Anda temukan..."></textarea>
-        </div>
-
-        <!-- AI Auto-Categorize -->
-        <div class="ai-box" id="ai-cat-box">
-          <div class="ai-box-header">
-            <div class="ai-badge">AI</div>
-            <div class="ai-box-title">Auto-Kategorisasi</div>
-          </div>
-          <div id="ai-cat-result" class="ai-result text-muted text-sm">Ketik deskripsi untuk analisis otomatis...</div>
-        </div>
-
-        <div class="form-group mt-2">
-          <label class="form-label">Kategori (AI Suggestion)</label>
-          <select class="form-select" id="f-category">
-            <option value="">Pilih kategori...</option>
-            <option value="Plumbing">🚿 Plumbing (Pipa/Air)</option>
+          <label class="form-label">🔧 Kategori Kerusakan</label>
+          <select class="form-select" id="defect-category" required>
+            <option value="">-- Pilih Kategori --</option>
+            <option value="Plumbing">🚰 Plumbing (Air/Pipa)</option>
             <option value="Electrical">⚡ Electrical (Listrik)</option>
-            <option value="AC_HVAC">❄️ AC/HVAC</option>
-            <option value="Furniture">🪑 Furniture</option>
-            <option value="Door_Lock">🔐 Door & Lock</option>
-            <option value="TV_Remote">📺 TV & Remote</option>
-            <option value="Ceiling_Wall">🏠 Ceiling/Wall</option>
-            <option value="Bathroom">🛁 Bathroom</option>
-            <option value="Lighting">💡 Lighting</option>
-            <option value="Other">📦 Lainnya</option>
+            <option value="AC_HVAC">❄️ AC/HVAC (Pendingin)</option>
+            <option value="Furniture">🪑 Furniture (Furnitur)</option>
+            <option value="Door_Lock">🔐 Door/Lock (Pintu/Kunci)</option>
+            <option value="TV_Remote">📺 TV/Remote (TV/Remote)</option>
+            <option value="Ceiling_Wall">🖼️ Ceiling/Wall (Plafon/Dinding)</option>
+            <option value="Bathroom">🚿 Bathroom (Kamar Mandi)</option>
+            <option value="Lighting">💡 Lighting (Pencahayaan)</option>
+            <option value="Other">❓ Lainnya</option>
           </select>
         </div>
 
+        <!-- DESCRIPTION -->
         <div class="form-group">
-          <label class="form-label">Tingkat Prioritas</label>
-          <select class="form-select" id="f-priority">
-            <option value="LOW">🟢 Low — Tidak mengganggu tamu</option>
-            <option value="MEDIUM" selected>🟡 Medium — Perlu perbaikan segera</option>
-            <option value="HIGH">🔴 High — Kamar tidak bisa dijual (OO)</option>
+          <label class="form-label">📝 Deskripsi Kerusakan</label>
+          <textarea class="form-textarea" id="defect-description" placeholder="Jelaskan detail kerusakan yang Anda lihat..." required></textarea>
+        </div>
+
+        <!-- PRIORITY -->
+        <div class="form-group">
+          <label class="form-label">⚠️ Prioritas</label>
+          <select class="form-select" id="defect-priority">
+            <option value="LOW">🟢 LOW (Tidak Urgent)</option>
+            <option value="MEDIUM" selected>🟡 MEDIUM (Cukup Urgent)</option>
+            <option value="HIGH">🔴 HIGH (Sangat Urgent)</option>
           </select>
         </div>
 
+        <!-- PHOTO BEFORE -->
         <div class="form-group">
-          <label class="form-label">Foto Kerusakan (Before)</label>
-          <div class="photo-upload-area" id="upload-area" onclick="triggerUpload()">
-            <input type="file" id="f-photo" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
-            <div id="upload-placeholder">
-              <div class="upload-icon">📷</div>
-              <div class="upload-text">Tap untuk ambil foto atau upload</div>
+          <label class="form-label">📸 Foto Kerusakan (BEFORE)</label>
+          <div class="photo-upload-area" id="before-upload" onclick="triggerFileInput('before')">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">Tap/Click untuk ambil foto SEBELUM perbaikan</div>
+            <img class="photo-preview" id="before-preview">
+            <input type="file" id="before-file" accept="image/*" hidden onchange="handlePhotoSelect('before', this)">
+            <div class="upload-progress" id="before-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" id="before-progress-fill"></div>
+              </div>
+              <div class="progress-text" id="before-progress-text">Uploading... 0%</div>
             </div>
-            <img class="photo-preview" id="photo-preview" src="" alt="Preview">
+            <div class="photo-status" id="before-status"></div>
           </div>
         </div>
 
-        <!-- AI Photo Analysis -->
-        <div class="ai-box hidden" id="ai-photo-box">
-          <div class="ai-box-header">
-            <div class="ai-badge">AI Vision</div>
-            <div class="ai-box-title">Analisis Foto Otomatis</div>
-          </div>
-          <div id="ai-photo-result" class="ai-result">
-            <div class="ai-loading">
-              <div class="ai-dots"><span></span><span></span><span></span></div>
-              Menganalisis foto...
-            </div>
-          </div>
+        <!-- SAVE BUTTON -->
+        <div style="display: flex; gap: 10px; margin-top: 24px;">
+          <button class="btn btn-primary" onclick="saveDefect()">
+            <span>💾</span> Simpan Laporan
+          </button>
+          <button class="btn btn-secondary" onclick="showPage('dashboard')">
+            <span>↩️</span> Batal
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: DEFECTS LIST ═══ -->
+    <div class="page" id="page-defects">
+      <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 20px; margin-bottom: 8px;">📋 Daftar Kerusakan</h2>
+        <p style="color: var(--text-1); font-size: 13px;">Kelola dan pantau status kerusakan kamar</p>
+      </div>
+
+      <!-- FILTER -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
+        <button class="filter-chip active" onclick="filterDefects('ALL')">Semua</button>
+        <button class="filter-chip" onclick="filterDefects('OPEN')">🔴 Open</button>
+        <button class="filter-chip" onclick="filterDefects('IN_PROGRESS')">🟡 In Progress</button>
+        <button class="filter-chip" onclick="filterDefects('RESOLVED')">🔵 Resolved</button>
+        <button class="filter-chip" onclick="filterDefects('CLOSED')">🟢 Closed</button>
+      </div>
+
+      <!-- DEFECTS LIST -->
+      <div id="defects-list" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="text-align: center; color: var(--text-1); padding: 40px 20px;">
+          Loading defects...
         </div>
       </div>
 
-      <button class="btn btn-primary w-full" onclick="submitDefect()" id="submit-btn">
-        🚀 Kirim Laporan
+      <!-- BACK BUTTON -->
+      <button class="btn btn-secondary" onclick="showPage('dashboard')" style="margin-top: 20px; width: 100%;">
+        <span>↩️</span> Kembali
       </button>
     </div>
 
-    <!-- ═══ PAGE: QR SCAN ═══ -->
-    <div class="page" id="page-qr-scan">
-      <div class="section-header">
-        <div class="section-title">QR Scan & Code</div>
+    <!-- ═══ PAGE: DEFECT DETAIL ═══ -->
+    <div class="page" id="page-detail">
+      <div id="defect-detail-container"></div>
+      
+      <button class="btn btn-secondary" onclick="showPage('defects')" style="margin-top: 20px; width: 100%;">
+        <span>↩️</span> Kembali ke Daftar
+      </button>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <div style="font-size: 20px;">📊</div>
+      <div class="nav-label">Dashboard</div>
+    </div>
+    <div class="nav-item" onclick="showPage('report')">
+      <div style="font-size: 20px;">📝</div>
+      <div class="nav-label">Lapor</div>
+    </div>
+    <div class="nav-item" onclick="showPage('defects')">
+      <div style="font-size: 20px;">📋</div>
+      <div class="nav-label">Daftar</div>
+    </div>
+    <div class="nav-item" onclick="doLogout()">
+      <div style="font-size: 20px;">🚪</div>
+      <div class="nav-label">Logout</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════
+     ADDITIONAL STYLES FOR FORMS & DEFECT LIST
+     ═══════════════════════════════════ -->
+<style>
+
+/* FILTER CHIPS */
+.filter-chip {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.filter-chip:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+.filter-chip.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+}
+
+/* DEFECT CARD */
+.defect-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.defect-card:hover {
+  border-color: var(--border-active);
+  transform: translateX(2px);
+}
+.defect-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--status-color, var(--accent-blue));
+}
+
+.defect-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.defect-room {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+}
+.defect-id {
+  font-size: 10px;
+  color: var(--text-2);
+  letter-spacing: 0.1em;
+  font-family: monospace;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.status-open {
+  background: rgba(239,68,68,0.15);
+  color: var(--accent-red);
+  border: 1px solid rgba(239,68,68,0.3);
+}
+.status-inprogress {
+  background: rgba(245,158,11,0.15);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245,158,11,0.3);
+}
+.status-resolved {
+  background: rgba(59,130,246,0.15);
+  color: var(--accent-blue);
+  border: 1px solid rgba(59,130,246,0.3);
+}
+.status-closed {
+  background: rgba(16,185,129,0.15);
+  color: var(--accent-green);
+  border: 1px solid rgba(16,185,129,0.3);
+}
+
+.defect-category {
+  font-size: 12px;
+  color: var(--text-1);
+  margin-bottom: 8px;
+}
+.defect-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 12px;
+}
+
+/* DETAIL MODAL */
+.detail-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.detail-row:last-child {
+  border-bottom: none;
+}
+.detail-label {
+  color: var(--text-1);
+  font-weight: 500;
+}
+.detail-value {
+  color: var(--text-0);
+  font-weight: 600;
+}
+
+/* PHOTO COMPARISON */
+.photo-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+.photo-slot {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  aspect-ratio: 4/3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.photo-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-slot-label {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 8px;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.photo-slot-empty {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+</style>
+
+<!-- ═══════════════════════════════════
+     ADDITIONAL JAVASCRIPT
+     ═══════════════════════════════════ -->
+<script>
+
+// ══════════════════════════════════════════════════════════
+// PAGE NAVIGATION
+// ══════════════════════════════════════════════════════════
+
+function showPage(pageName) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  
+  // Show selected page
+  const page = document.getElementById(`page-${pageName}`);
+  if (page) {
+    page.classList.add('active');
+  }
+
+  // Update bottom nav
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  event?.target?.closest('.nav-item')?.classList.add('active');
+
+  // Load data if needed
+  if (pageName === 'defects') {
+    loadDefectsList();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// DEFECT LIST & FILTERING
+// ══════════════════════════════════════════════════════════
+
+let allDefects = [];
+let currentFilter = 'ALL';
+
+function loadDefectsList() {
+  google.script.run
+    .withSuccessHandler((res) => {
+      allDefects = JSON.parse(res);
+      filterDefects(currentFilter);
+    })
+    .withFailureHandler((err) => {
+      console.error('Error loading defects:', err);
+      showToast('❌ Gagal memuat daftar kerusakan', 'error');
+    })
+    .gasGetDefects();
+}
+
+function filterDefects(status) {
+  currentFilter = status;
+  
+  // Update filter chips
+  document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
+  event?.target?.classList.add('active');
+
+  // Filter defects
+  const filtered = status === 'ALL' 
+    ? allDefects 
+    : allDefects.filter(d => d.Status === status);
+
+  renderDefectsList(filtered);
+}
+
+function renderDefectsList(defects) {
+  const container = document.getElementById('defects-list');
+  
+  if (defects.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-1); padding: 40px 20px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
+        <div>Tidak ada kerusakan</div>
+      </div>
+    `;
+    return;
+  }
+
+  const statusColors = {
+    'OPEN': 'var(--accent-red)',
+    'IN_PROGRESS': 'var(--accent-amber)',
+    'RESOLVED': 'var(--accent-blue)',
+    'CLOSED': 'var(--accent-green)'
+  };
+
+  const statusBadges = {
+    'OPEN': 'status-open',
+    'IN_PROGRESS': 'status-inprogress',
+    'RESOLVED': 'status-resolved',
+    'CLOSED': 'status-closed'
+  };
+
+  container.innerHTML = defects.map(d => `
+    <div class="defect-card" style="--status-color: ${statusColors[d.Status] || 'var(--accent-blue)'}" onclick="viewDefectDetail('${d.ID}')">
+      <div class="defect-header">
+        <div>
+          <div class="defect-room">🏨 ${d.RoomNumber}</div>
+          <div class="defect-id">${d.ID}</div>
+        </div>
+        <span class="status-badge ${statusBadges[d.Status] || 'status-open'}">
+          ${getStatusIcon(d.Status)} ${d.Status}
+        </span>
+      </div>
+      <div class="defect-category">
+        🔧 ${d.Category}
+      </div>
+      <div style="font-size: 13px; color: var(--text-1); margin-bottom: 8px;">
+        ${d.Description?.substring(0, 80) || ''}...
+      </div>
+      <div class="defect-meta">
+        <span>👤 ${d.Reporter}</span>
+        <span>⏰ ${formatDate(d.CreatedAt)}</span>
+        ${d.PhotoBefore ? '<span style="color: var(--accent-green);">✅ Ada Foto</span>' : '<span style="color: var(--text-2);">❌ No Photo</span>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function getStatusIcon(status) {
+  const icons = {
+    'OPEN': '🔴',
+    'IN_PROGRESS': '🟡',
+    'RESOLVED': '🔵',
+    'CLOSED': '🟢'
+  };
+  return icons[status] || '⚪';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return 'N/A';
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return 'N/A';
+  }
+}
+
+function viewDefectDetail(defectId) {
+  const defect = allDefects.find(d => d.ID === defectId);
+  if (!defect) return;
+
+  const container = document.getElementById('defect-detail-container');
+  
+  const statusColors = {
+    'OPEN': 'var(--accent-red)',
+    'IN_PROGRESS': 'var(--accent-amber)',
+    'RESOLVED': 'var(--accent-blue)',
+    'CLOSED': 'var(--accent-green)'
+  };
+
+  container.innerHTML = `
+    <div class="detail-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 style="font-size: 20px; margin-bottom: 4px;">Kamar ${defect.RoomNumber}</h2>
+          <div style="color: var(--text-2); font-size: 12px;">${defect.ID}</div>
+        </div>
+        <span class="status-badge status-${defect.Status.toLowerCase()}" style="background-color: ${statusColors[defect.Status]}; color: white; border: none;">
+          ${getStatusIcon(defect.Status)} ${defect.Status}
+        </span>
       </div>
 
-      <!-- SCAN MODE -->
-      <div class="form-card">
-        <div class="form-card-title">📷 Scan QR Kamar</div>
-        <div class="qr-scanner-area">
-          <div class="qr-overlay">
-            <video id="qr-video" autoplay playsinline muted></video>
-            <div class="qr-corner tl"></div>
-            <div class="qr-corner tr"></div>
-            <div class="qr-corner bl"></div>
-            <div class="qr-corner br"></div>
+      <div class="detail-row">
+        <span class="detail-label">Kategori</span>
+        <span class="detail-value">${defect.Category}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Prioritas</span>
+        <span class="detail-value">${defect.Priority}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Reporter</span>
+        <span class="detail-value">${defect.Reporter}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Engineer</span>
+        <span class="detail-value">${defect.Engineer || 'Belum ditugaskan'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Dibuat</span>
+        <span class="detail-value">${formatDate(defect.CreatedAt)}</span>
+      </div>
+      ${defect.StartedAt ? `
+        <div class="detail-row">
+          <span class="detail-label">Dimulai</span>
+          <span class="detail-value">${formatDate(defect.StartedAt)}</span>
+        </div>
+      ` : ''}
+      ${defect.ResolvedAt ? `
+        <div class="detail-row">
+          <span class="detail-label">Diselesaikan</span>
+          <span class="detail-value">${formatDate(defect.ResolvedAt)}</span>
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="detail-card">
+      <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">📝 Deskripsi</h3>
+      <div style="color: var(--text-1); font-size: 13px; line-height: 1.6;">
+        ${defect.Description || 'Tidak ada deskripsi'}
+      </div>
+    </div>
+
+    ${defect.PhotoBefore || defect.PhotoAfter ? `
+      <div class="detail-card">
+        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">📸 Foto Perbandingan</h3>
+        <div class="photo-compare">
+          <div class="photo-slot">
+            ${defect.PhotoBefore && defect.PhotoBefore.startsWith('data:') ? `
+              <img src="${defect.PhotoBefore}" alt="Before">
+            ` : `
+              <div class="photo-slot-empty">❌ Tidak ada foto BEFORE</div>
+            `}
+            <div class="photo-slot-label">BEFORE</div>
+          </div>
+          <div class="photo-slot">
+            ${defect.PhotoAfter && defect.PhotoAfter.startsWith('data:') ? `
+              <img src="${defect.PhotoAfter}" alt="After">
+            ` : `
+              <div class="photo-slot-empty">❌ Tidak ada foto AFTER</div>
+            `}
+            <div class="photo-slot-label">AFTER</div>
           </div>
         </div>
-        <div id="qr-result" class="ai-box hidden" style="margin-top:12px">
-          <div class="ai-box-header"><div class="ai-badge">SCANNED</div><div class="ai-box-title" id="qr-room-found"></div></div>
-          <button class="btn btn-primary w-full mt-2" onclick="reportFromQR()">+ Lapor Kerusakan Kamar Ini</button>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:12px">
-          <button class="btn btn-secondary w-full" onclick="startQRScan()">▶️ Mulai Scan</button>
-          <button class="btn btn-secondary w-full" onclick="stopQRScan()">⏹️ Stop</button>
-        </div>
       </div>
+    ` : ''}
 
-      <!-- QR GENERATOR -->
-      <div class="form-card" id="qr-gen-section">
-        <div class="form-card-title">🖨️ Generate QR per Kamar</div>
+    ${defect.Status === 'OPEN' && window.currentRole === 'ENG' ? `
+      <div class="detail-card" style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);">
+        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--accent-amber);">🔧 Tangani Perbaikan</h3>
+        <button class="btn btn-amber" onclick="markAsInProgress('${defect.ID}')" style="width: 100%;">
+          Mulai Perbaikan
+        </button>
+      </div>
+    ` : ''}
+
+    ${defect.Status === 'IN_PROGRESS' && window.currentRole === 'ENG' ? `
+      <div class="detail-card" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3);">
+        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--accent-blue);">✅ Selesaikan Perbaikan</h3>
+        <p style="font-size: 12px; color: var(--text-1); margin-bottom: 12px;">Upload foto AFTER untuk menyelesaikan perbaikan</p>
+        
         <div class="form-group">
-          <input class="form-input" id="qr-floor-input" type="number" placeholder="Lantai (misal: 1, 2, 3)">
-        </div>
-        <button class="btn btn-secondary w-full" onclick="generateQRGrid()">Generate QR Lantai</button>
-        <div class="qr-grid" id="qr-grid"></div>
-      </div>
-    </div>
-
-    <!-- ═══ PAGE: GM ANALYTICS ═══ -->
-    <div class="page" id="page-analytics">
-      <div class="section-header">
-        <div class="section-title">📊 GM Analytics</div>
-        <div class="section-sub">Real-time Overview</div>
-      </div>
-
-      <!-- Status Donut -->
-      <div class="chart-card stagger-child">
-        <div class="chart-title">Status Breakdown</div>
-        <div class="donut-wrap">
-          <svg class="donut-svg" width="100" height="100" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--bg-3)" stroke-width="3.5"/>
-            <circle id="donut-open" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-red)" stroke-width="3.5"
-              stroke-dasharray="25 75" stroke-dashoffset="25" transform="rotate(-90 18 18)"/>
-            <circle id="donut-prog" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-amber)" stroke-width="3.5"
-              stroke-dasharray="30 70" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>
-            <circle id="donut-res" cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--accent-blue)" stroke-width="3.5"
-              stroke-dasharray="20 80" stroke-dashoffset="-30" transform="rotate(-90 18 18)"/>
-            <text x="18" y="20.5" text-anchor="middle" font-size="6" fill="white" font-weight="bold" id="donut-total">—</text>
-          </svg>
-          <div class="donut-legend">
-            <div class="legend-item">
-              <div class="legend-dot" style="background:var(--accent-red)"></div>
-              <span class="legend-text">Open</span>
-              <span class="legend-val" id="leg-open">0</span>
+          <label class="form-label">📸 Foto Hasil Perbaikan (AFTER)</label>
+          <div class="photo-upload-area" id="after-upload" onclick="triggerFileInput('after')">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">Tap/Click untuk upload foto SETELAH perbaikan</div>
+            <img class="photo-preview" id="after-preview">
+            <input type="file" id="after-file" accept="image/*" hidden onchange="handlePhotoSelect('after', this)">
+            <div class="upload-progress" id="after-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" id="after-progress-fill"></div>
+              </div>
+              <div class="progress-text" id="after-progress-text">Uploading... 0%</div>
             </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background:var(--accent-amber)"></div>
-              <span class="legend-text">In Progress</span>
-              <span class="legend-val" id="leg-prog">0</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background:var(--accent-blue)"></div>
-              <span class="legend-text">Resolved</span>
-              <span class="legend-val" id="leg-res">0</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-dot" style="background:var(--accent-green)"></div>
-              <span class="legend-text">Closed</span>
-              <span class="legend-val" id="leg-cls">0</span>
-            </div>
+            <div class="photo-status" id="after-status"></div>
           </div>
         </div>
+
+        <button class="btn btn-success" onclick="markAsResolved('${defect.ID}')" style="width: 100%; margin-top: 12px;">
+          ✅ Tandai Selesai
+        </button>
       </div>
+    ` : ''}
+  `;
 
-      <!-- Category Breakdown -->
-      <div class="chart-card stagger-child">
-        <div class="chart-title">🔧 Defect per Kategori</div>
-        <div class="bar-chart" id="cat-chart"></div>
-      </div>
+  showPage('detail');
+}
 
-      <!-- Engineer Leaderboard -->
-      <div class="chart-card stagger-child">
-        <div class="chart-title">🏆 Engineering Performance</div>
-        <div class="leaderboard" id="eng-leaderboard"></div>
-      </div>
+function markAsInProgress(defectId) {
+  google.script.run
+    .withSuccessHandler((res) => {
+      const result = JSON.parse(res);
+      if (result.updated) {
+        showToast('✅ Status diubah menjadi In Progress', 'success');
+        loadDefectsList();
+        setTimeout(() => showPage('defects'), 500);
+      }
+    })
+    .gasUpdateDefect(JSON.stringify({
+      id: defectId,
+      status: 'IN_PROGRESS',
+      engineer: window.currentUser,
+      updatedBy: window.currentUser
+    }));
+}
 
-      <!-- SLA Escalation Log -->
-      <div class="chart-card stagger-child">
-        <div class="chart-title">🚨 SLA Escalation Log</div>
-        <div id="escalation-log" class="text-sm text-muted">Tidak ada eskalasi aktif.</div>
-      </div>
-    </div>
+function markAsResolved(defectId) {
+  if (!window.defectFormData || !window.defectFormData.photoAfter) {
+    showToast('❌ Mohon upload foto AFTER terlebih dahulu', 'error');
+    return;
+  }
 
-  </div><!-- /main-content -->
+  google.script.run
+    .withSuccessHandler((res) => {
+      const result = JSON.parse(res);
+      if (result.updated) {
+        showToast('✅ Kerusakan berhasil diselesaikan!', 'success');
+        window.defectFormData = {};
+        loadDefectsList();
+        setTimeout(() => showPage('defects'), 500);
+      }
+    })
+    .gasUpdateDefectWithPhoto(JSON.stringify({
+      id: defectId,
+      status: 'RESOLVED',
+      photoAfter: window.defectFormData.photoAfter,
+      engineer: window.currentUser,
+      updatedBy: window.currentUser
+    }));
+}
 
+// ══════════════════════════════════════════════════════════
+// LOGOUT
+// ══════════════════════════════════════════════════════════
+
+function doLogout() {
+  if (confirm('Yakin ingin logout?')) {
+    window.currentUser = null;
+    window.currentRole = null;
+    window.defectFormData = {};
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app-shell').classList.remove('visible');
+    document.getElementById('login-name').value = '';
+    location.reload();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════��══════════════════════════
+
+window.defectFormData = {};
+
+// Load defects on startup
+loadDefectsList();
+
+</script>
   <!-- BOTTOM NAV -->
   <div class="bottom-nav">
     <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
