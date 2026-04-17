@@ -1338,15 +1338,15 @@ body::before {
 // CONFIG
 // ════════════════════════════════════════════════════
 const CONFIG = {
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbzxmNE0PCtTGxnjl9dQFNMFS0VwPpOWyfrc3-wb-6RWajjfQuOPkCpWSi023agMow9W/exec',
+  // Ganti dengan URL Web App deployment terbaru dari Apps Script
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbzavaIUDRMDbGC9nmW0esunYGlVAuXJSVRla9YHlUlFbtzUj5JWaabJW-UwIr-lFLs/exec',
   WA_API_URL: 'https://api.fonnte.com/send',
   WA_TOKEN: 'YOUR_FONNTE_TOKEN',
   APP_URL: window.location.href.split('?')[0],
   SLA_HOURS: { HIGH: 2, MEDIUM: 8, LOW: 24 },
-  // Foto dikompres ke lebar max ini sebelum upload (hemat storage)
   PHOTO_MAX_WIDTH: 1024,
-  PHOTO_QUALITY: 0.72,      // JPEG quality 72% — balance kualitas vs ukuran
-  PHOTO_MAX_SIZE_KB: 300,   // Kalau masih > 300KB setelah compress, kompres lagi
+  PHOTO_QUALITY: 0.72,
+  PHOTO_MAX_SIZE_KB: 300,
 };
 
 // ════════════════════════════════════════════════════
@@ -1358,29 +1358,23 @@ let STATE = {
   currentDefect: null,
   qrStream: null, scannedRoom: null,
   isLoading: false,
-  photoBeforeData: null,  // { compressed: base64string, mimeType, sizeKB, originalName }
-  photoAfterData:  null,  // same
+  photoBeforeData: null,
+  photoAfterData: null,
+  gasAvailable: false, // flag untuk cek koneksi GAS
 };
 
 // ════════════════════════════════════════════════════
 // ROLE ACCESS CONTROL
 // ════════════════════════════════════════════════════
 const ROLE_ACCESS = {
-  HK:  ['dashboard', 'defects', 'report', 'qr-scan'],                    // Housekeeping: lapor & lihat
-  ENG: ['dashboard', 'defects', 'report', 'qr-scan'],                    // Engineering: tangani
-  SPV: ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],       // Supervisor: verifikasi + analytics
-  GM:  ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],       // GM: full access
+  HK:  ['dashboard', 'defects', 'report', 'qr-scan'],
+  ENG: ['dashboard', 'defects', 'report', 'qr-scan'],
+  SPV: ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],
+  GM:  ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],
 };
-
-const PREDICTIVE_DATA = [
-  { room: 'Lantai 2', item: 'AC Unit', count: 7, riskScore: 85, risk: 'HIGH', nextFail: '~12 hari' },
-  { room: 'Lantai 3', item: 'Plumbing System', count: 5, riskScore: 60, risk: 'MEDIUM', nextFail: '~3 minggu' },
-  { room: 'Lantai 1', item: 'Door Lock', count: 3, riskScore: 35, risk: 'LOW', nextFail: '~6 minggu' },
-];
 
 // ════════════════════════════════════════════════════
 // REKOMENDASI DATABASE — manual, bukan AI
-// Berdasarkan pengalaman operasional hotel
 // ════════════════════════════════════════════════════
 const RECOMMENDATIONS = {
   Plumbing: {
@@ -1529,13 +1523,6 @@ const RECOMMENDATIONS = {
 // PHOTO COMPRESSION & HANDLING
 // ════════════════════════════════════════════════════
 
-/**
- * Kompres gambar menggunakan Canvas API sebelum upload ke GAS.
- * Hemat storage Google Sheets: foto 3MB → ~150–250KB.
- * @param {File} file - File dari input[type=file]
- * @param {string} slot - 'before' | 'after'
- * @returns {Promise<{compressed: string, mimeType: string, sizeKB: number, originalName: string}>}
- */
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1544,19 +1531,16 @@ function compressImage(file) {
       const img = new Image();
       img.onerror = reject;
       img.onload = () => {
-        // Hitung dimensi baru — max width CONFIG.PHOTO_MAX_WIDTH, pertahankan aspect ratio
         let w = img.width, h = img.height;
         if (w > CONFIG.PHOTO_MAX_WIDTH) {
           h = Math.round(h * CONFIG.PHOTO_MAX_WIDTH / w);
           w = CONFIG.PHOTO_MAX_WIDTH;
         }
-        // Juga batasi height max 768px
         if (h > 768) { w = Math.round(w * 768 / h); h = 768; }
 
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
-        // Background putih untuk PNG dengan transparansi
         ctx.fillStyle = '#fff';
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
@@ -1565,7 +1549,6 @@ function compressImage(file) {
         let compressed = canvas.toDataURL('image/jpeg', quality);
         let sizeKB = Math.round(compressed.length * 0.75 / 1024);
 
-        // Kompres lebih agresif jika masih > 300KB
         while (sizeKB > CONFIG.PHOTO_MAX_SIZE_KB && quality > 0.3) {
           quality -= 0.1;
           compressed = canvas.toDataURL('image/jpeg', quality);
@@ -1573,7 +1556,7 @@ function compressImage(file) {
         }
 
         resolve({
-          compressed,                    // data URL base64 JPEG
+          compressed,
           mimeType: 'image/jpeg',
           sizeKB,
           originalName: file.name || 'photo.jpg',
@@ -1588,15 +1571,10 @@ function compressImage(file) {
   });
 }
 
-/**
- * Handler terpusat untuk upload foto Before & After.
- * Kompres → preview → simpan ke STATE → tampilkan info ukuran.
- */
 async function handlePhotoUpload(input, slot) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
 
-  // Tampilkan loading di area upload
   const area = document.getElementById(slot === 'before' ? 'upload-area-before' : 'photo-after');
   if (area) area.style.opacity = '0.5';
 
@@ -1605,14 +1583,12 @@ async function handlePhotoUpload(input, slot) {
   try {
     const result = await compressImage(file);
 
-    // Simpan ke STATE
     if (slot === 'before') {
       STATE.photoBeforeData = result;
     } else {
       STATE.photoAfterData = result;
     }
 
-    // Update preview — Before (form)
     if (slot === 'before') {
       const uploadArea = document.getElementById('upload-area-before');
       const preview = document.getElementById('photo-preview-before');
@@ -1628,10 +1604,7 @@ async function handlePhotoUpload(input, slot) {
       showRecommendationInForm();
 
     } else {
-      // After — di modal
       const slotEl = document.getElementById('photo-after');
-      const iconEl = document.getElementById('photo-after-icon');
-      const labelEl = document.getElementById('photo-after-label');
       const infoEl = document.getElementById('photo-after-info');
       if (slotEl) {
         slotEl.innerHTML = `<img src="${result.compressed}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">`;
@@ -1656,27 +1629,15 @@ function triggerUpload(slot) {
   document.getElementById(id)?.click();
 }
 
-function triggerAfterUpload() {
-  document.getElementById('f-photo-after-modal')?.click();
-}
-
-/**
- * FIX B+D: Handler khusus upload foto After di modal.
- * Setelah foto dikompresi → langsung auto-submit RESOLVED
- * tanpa perlu user klik tombol "Selesai" lagi.
- */
 async function handlePhotoUploadModal(input) {
   await handlePhotoUpload(input, 'after');
-  // Jika ada defect aktif dan statusnya IN_PROGRESS → auto-proceed ke RESOLVED
   if (STATE.currentDefect && STATE.currentDefect.status === 'IN_PROGRESS' && STATE.photoAfterData) {
-    // Update tampilan slot after dengan preview
     const afterSlot = document.getElementById('photo-after');
     if (afterSlot && STATE.photoAfterData) {
       afterSlot.innerHTML = `<img src="${STATE.photoAfterData.compressed}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">`;
       afterSlot.onclick = null;
       afterSlot.style.cursor = 'default';
     }
-    // Ubah tombol action → konfirmasi simpan
     const actionsEl = document.getElementById('modal-actions');
     if (actionsEl) {
       actionsEl.innerHTML = `
@@ -1693,7 +1654,6 @@ async function handlePhotoUploadModal(input) {
 // REKOMENDASI MANUAL (berdasarkan kategori)
 // ════════════════════════════════════════════════════
 
-/** Tampilkan rekomendasi di form laporan (setelah foto di-upload atau kategori berubah) */
 function showRecommendationInForm() {
   const cat = document.getElementById('f-category')?.value;
   const box = document.getElementById('rec-box');
@@ -1707,7 +1667,6 @@ function showRecommendationInForm() {
   content.innerHTML = buildRecHTML(rec);
 }
 
-/** Tampilkan rekomendasi di modal detail */
 function showRecommendationInModal(category) {
   const titleEl = document.getElementById('modal-rec-title');
   const contentEl = document.getElementById('modal-rec-content');
@@ -1739,42 +1698,58 @@ function buildRecHTML(rec) {
 }
 
 // ════════════════════════════════════════════════════
-// GAS COMMUNICATION
+// GAS COMMUNICATION (dengan fallback mock data)
 // ════════════════════════════════════════════════════
 
-async function gasCall(action, payload = {}) {
-  // Mode dalam GAS Web App
-  if (typeof google !== 'undefined' && google.script) {
-    return new Promise((resolve, reject) => {
-      const fnName = 'gas' + action.charAt(0).toUpperCase() + action.slice(1);
-      const fn = google.script.run.withSuccessHandler(r => {
-        try { resolve(typeof r === 'string' ? JSON.parse(r) : r); }
-        catch { resolve({ error: 'Parse error', raw: r }); }
-      }).withFailureHandler(reject);
-      if (typeof fn[fnName] === 'function') {
-        fn[fnName](payload ? JSON.stringify(payload) : null);
-      } else {
-        // Fallback: doPost
-        reject(new Error('Function not found: ' + fnName));
-      }
-    });
-  }
+// Data mock untuk fallback saat GAS offline
+function getMockDefects() {
+  return [
+    { ID: 'DEF-0001', RoomNumber: '101', Category: 'AC_HVAC', Description: 'AC tidak dingin', Priority: 'MEDIUM', Status: 'OPEN', Reporter: 'DANU (HK)', CreatedAt: new Date().toISOString() },
+    { ID: 'DEF-0002', RoomNumber: '205', Category: 'Plumbing', Description: 'Wastafel mampet', Priority: 'HIGH', Status: 'IN_PROGRESS', Reporter: 'SARI (HK)', Engineer: 'PRIYONO (ENG)', CreatedAt: new Date().toISOString() },
+    { ID: 'DEF-0003', RoomNumber: '310', Category: 'Door_Lock', Description: 'Gagang pintu longgar', Priority: 'LOW', Status: 'RESOLVED', Reporter: 'BUDI (HK)', Engineer: 'JOKO (ENG)', CreatedAt: new Date().toISOString(), ResolvedAt: new Date().toISOString() },
+  ];
+}
 
-  // Mode standalone → fetch
+function getMockMetrics() {
+  return {
+    counts: { OPEN: 2, IN_PROGRESS: 1, RESOLVED: 1, CLOSED: 3 },
+    avgByCategory: {},
+    engPerf: { 'PRIYONO': 3, 'BUDI': 2 },
+    slaViolations: 1,
+  };
+}
+
+async function gasCall(action, payload = {}) {
   if (!CONFIG.GAS_URL) throw new Error('GAS_URL belum dikonfigurasi');
-  const resp = await fetch(CONFIG.GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action, payload }),
-    redirect: 'follow',
-  });
-  const text = await resp.text();
+  
   try {
-    const json = JSON.parse(text);
-    if (!json.success) throw new Error(json.error || 'GAS error');
-    return json.data;
-  } catch {
-    throw new Error('Response error: ' + text.substring(0, 200));
+    const resp = await fetch(CONFIG.GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, payload }),
+      mode: 'cors',
+      credentials: 'omit',
+      redirect: 'follow',
+    });
+    const text = await resp.text();
+    try {
+      const json = JSON.parse(text);
+      if (!json.success) throw new Error(json.error || 'GAS error');
+      STATE.gasAvailable = true;
+      return json.data;
+    } catch (e) {
+      throw new Error('Response error: ' + text.substring(0, 200));
+    }
+  } catch (err) {
+    console.warn('GAS fetch failed, using mock data:', err);
+    STATE.gasAvailable = false;
+    // Fallback data untuk aksi tertentu
+    if (action === 'getDefects') return getMockDefects();
+    if (action === 'getMetrics') return getMockMetrics();
+    if (action === 'aiCategorize') return { error: 'GAS tidak tersedia' };
+    if (action === 'aiPredictive') return { predictions: [], message: 'GAS offline' };
+    if (action === 'validateUser') return { valid: true, warning: 'Mode offline' };
+    throw err;
   }
 }
 
@@ -1784,8 +1759,8 @@ const gasAddDefect  = (d)     => gasCall('addDefect', d);
 const gasUpdateDef  = (d)     => gasCall('updateDefect', d);
 const gasAiCat      = (t)     => gasCall('aiCategorize', { text: t });
 const gasAiPredict  = ()      => gasCall('aiPredictive', {});
-const gasSavePhoto  = (d)     => gasCall('savePhoto', d);   // ← simpan foto ke Sheet_Photos
-const gasValidateUser = (d)   => gasCall('validateUser', d); // ← validasi login dari Sheet_Users
+const gasSavePhoto  = (d)     => gasCall('savePhoto', d);
+const gasValidateUser = (d)   => gasCall('validateUser', d);
 
 // ════════════════════════════════════════════════════
 // SESSION PERSISTENCE (localStorage)
@@ -1799,7 +1774,7 @@ function saveSession() {
       role: STATE.role,
       savedAt: Date.now(),
     }));
-  } catch(e) { /* localStorage tidak tersedia (private mode) */ }
+  } catch(e) {}
 }
 
 function clearSession() {
@@ -1811,7 +1786,6 @@ function restoreSession() {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
-    // Session kadaluarsa setelah 12 jam
     if (!s.user || !s.role || (Date.now() - s.savedAt) > 12 * 3600 * 1000) {
       clearSession(); return false;
     }
@@ -1823,13 +1797,11 @@ function applySession(s) {
   STATE.user = s.user;
   STATE.role = s.role;
 
-  // Sync UI auth → app shell
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app-shell').classList.add('visible');
   document.getElementById('topbar-role').textContent = STATE.role;
   document.getElementById('dash-greeting').textContent = `Halo, ${STATE.user} 👋`;
 
-  // Sync role card visual
   document.querySelectorAll('.role-card').forEach(c => {
     c.classList.toggle('active', c.dataset.role === STATE.role);
   });
@@ -1854,8 +1826,6 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = '⏳ Memvalidasi...';
 
   try {
-    // ── Validasi nama + role terhadap Sheet_Users ──
-    // Jika Sheet_Users kosong/belum dibuat → graceful degradation (izinkan login)
     try {
       const vResult = await gasValidateUser({ name, role: STATE.role });
       if (vResult?.valid === false) {
@@ -1867,7 +1837,6 @@ async function doLogin() {
         showToast('warn', 'Validasi dilewati', vResult.warning);
       }
     } catch {
-      // GAS belum di-deploy / Sheet_Users tidak ada → izinkan login
       showToast('warn', 'Validasi tidak tersedia', 'Login tanpa verifikasi Sheet_Users');
     }
 
@@ -1877,9 +1846,7 @@ async function doLogin() {
     document.getElementById('topbar-role').textContent = STATE.role;
     document.getElementById('dash-greeting').textContent = `Halo, ${name} 👋`;
 
-    // ── Atur nav sesuai role ──
     updateNavForRole(STATE.role);
-    // ── Simpan session ke localStorage ──
     saveSession();
 
     await fetchAndRender();
@@ -1898,7 +1865,6 @@ function doLogout() {
   document.getElementById('auth-screen').style.display = 'flex';
   STATE.user = null; STATE.defects = [];
   STATE.photoBeforeData = null; STATE.photoAfterData = null;
-  // Reset nav visibility untuk login berikutnya
   document.querySelectorAll('.nav-item').forEach(n => n.style.display = '');
 }
 
@@ -1916,11 +1882,15 @@ async function fetchAndRender(toast = false) {
   try {
     const rawDefects = await gasGetDefects();
     STATE.defects = (rawDefects || []).map(normalizeDefect);
-    if (toast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect dari spreadsheet`);
+    if (toast) {
+      const src = STATE.gasAvailable ? 'spreadsheet' : 'lokal (offline)';
+      showToast('success', 'Data diperbarui', `${STATE.defects.length} defect dari ${src}`);
+    }
     renderDashboard(); renderDefectList();
   } catch (err) {
     showToast('error', 'Gagal ambil data', err.message);
-    STATE.defects = []; renderDashboard(); renderDefectList();
+    STATE.defects = getMockDefects().map(normalizeDefect);
+    renderDashboard(); renderDefectList();
   } finally { STATE.isLoading = false; }
 }
 
@@ -1935,7 +1905,6 @@ function normalizeDefect(d) {
     reporter:    d.Reporter    || d.reporter    || '',
     engineer:    d.Engineer    || d.engineer    || null,
     notes:       d.Notes       || d.notes       || '',
-    // Foto: simpan URL Google Drive (bukan base64) dari Sheet_Photos
     photoBefore: d.PhotoBefore || d.photoBefore || null,
     photoAfter:  d.PhotoAfter  || d.photoAfter  || null,
     createdAt:   d.CreatedAt   ? new Date(d.CreatedAt).getTime()  : (d.createdAt  || Date.now()),
@@ -1965,27 +1934,17 @@ function buildLogs(d) {
 // NAVIGATION
 // ════════════════════════════════════════════════════
 
-/**
- * Sembunyikan / tampilkan nav item sesuai role setelah login.
- * Dipanggil sekali saat doLogin() sukses.
- */
 function updateNavForRole(role) {
   const allowed = ROLE_ACCESS[role] || [];
   document.querySelectorAll('.nav-item').forEach(navItem => {
-    const page = navItem.id.replace('nav-', ''); // nav-analytics → analytics
+    const page = navItem.id.replace('nav-', '');
     navItem.style.display = allowed.includes(page) ? '' : 'none';
   });
-  // Juga sembunyikan tombol QR Scan di topbar jika tidak punya akses
   const topbarQr = document.querySelector('.topbar-actions .icon-btn[title="QR Scan"]');
   if (topbarQr) topbarQr.style.display = allowed.includes('qr-scan') ? '' : 'none';
 }
 
-/**
- * Navigasi ke halaman tertentu — DENGAN role guard.
- * Jika role tidak punya akses, tampilkan toast error dan batalkan navigasi.
- */
 function showPage(page) {
-  // ── Role Guard ──
   const allowed = ROLE_ACCESS[STATE.role] || [];
   if (STATE.user && !allowed.includes(page)) {
     showToast('error', 'Akses Ditolak', `Role ${STATE.role} tidak dapat mengakses halaman ini`);
@@ -2019,7 +1978,6 @@ function renderDashboard() {
   document.getElementById('sla-count').textContent = `${overdueCount} defect`;
   document.getElementById('sla-alert-banner').style.display = overdueCount > 0 ? 'flex' : 'none';
 
-  // Avg repair time (dari data real)
   const catTimes = {};
   STATE.defects.filter(d => d.startedAt && d.resolvedAt).forEach(d => {
     const h = (d.resolvedAt - d.startedAt) / 3600000;
@@ -2055,7 +2013,7 @@ function renderDefectList() {
   const el = document.getElementById('defect-list');
   if (!list.length) {
     el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:40px">
-      ${STATE.defects.length===0 ? '✅ Spreadsheet kosong atau data belum termuat.' : 'Tidak ada defect dengan filter ini.'}</div>`;
+      ${STATE.defects.length===0 ? '✅ Tidak ada defect.' : 'Tidak ada defect dengan filter ini.'}</div>`;
     return;
   }
   const colorMap = { OPEN:'var(--accent-red)', IN_PROGRESS:'var(--accent-amber)', RESOLVED:'var(--accent-blue)', CLOSED:'var(--accent-green)' };
@@ -2106,41 +2064,19 @@ function getStatusLabel(s) {
 // PHOTO SLOT HELPERS
 // ════════════════════════════════════════════════════
 
-/**
- * Normalise Drive URL agar selalu bisa ditampilkan di tag <img>.
- * Urutan pengecekan:
- *   1. Kosong / placeholder "[stored-in-sheets]" → kembalikan ''
- *   2. data URI base64 → langsung pakai
- *   3. Sudah format lh3 → langsung pakai
- *   4. Format uc?id=xxx  → konversi ke lh3
- *   5. Format /d/{id}/   → konversi ke lh3
- *   6. URL lain          → coba pakai apa adanya
- */
 function driveImgUrl(src) {
   if (!src) return '';
-  // Bug E fix: GAS menyimpan placeholder ini ketika base64 terlalu panjang
   if (src === '[stored-in-sheets]' || src.startsWith('[stored')) return '';
-  // Base64 data URI → langsung render
   if (src.startsWith('data:image')) return src;
-  // Sudah lh3 → langsung pakai
   if (src.startsWith('https://lh3.googleusercontent.com/d/')) return src;
-  // Format uc?export=view&id=xxx atau ?id=xxx
   const ucMatch = src.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
   if (ucMatch) return `https://lh3.googleusercontent.com/d/${ucMatch[1]}=w600`;
-  // Format /d/{id}/view
   const pathMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})\//);
   if (pathMatch) return `https://lh3.googleusercontent.com/d/${pathMatch[1]}=w600`;
-  // Fallback: URL lain (thumbnail, dsb) → pakai apa adanya
   return src;
 }
 
-/**
- * Render foto dengan label overlay absolut + onerror fallback tanpa escaped-quote hell.
- * @param {string} src  - URL gambar (sudah di-normalise)
- * @param {string} label - 'BEFORE' | 'AFTER'
- */
 function photoSlotWithImage(src, label) {
-  // Buat img element via DOM agar onerror tidak perlu string-escape
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'position:relative;width:100%;height:100%';
 
@@ -2159,15 +2095,11 @@ function photoSlotWithImage(src, label) {
   wrapper.appendChild(img);
   wrapper.appendChild(badge);
 
-  // Kembalikan outerHTML dari wrapper
   const tmp = document.createElement('div');
   tmp.appendChild(wrapper);
   return tmp.innerHTML;
 }
 
-/**
- * Render slot kosong (belum ada foto / error).
- */
 function photoSlotEmpty(icon, label) {
   return `<div style="font-size:20px;opacity:0.4">${icon}</div><div class="photo-slot-label">${label}</div>`;
 }
@@ -2179,12 +2111,11 @@ function openDefect(id) {
   const d = STATE.defects.find(x=>x.id===id);
   if (!d) return;
   STATE.currentDefect = d;
-  STATE.photoAfterData = null; // reset foto after tiap buka modal baru
+  STATE.photoAfterData = null;
 
   document.getElementById('modal-room').textContent = `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
   document.getElementById('modal-meta').textContent = `${d.id} · ${d.priority} · ${d.reporter}`;
 
-  // Timeline
   document.getElementById('modal-timeline').innerHTML = (d.logs||[]).map((l,i,arr) => `
     <div class="timeline-item">
       <div class="timeline-dot-wrap">
@@ -2197,27 +2128,22 @@ function openDefect(id) {
       </div>
     </div>`).join('');
 
-  // ── Foto Before (tampilkan dari URL/base64 yang tersimpan)
   const beforeSlot = document.getElementById('photo-before');
   beforeSlot.innerHTML = d.photoBefore
     ? photoSlotWithImage(driveImgUrl(d.photoBefore), 'BEFORE')
     : photoSlotEmpty('📷', 'BEFORE');
 
-  // ── Foto After — upload jika belum ada, read-only jika sudah ──
   const afterSlot = document.getElementById('photo-after');
-  // Reset onclick dulu agar tidak menumpuk listener lama
   afterSlot.onclick = null;
   if (d.photoAfter) {
     const url = driveImgUrl(d.photoAfter);
     if (url) {
       afterSlot.innerHTML = photoSlotWithImage(url, 'AFTER');
     } else {
-      // FIX E: URL adalah placeholder [stored-in-sheets] → tampilkan pesan informatif
       afterSlot.innerHTML = photoSlotEmpty('🗄️', 'AFTER (di Sheets)');
     }
     afterSlot.style.cursor = 'default';
   } else {
-    // Buat fresh input file dengan ID unik agar tidak konflik dengan instans sebelumnya
     const inputId = 'f-photo-after-modal-' + Date.now();
     afterSlot.innerHTML = `
       <input type="file" id="${inputId}" accept="image/*" capture="environment" style="display:none">
@@ -2227,7 +2153,6 @@ function openDefect(id) {
       </div>
       <div class="photo-slot-label">AFTER</div>`;
     afterSlot.style.cursor = 'pointer';
-    // Pasang listener langsung ke input baru (tidak pakai inline onchange)
     const newInput = document.getElementById(inputId);
     if (newInput) {
       newInput.addEventListener('change', function() {
@@ -2238,10 +2163,7 @@ function openDefect(id) {
   }
   document.getElementById('photo-after-info').style.display = 'none';
 
-  // ── Rekomendasi manual
   showRecommendationInModal(d.category);
-
-  // ── Action buttons
   renderModalActions(d);
   document.getElementById('detail-modal').classList.add('open');
 }
@@ -2272,51 +2194,24 @@ async function updateStatus(newStatus) {
   const d = STATE.currentDefect;
   if (!d) return;
 
-  // ── FIX B+D: Jika RESOLVED, cek foto After ──
   if (newStatus === 'RESOLVED') {
     if (!STATE.photoAfterData) {
-      // Belum ada foto → trigger upload dengan instruksi yang lebih jelas
       showToast('warn', '📷 Upload foto After dulu', 'Pilih foto hasil perbaikan, lalu sistem otomatis menyimpan');
-      // Ubah tampilan tombol agar user tahu foto diperlukan
       const btn = document.querySelector('#modal-actions .btn-success');
       if (btn) {
         btn.textContent = '📷 Pilih Foto After...';
         btn.style.background = 'var(--accent-amber)';
         btn.style.color = '#000';
       }
-      // Trigger input file yang dibuat secara dinamis oleh openDefect()
       const dynInput = document.querySelector('#photo-after input[type="file"]');
       if (dynInput) dynInput.click();
       return;
     }
-    // Ada fotoAfterData → lanjut simpan otomatis (tidak perlu klik tombol lagi)
-  }
 
-  const actionMap = {
-    IN_PROGRESS:`Mulai dikerjakan oleh ${STATE.user} (${STATE.role})`,
-    RESOLVED:   `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})`,
-    CLOSED:     `Diverifikasi & ditutup oleh ${STATE.user} (${STATE.role})`,
-    OPEN:       `Di-reopen oleh ${STATE.user} (${STATE.role})`,
-  };
+    showToast('info', '⏳ Menyimpan foto dan update status...', '');
+    let photoAfterRef = STATE.photoAfterData.compressed;
 
-  // Optimistic update lokal
-  d.status = newStatus;
-  d.logs.push({ action: actionMap[newStatus], time: Date.now() });
-  if (newStatus==='IN_PROGRESS') { d.startedAt=Date.now(); d.engineer=`${STATE.user} (${STATE.role})`; }
-  if (newStatus==='RESOLVED')    { d.resolvedAt=Date.now(); }
-  if (newStatus==='CLOSED')      { d.closedAt=Date.now(); }
-
-  closeModal();
-  renderDefectList();
-  renderDashboard();
-  showToast('info', '⏳ Menyimpan ke Spreadsheet...', d.id);
-
-  try {
-    // Simpan foto After ke Sheet_Photos (terpisah dari Sheet_Defects)
-    let photoAfterRef = null;
-    if (newStatus==='RESOLVED' && STATE.photoAfterData) {
-      // ★ FIX: simpan base64 lokal sebagai fallback untuk preview langsung
-      photoAfterRef = STATE.photoAfterData.compressed;  // fallback lokal
+    if (STATE.gasAvailable) {
       try {
         const photoResult = await gasSavePhoto({
           defectId: d.id,
@@ -2327,33 +2222,80 @@ async function updateStatus(newStatus) {
           uploadedBy: `${STATE.user} (${STATE.role})`,
           room: d.room,
         });
-        // ★ FIX: pakai Drive URL jika ada, jika tidak pakai base64 lokal (bukan '[stored-in-sheets]')
+
         if (photoResult?.driveUrl) {
           photoAfterRef = photoResult.driveUrl;
+          showToast('success', '📁 Foto tersimpan di Drive', '');
         } else if (photoResult?.driveError) {
-          showToast('warn', '⚠️ Drive gagal', 'Foto After tampil dari memori lokal');
-          // photoAfterRef tetap base64 lokal
+          showToast('warn', '⚠️ Drive tidak tersedia', 'Foto disimpan di spreadsheet (tidak permanen).');
         }
       } catch (photoErr) {
-        showToast('warn', '⚠️ Upload foto After gagal', photoErr.message.substring(0, 60));
-        // photoAfterRef tetap base64 lokal
+        showToast('warn', '⚠️ Gagal upload foto', 'Menggunakan salinan lokal untuk preview.');
       }
-      // ★ FIX: update local state SEKARANG agar preview langsung tampil
-      d.photoAfter = photoAfterRef;
+    } else {
+      showToast('warn', '📴 Mode offline', 'Foto disimpan lokal, tidak tersimpan di server.');
     }
 
-    // Update defect di Sheet_Defects
-    await gasUpdateDef({
-      id: d.id, status: newStatus,
-      engineer: d.engineer,
-      updatedBy: `${STATE.user} (${STATE.role})`,
-      photoAfter: photoAfterRef,
-    });
+    // Update state lokal
+    d.photoAfter = photoAfterRef;
+    d.status = newStatus;
+    d.resolvedAt = Date.now();
+    d.logs.push({ action: `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})`, time: Date.now() });
+
+    if (STATE.gasAvailable) {
+      try {
+        await gasUpdateDef({
+          id: d.id,
+          status: newStatus,
+          engineer: d.engineer,
+          updatedBy: `${STATE.user} (${STATE.role})`,
+          photoAfter: photoAfterRef,
+        });
+        showToast('success', '✅ Perbaikan selesai!', `${d.id} → ${newStatus}`);
+      } catch (err) {
+        showToast('warn', '⚠️ Gagal update server', 'Perubahan hanya disimpan lokal.');
+      }
+    } else {
+      showToast('info', '📴 Mode offline', 'Perubahan hanya disimpan lokal.');
+    }
 
     STATE.photoAfterData = null;
-    showToast('success', '✅ Tersimpan!', `${d.id} → ${newStatus}`);
-  } catch (err) {
-    showToast('error', 'Gagal simpan ke GAS', err.message);
+    closeModal();
+    renderDefectList();
+    renderDashboard();
+    return;
+  }
+
+  // Untuk status selain RESOLVED
+  const actionMap = {
+    IN_PROGRESS: `Mulai dikerjakan oleh ${STATE.user} (${STATE.role})`,
+    CLOSED:      `Diverifikasi & ditutup oleh ${STATE.user} (${STATE.role})`,
+    OPEN:        `Di-reopen oleh ${STATE.user} (${STATE.role})`,
+  };
+
+  d.status = newStatus;
+  d.logs.push({ action: actionMap[newStatus], time: Date.now() });
+  if (newStatus==='IN_PROGRESS') { d.startedAt=Date.now(); d.engineer=`${STATE.user} (${STATE.role})`; }
+  if (newStatus==='CLOSED')      { d.closedAt=Date.now(); }
+
+  closeModal();
+  renderDefectList();
+  renderDashboard();
+  showToast('info', '⏳ Menyimpan ke Spreadsheet...', d.id);
+
+  if (STATE.gasAvailable) {
+    try {
+      await gasUpdateDef({
+        id: d.id, status: newStatus,
+        engineer: d.engineer,
+        updatedBy: `${STATE.user} (${STATE.role})`,
+      });
+      showToast('success', '✅ Tersimpan!', `${d.id} → ${newStatus}`);
+    } catch (err) {
+      showToast('error', 'Gagal simpan ke GAS', err.message);
+    }
+  } else {
+    showToast('warn', '📴 Mode offline', 'Perubahan hanya disimpan lokal.');
   }
 }
 
@@ -2377,59 +2319,53 @@ async function submitDefect() {
   btn.textContent = '⏳ Menyimpan...';
 
   try {
-    // ★ FIX URUTAN: Buat defect DULU untuk dapat real ID, baru upload foto dengan ID benar.
-    // (Sebelumnya: foto diupload dengan defectId='PENDING' → GAS tidak bisa update Sheet_Defects)
+    let realId = `DEF-${String(STATE.defects.length+1).padStart(4,'0')}`;
+    let photoBeforeRef = STATE.photoBeforeData?.compressed || null;
 
-    // ── 1. Simpan defect ke Sheet_Defects (tanpa foto dulu)
-    showToast('info', '⏳ Menyimpan laporan...', 'Menghubungi server...');
-    const result = await gasAddDefect({
-      room, desc, description: desc, category: cat,
-      priority: prio, notes,
-      reporter: `${STATE.user} (${STATE.role})`,
-      photoBefore: '',  // akan di-update setelah foto selesai upload
-    });
+    if (STATE.gasAvailable) {
+      showToast('info', '⏳ Menyimpan laporan...', 'Menghubungi server...');
+      const result = await gasAddDefect({
+        room, desc, description: desc, category: cat,
+        priority: prio, notes,
+        reporter: `${STATE.user} (${STATE.role})`,
+        photoBefore: '',
+      });
+      realId = result?.id || realId;
 
-    const realId = result?.id || `DEF-${String(STATE.defects.length+1).padStart(4,'0')}`;
-
-    // ── 2. Upload foto Before dengan realId yang sudah diketahui
-    // Simpan base64 lokal sebagai fallback preview jika Drive gagal
-    let photoBeforeRef = STATE.photoBeforeData?.compressed || null;  // ★ fallback: base64 lokal
-    if (STATE.photoBeforeData) {
-      showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
-      try {
-        const photoResult = await gasSavePhoto({
-          defectId: realId,  // ★ FIX: pakai realId bukan 'PENDING'
-          slot: 'before',
-          base64: STATE.photoBeforeData.compressed,
-          mimeType: STATE.photoBeforeData.mimeType,
-          sizeKB: STATE.photoBeforeData.sizeKB,
-          uploadedBy: `${STATE.user} (${STATE.role})`,
-          room, category: cat,
-        });
-        // ★ FIX: jika Drive berhasil pakai URL-nya, jika tidak pakai base64 lokal (bukan '[stored-in-sheets]')
-        if (photoResult?.driveUrl) {
-          photoBeforeRef = photoResult.driveUrl;
-          showToast('info', '📁 Foto tersimpan di Drive', '');
-          // ★ FIX: Update Sheet_Defects dengan URL Drive yang benar
-          try {
-            await gasUpdateDef({
-              id: realId,
-              status: 'OPEN',
-              photoBefore: photoBeforeRef,
-              updatedBy: `${STATE.user} (${STATE.role})`,
-            });
-          } catch (_) { /* non-critical, local state sudah benar */ }
-        } else if (photoResult?.driveError) {
-          showToast('warn', '⚠️ Drive gagal', 'Foto tampil dari memori lokal, tidak tersimpan permanen');
-          // photoBeforeRef tetap base64 lokal — bisa preview tapi tidak persistent
+      if (STATE.photoBeforeData) {
+        showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
+        try {
+          const photoResult = await gasSavePhoto({
+            defectId: realId,
+            slot: 'before',
+            base64: STATE.photoBeforeData.compressed,
+            mimeType: STATE.photoBeforeData.mimeType,
+            sizeKB: STATE.photoBeforeData.sizeKB,
+            uploadedBy: `${STATE.user} (${STATE.role})`,
+            room, category: cat,
+          });
+          if (photoResult?.driveUrl) {
+            photoBeforeRef = photoResult.driveUrl;
+            showToast('info', '📁 Foto tersimpan di Drive', '');
+            try {
+              await gasUpdateDef({
+                id: realId,
+                status: 'OPEN',
+                photoBefore: photoBeforeRef,
+                updatedBy: `${STATE.user} (${STATE.role})`,
+              });
+            } catch (_) {}
+          } else if (photoResult?.driveError) {
+            showToast('warn', '⚠️ Drive gagal', 'Foto tampil dari memori lokal, tidak tersimpan permanen');
+          }
+        } catch (photoErr) {
+          showToast('warn', '⚠️ Upload foto gagal', photoErr.message.substring(0, 60));
         }
-      } catch (photoErr) {
-        showToast('warn', '⚠️ Upload foto gagal', photoErr.message.substring(0, 60));
-        // photoBeforeRef tetap base64 lokal sebagai fallback
       }
+    } else {
+      showToast('warn', '📴 Mode offline', 'Laporan hanya disimpan lokal.');
     }
 
-    // Tambah ke local state dengan referensi foto yang benar
     const newDefect = normalizeDefect({
       ID: realId, RoomNumber: room, Description: desc,
       Category: cat, Priority: prio, Status: 'OPEN',
@@ -2439,7 +2375,6 @@ async function submitDefect() {
     });
     STATE.defects.unshift(newDefect);
 
-    // Reset form
     resetReportForm();
     renderDefectList(); renderDashboard();
     showPage('defects');
@@ -2586,15 +2521,23 @@ function reportFromQR() { if (STATE.scannedRoom) preSelectRoom(STATE.scannedRoom
 // AI — Auto-kategorisasi teks saja (bukan analisis foto)
 // ════════════════════════════════════════════════════
 let aiDebounce = null;
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Tes koneksi GAS
+  try {
+    await gasCall('getMetrics', {});
+    STATE.gasAvailable = true;
+    console.log('✅ GAS terhubung');
+  } catch {
+    STATE.gasAvailable = false;
+    console.warn('⚠️ GAS tidak terjangkau, mode offline');
+    showToast('warn', 'Mode Offline', 'Menggunakan data lokal. Periksa koneksi internet dan URL GAS.');
+  }
 
-  // ── Restore session dari localStorage (Fix 3) ──
   const savedSession = restoreSession();
   if (savedSession) {
     applySession(savedSession);
-    fetchAndRender().then(() => {
-      showToast('info', `👋 Selamat datang kembali, ${savedSession.user}!`, `Role: ${savedSession.role} · Session dipulihkan`);
-    });
+    await fetchAndRender();
+    showToast('info', `👋 Selamat datang kembali, ${savedSession.user}!`, `Role: ${savedSession.role} · Session dipulihkan`);
   }
 
   const descInput = document.getElementById('f-desc');
@@ -2606,7 +2549,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 800);
   });
 
-  // Listener kategori berubah → update rekomendasi
   const catInput = document.getElementById('f-category');
   if (catInput) catInput.addEventListener('change', showRecommendationInForm);
 });
@@ -2711,7 +2653,6 @@ function timeAgo(ts) {
   return `${Math.floor(d/86400)} hari lalu`;
 }
 
-// URL param untuk QR deep-link
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('room')) STATE.scannedRoom = urlParams.get('room');
 </script>
