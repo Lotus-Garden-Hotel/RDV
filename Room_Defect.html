@@ -1137,7 +1137,7 @@ body::before {
           <div id="photo-info-before" class="text-xs text-muted mt-2" style="display:none"></div>
         </div>
 
-        <!-- ── REKOMENDASI MANUAL (ganti AI Vision) ── -->
+        <!-- ── REKOMENDASI MANUAL ── -->
         <div class="form-card" id="rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);padding:14px;margin:0 0 16px;border-radius:var(--radius-md);display:none">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
             <span style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">REKOMENDASI</span>
@@ -1146,7 +1146,7 @@ body::before {
           <div id="rec-content" class="ai-result" style="font-size:13px;line-height:1.7;color:var(--text-1)"></div>
         </div>
 
-        <!-- ── CATATAN TEKNIS MANUAL ── -->
+        <!-- ── CATATAN TEKNIS ── -->
         <div class="form-group">
           <label class="form-label">📝 Catatan Teknis (Opsional)</label>
           <textarea class="form-textarea" id="f-notes" placeholder="Contoh: Kran sudah dicek, seal rusak. Butuh spare part valve 1/2 inch..." style="min-height:70px"></textarea>
@@ -1164,7 +1164,6 @@ body::before {
         <div class="section-title">QR Scan & Code</div>
       </div>
 
-      <!-- SCAN MODE -->
       <div class="form-card">
         <div class="form-card-title">📷 Scan QR Kamar</div>
         <div class="qr-scanner-area">
@@ -1186,7 +1185,6 @@ body::before {
         </div>
       </div>
 
-      <!-- QR GENERATOR -->
       <div class="form-card" id="qr-gen-section">
         <div class="form-card-title">🖨️ Generate QR per Kamar</div>
         <div class="form-group">
@@ -1204,7 +1202,6 @@ body::before {
         <div class="section-sub">Real-time Overview</div>
       </div>
 
-      <!-- Status Donut -->
       <div class="chart-card stagger-child">
         <div class="chart-title">Status Breakdown</div>
         <div class="donut-wrap">
@@ -1243,19 +1240,16 @@ body::before {
         </div>
       </div>
 
-      <!-- Category Breakdown -->
       <div class="chart-card stagger-child">
         <div class="chart-title">🔧 Defect per Kategori</div>
         <div class="bar-chart" id="cat-chart"></div>
       </div>
 
-      <!-- Engineer Leaderboard -->
       <div class="chart-card stagger-child">
         <div class="chart-title">🏆 Engineering Performance</div>
         <div class="leaderboard" id="eng-leaderboard"></div>
       </div>
 
-      <!-- SLA Escalation Log -->
       <div class="chart-card stagger-child">
         <div class="chart-title">🚨 SLA Escalation Log</div>
         <div id="escalation-log" class="text-sm text-muted">Tidak ada eskalasi aktif.</div>
@@ -1299,7 +1293,6 @@ body::before {
     <div class="modal-title" id="modal-room">Kamar 201</div>
     <div class="modal-sub" id="modal-meta">ID: DEF-001 · 2 jam lalu</div>
 
-    <!-- REKOMENDASI: berdasarkan kategori + histori (bukan AI Vision) -->
     <div id="modal-rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">PANDUAN</span>
@@ -1310,14 +1303,12 @@ body::before {
       </div>
     </div>
 
-    <!-- PHOTO COMPARE: Before (read-only) | After (upload by Engineering) -->
     <div class="photo-compare" id="modal-photos">
       <div class="photo-slot" id="photo-before" style="cursor:default">
         <div class="upload-icon" style="font-size:20px;opacity:0.4" id="photo-before-icon">📷</div>
         <div class="photo-slot-label" id="photo-before-label">BEFORE</div>
       </div>
       <div class="photo-slot" id="photo-after" style="cursor:pointer;position:relative">
-        <!-- Input file After dibuat secara dinamis oleh openDefect() agar tidak konflik ID -->
         <div style="font-size:20px;opacity:0.4">📷</div>
         <div class="photo-slot-label">AFTER</div>
       </div>
@@ -1327,7 +1318,7 @@ body::before {
     <div class="timeline" id="modal-timeline"></div>
 
     <div class="modal-actions" id="modal-actions">
-      <!-- filled by JS based on role + status -->
+      <!-- filled by JS -->
     </div>
   </div>
 </div>
@@ -1338,7 +1329,6 @@ body::before {
 // CONFIG
 // ════════════════════════════════════════════════════
 const CONFIG = {
-  // Ganti dengan URL Web App deployment terbaru dari Apps Script
   GAS_URL: 'https://script.google.com/macros/s/AKfycbzavaIUDRMDbGC9nmW0esunYGlVAuXJSVRla9YHlUlFbtzUj5JWaabJW-UwIr-lFLs/exec',
   WA_API_URL: 'https://api.fonnte.com/send',
   WA_TOKEN: 'YOUR_FONNTE_TOKEN',
@@ -1360,7 +1350,7 @@ let STATE = {
   isLoading: false,
   photoBeforeData: null,
   photoAfterData: null,
-  gasAvailable: false, // flag untuk cek koneksi GAS
+  gasAvailable: false,
 };
 
 // ════════════════════════════════════════════════════
@@ -1374,155 +1364,84 @@ const ROLE_ACCESS = {
 };
 
 // ════════════════════════════════════════════════════
-// REKOMENDASI DATABASE — manual, bukan AI
+// REKOMENDASI DATABASE
 // ════════════════════════════════════════════════════
 const RECOMMENDATIONS = {
   Plumbing: {
     title: '🚿 Plumbing — Panduan Perbaikan',
-    steps: [
-      'Matikan stop kran / valve utama area tersebut sebelum mengerjakan',
-      'Identifikasi titik kebocoran: sambungan pipa, seal, atau body fixture',
-      'Cek apakah perlu penggantian washer, seal/O-ring, atau seluruh fixture',
-      'Untuk kebocoran pipa: gunakan pipe tape (teflon) atau solder jika diperlukan',
-      'Setelah perbaikan: nyalakan air perlahan, cek kebocoran minimal 5 menit',
-      'Keringkan area yang basah dan pastikan tidak ada jamur yang terbentuk',
-    ],
-    parts: ['Seal/O-ring', 'Teflon tape', 'Washer kran', 'Flexible hose', 'Valve stop kran'],
+    steps: ['Matikan stop kran / valve utama', 'Identifikasi titik kebocoran', 'Ganti washer/seal jika perlu', 'Gunakan pipe tape', 'Cek kebocoran 5 menit', 'Keringkan area'],
+    parts: ['Seal/O-ring', 'Teflon tape', 'Washer kran', 'Flexible hose'],
     estimatedHours: '1–3 jam',
-    tips: 'Kamar yang banjir dari pipa harus segera di-OO-kan. Foto dokumentasi kebocoran dari beberapa sudut.',
+    tips: 'Kamar yang banjir harus segera di-OO-kan.',
   },
   Electrical: {
     title: '⚡ Electrical — Panduan Perbaikan',
-    steps: [
-      'Matikan MCB/circuit breaker kamar tersebut di panel listrik SEBELUM bekerja',
-      'Gunakan tespen untuk memastikan tidak ada tegangan sebelum menyentuh kabel',
-      'Identifikasi: saklar rusak, kabel putus, fitting lampu, atau masalah MCB',
-      'Ganti komponen yang rusak dengan spesifikasi yang sama (voltase/ampere)',
-      'Pastikan sambungan kabel rapat dan terisolasi dengan baik (gunakan isolasi)',
-      'Nyalakan MCB, tes semua stop kontak dan saklar di kamar tersebut',
-    ],
-    parts: ['Saklar/stop kontak', 'Fitting lampu', 'Kabel NYM', 'Isolasi listrik', 'MCB pengganti'],
+    steps: ['Matikan MCB', 'Cek tegangan dengan tespen', 'Identifikasi komponen rusak', 'Ganti dengan spesifikasi sama', 'Isolasi sambungan', 'Nyalakan MCB dan tes'],
+    parts: ['Saklar/stop kontak', 'Fitting lampu', 'Kabel NYM', 'Isolasi listrik'],
     estimatedHours: '1–2 jam',
-    tips: 'WAJIB matikan MCB dulu. Jika masalah di panel utama, hubungi teknisi berlisensi. Jangan kerjakan seorang diri.',
+    tips: 'WAJIB matikan MCB dulu.',
   },
   AC_HVAC: {
     title: '❄️ AC/HVAC — Panduan Perbaikan',
-    steps: [
-      'Cek remote: ganti baterai, coba manual button di unit indoor',
-      'Periksa filter indoor: jika kotor, cuci dengan air bersih dan keringkan',
-      'Cek kondensasi/drain pan: pastikan tidak tersumbat (penyebab bocor)',
-      'Cek kondisi refrigeran: jika AC tidak dingin sama sekali, kemungkinan perlu isi freon',
-      'Periksa MCB khusus AC di panel — reset jika trip',
-      'Bersihkan fin kondensor outdoor dari debu/kotoran dengan sikat lembut',
-    ],
-    parts: ['Filter AC', 'Baterai remote', 'Drain pipe', 'Freon (jika diperlukan)', 'Kapasitor'],
+    steps: ['Cek remote & baterai', 'Bersihkan filter', 'Cek drain pan', 'Cek freon', 'Reset MCB', 'Bersihkan kondensor'],
+    parts: ['Filter AC', 'Baterai remote', 'Drain pipe', 'Freon'],
     estimatedHours: '1–4 jam',
-    tips: 'Cuci filter setiap 2 minggu sebagai preventif. Jika perlu isi freon, pastikan teknisi bersertifikat yang mengerjakan.',
+    tips: 'Cuci filter setiap 2 minggu.',
   },
   Furniture: {
     title: '🪑 Furniture — Panduan Perbaikan',
-    steps: [
-      'Dokumentasikan kerusakan dari beberapa sudut sebelum memindahkan furniture',
-      'Jika kaki patah: gunakan lem kayu kuat + klem, diamkan 24 jam sebelum digunakan',
-      'Jika engsel pintu rusak: ganti engsel dengan ukuran sama, pastikan level/rata',
-      'Laci macet: periksa rel, bersihkan debu, aplikasikan pelumas (lilin/WD40)',
-      'Sofa/kasur rusak: hubungi vendor furniture untuk klaim garansi jika masih berlaku',
-      'Setelah perbaikan: tes beban/fungsi sebelum kamar dijual kembali',
-    ],
-    parts: ['Lem kayu', 'Engsel pengganti', 'Baut/sekrup', 'Pelumas', 'Cat senada'],
+    steps: ['Dokumentasikan kerusakan', 'Lem kayu + klem jika patah', 'Ganti engsel jika perlu', 'Pelumas untuk laci macet', 'Tes beban'],
+    parts: ['Lem kayu', 'Engsel pengganti', 'Baut/sekrup', 'Pelumas'],
     estimatedHours: '1–6 jam',
-    tips: 'Untuk furniture bernilai tinggi (sofa, headboard), pertimbangkan vendor perbaikan profesional daripada merusak permukaan.',
+    tips: 'Furniture bernilai tinggi hubungi vendor.',
   },
   Door_Lock: {
     title: '🔐 Door & Lock — Panduan Perbaikan',
-    steps: [
-      'Cek apakah masalah di handle, kunci silinder, atau sistem card reader',
-      'Untuk kunci macet: semprotkan pelumas ke lubang kunci, putar beberapa kali',
-      'Untuk card reader tidak respon: cek baterai (biasanya AA x4), ganti jika lemah',
-      'Untuk pintu tidak menutup rapat: setel strike plate atau engsel (kencangkan sekrup)',
-      'Jika perlu penggantian silinder/card lock: catat nomor kamar untuk reset di sistem',
-      'Test kunci dari dalam dan luar minimal 5x sebelum meninggalkan kamar',
-    ],
-    parts: ['Baterai AA', 'Pelumas kunci', 'Sekrup engsel', 'Strike plate', 'Silinder kunci'],
+    steps: ['Cek handle/silinder/card reader', 'Semprot pelumas', 'Ganti baterai card reader', 'Setel strike plate', 'Tes 5x'],
+    parts: ['Baterai AA', 'Pelumas kunci', 'Sekrup engsel', 'Strike plate'],
     estimatedHours: '30 menit – 2 jam',
-    tips: 'Jika card reader perlu di-reset, koordinasi dengan Front Office untuk re-programming kunci tamu aktif.',
+    tips: 'Koordinasi dengan FO untuk reprogramming.',
   },
   TV_Remote: {
     title: '📺 TV & Remote — Panduan Perbaikan',
-    steps: [
-      'Cek baterai remote: ganti dengan baterai baru (AA atau AAA)',
-      'Cek kabel HDMI/power TV: pastikan terpasang kencang di belakang TV',
-      'Matikan TV dari tombol fisik di TV, tunggu 30 detik, nyalakan kembali',
-      'Cek channel: pastikan input source sesuai (HDMI/TV/AV)',
-      'Jika TV tidak menyala sama sekali: cek stop kontak dan kabel power',
-      'Jika layar rusak/gambar aneh: catat model TV untuk klaim garansi atau penggantian',
-    ],
+    steps: ['Ganti baterai remote', 'Cek kabel HDMI/power', 'Matikan TV 30 detik', 'Cek input source', 'Cek stop kontak'],
     parts: ['Baterai AA/AAA', 'Kabel HDMI', 'Remote pengganti'],
     estimatedHours: '15–60 menit',
-    tips: 'Selalu sediakan remote pengganti di gudang. Labeli remote dengan nomor kamar untuk mencegah tertukar.',
+    tips: 'Sediakan remote pengganti.',
   },
   Ceiling_Wall: {
     title: '🏠 Ceiling & Wall — Panduan Perbaikan',
-    steps: [
-      'Identifikasi penyebab: rembes dari lantai atas, pipa bocor, atau kondensasi AC',
-      'Jika ada rembes aktif: tangani sumber air DULU sebelum perbaikan dinding',
-      'Keringkan area yang lembab menggunakan blower minimal 24–48 jam',
-      'Untuk cat mengelupas: amplas permukaan, cat dasar (primer), lalu cat warna senada',
-      'Untuk retak halus: gunakan compound/plamir, ratakan, amplas, cat ulang',
-      'Untuk plafon jebol: pastikan tidak ada beban di atas sebelum memasang gypsum baru',
-    ],
-    parts: ['Cat tembok (warna senada)', 'Primer/cat dasar', 'Compound/plamir', 'Amplas', 'Gypsum board', 'Kuas/roller'],
-    estimatedHours: '2–8 jam (termasuk waktu kering)',
-    tips: 'Selalu cek lantai di atas kamar terlebih dahulu. Rembes dari lantai atas paling sering tidak terdeteksi.',
+    steps: ['Identifikasi penyebab rembes', 'Tangani sumber air', 'Keringkan 24-48 jam', 'Amplas & cat dasar', 'Cat ulang'],
+    parts: ['Cat tembok', 'Primer', 'Compound/plamir', 'Amplas'],
+    estimatedHours: '2–8 jam',
+    tips: 'Cek lantai atas terlebih dahulu.',
   },
   Bathroom: {
     title: '🛁 Bathroom — Panduan Perbaikan',
-    steps: [
-      'Identifikasi: shower bocor, toilet mampet, kran rusak, atau exhaust fan mati',
-      'Untuk toilet mampet: gunakan plunger dulu, jika gagal gunakan spring/drain snake',
-      'Untuk shower bocor: cek seal kepala shower dan sambungan flexible hose',
-      'Untuk exhaust fan mati: cek MCB dan kabel, bersihkan kisi-kisi dari debu',
-      'Untuk nat keramik hitam/rusak: bersihkan dengan cairan khusus atau grouting ulang',
-      'Setelah perbaikan: flush toilet 3x, tes shower 2 menit, cek tidak ada kebocoran',
-    ],
-    parts: ['Plunger', 'Drain snake', 'Seal shower', 'Flexible hose', 'Nat/grout', 'Cairan pembersih kerak'],
+    steps: ['Identifikasi masalah', 'Plunger untuk toilet', 'Cek seal shower', 'Cek exhaust fan', 'Grouting ulang'],
+    parts: ['Plunger', 'Drain snake', 'Seal shower', 'Nat/grout'],
     estimatedHours: '1–4 jam',
-    tips: 'Kamar dengan toilet mampet harus di-OO segera. Siapkan bucket/lap sebelum membuka pipa agar lantai tidak kotor.',
+    tips: 'Toilet mampet harus segera di-OO.',
   },
   Lighting: {
     title: '💡 Lighting — Panduan Perbaikan',
-    steps: [
-      'Matikan saklar terlebih dahulu sebelum mengganti lampu',
-      'Catat jenis lampu: LED, bohlam, downlight, strip light (perhatikan wattage & fitting)',
-      'Ganti lampu dengan spesifikasi sama — jangan melebihi wattage maksimum fitting',
-      'Jika lampu baru tetap tidak menyala: cek fitting/socket dengan tespen',
-      'Jika seluruh lampu kamar mati: cek MCB di panel listrik kamar',
-      'Pastikan lampu terpasang kencang dan tidak ada kabel yang terkelupas',
-    ],
-    parts: ['Lampu LED pengganti (warm/cool sesuai standar hotel)', 'Fitting lampu', 'Tespen'],
+    steps: ['Matikan saklar', 'Catat jenis lampu', 'Ganti spesifikasi sama', 'Cek fitting dengan tespen', 'Cek MCB'],
+    parts: ['Lampu LED pengganti', 'Fitting lampu', 'Tespen'],
     estimatedHours: '15–45 menit',
-    tips: 'Stok lampu pengganti per tipe harus selalu tersedia di gudang Engineering. Standarisasi merek/tipe untuk kemudahan.',
+    tips: 'Stok lampu standar harus tersedia.',
   },
   Other: {
     title: '📦 Kerusakan Umum — Panduan',
-    steps: [
-      'Dokumentasikan kerusakan dengan foto sebelum memulai perbaikan',
-      'Identifikasi jenis kerusakan dan komponen yang terdampak',
-      'Tentukan apakah bisa ditangani internal atau perlu vendor/spesialis',
-      'Siapkan peralatan dan spare part yang diperlukan sebelum mulai',
-      'Kerjakan perbaikan dan tes hasilnya sebelum melaporkan selesai',
-      'Dokumentasikan dengan foto AFTER dan catat spare part yang digunakan',
-    ],
+    steps: ['Dokumentasikan', 'Identifikasi komponen', 'Tentukan internal/vendor', 'Siapkan alat', 'Tes hasil'],
     parts: ['Sesuai jenis kerusakan'],
     estimatedHours: 'Bervariasi',
-    tips: 'Untuk kerusakan yang tidak familiar, lebih baik konsultasikan dengan senior Engineering sebelum mengerjakan.',
+    tips: 'Konsultasikan dengan senior.',
   },
 };
 
 // ════════════════════════════════════════════════════
-// PHOTO COMPRESSION & HANDLING
+// PHOTO COMPRESSION
 // ════════════════════════════════════════════════════
-
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1532,37 +1451,26 @@ function compressImage(file) {
       img.onerror = reject;
       img.onload = () => {
         let w = img.width, h = img.height;
-        if (w > CONFIG.PHOTO_MAX_WIDTH) {
-          h = Math.round(h * CONFIG.PHOTO_MAX_WIDTH / w);
-          w = CONFIG.PHOTO_MAX_WIDTH;
-        }
+        if (w > CONFIG.PHOTO_MAX_WIDTH) { h = Math.round(h * CONFIG.PHOTO_MAX_WIDTH / w); w = CONFIG.PHOTO_MAX_WIDTH; }
         if (h > 768) { w = Math.round(w * 768 / h); h = 768; }
-
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-
         let quality = CONFIG.PHOTO_QUALITY;
         let compressed = canvas.toDataURL('image/jpeg', quality);
         let sizeKB = Math.round(compressed.length * 0.75 / 1024);
-
         while (sizeKB > CONFIG.PHOTO_MAX_SIZE_KB && quality > 0.3) {
           quality -= 0.1;
           compressed = canvas.toDataURL('image/jpeg', quality);
           sizeKB = Math.round(compressed.length * 0.75 / 1024);
         }
-
         resolve({
-          compressed,
-          mimeType: 'image/jpeg',
-          sizeKB,
+          compressed, mimeType: 'image/jpeg', sizeKB,
           originalName: file.name || 'photo.jpg',
           originalSizeKB: Math.round(file.size / 1024),
-          quality: Math.round(quality * 100),
-          width: w, height: h,
+          quality: Math.round(quality * 100), width: w, height: h,
         });
       };
       img.src = e.target.result;
@@ -1574,50 +1482,35 @@ function compressImage(file) {
 async function handlePhotoUpload(input, slot) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
-
   const area = document.getElementById(slot === 'before' ? 'upload-area-before' : 'photo-after');
   if (area) area.style.opacity = '0.5';
-
   showToast('info', '⏳ Mengompres foto...', `Ukuran asli: ${Math.round(file.size/1024)} KB`);
-
   try {
     const result = await compressImage(file);
-
+    if (slot === 'before') STATE.photoBeforeData = result;
+    else STATE.photoAfterData = result;
     if (slot === 'before') {
-      STATE.photoBeforeData = result;
-    } else {
-      STATE.photoAfterData = result;
-    }
-
-    if (slot === 'before') {
-      const uploadArea = document.getElementById('upload-area-before');
       const preview = document.getElementById('photo-preview-before');
       const placeholder = document.getElementById('upload-placeholder-before');
       const infoEl = document.getElementById('photo-info-before');
       if (preview) { preview.src = result.compressed; preview.classList.add('visible'); }
       if (placeholder) placeholder.style.display = 'none';
-      if (uploadArea) { uploadArea.classList.add('has-photo'); uploadArea.style.opacity = '1'; }
+      if (area) { area.classList.add('has-photo'); area.style.opacity = '1'; }
       if (infoEl) {
         infoEl.style.display = 'block';
-        infoEl.innerHTML = `✅ ${result.width}×${result.height}px · ${result.sizeKB} KB (dari ${result.originalSizeKB} KB · hemat ${Math.round((1-result.sizeKB/result.originalSizeKB)*100)}%)`;
+        infoEl.innerHTML = `✅ ${result.width}×${result.height}px · ${result.sizeKB} KB`;
       }
       showRecommendationInForm();
-
     } else {
       const slotEl = document.getElementById('photo-after');
-      const infoEl = document.getElementById('photo-after-info');
       if (slotEl) {
         slotEl.innerHTML = `<img src="${result.compressed}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">`;
         slotEl.onclick = null;
       }
-      if (infoEl) {
-        infoEl.style.display = 'block';
-        infoEl.textContent = `After: ${result.sizeKB} KB (dari ${result.originalSizeKB} KB)`;
-      }
+      document.getElementById('photo-after-info').style.display = 'block';
+      document.getElementById('photo-after-info').textContent = `After: ${result.sizeKB} KB`;
     }
-
-    showToast('success', '✅ Foto siap disimpan', `Terkompresi: ${result.sizeKB} KB · Hemat ${Math.round((1-result.sizeKB/result.originalSizeKB)*100)}%`);
-
+    showToast('success', '✅ Foto siap', `${result.sizeKB} KB`);
   } catch (err) {
     showToast('error', 'Gagal proses foto', err.message);
     if (area) area.style.opacity = '1';
@@ -1625,43 +1518,33 @@ async function handlePhotoUpload(input, slot) {
 }
 
 function triggerUpload(slot) {
-  const id = slot === 'before' ? 'f-photo-before' : 'f-photo-after-modal';
-  document.getElementById(id)?.click();
+  document.getElementById(slot === 'before' ? 'f-photo-before' : 'f-photo-after-modal')?.click();
 }
 
 async function handlePhotoUploadModal(input) {
   await handlePhotoUpload(input, 'after');
   if (STATE.currentDefect && STATE.currentDefect.status === 'IN_PROGRESS' && STATE.photoAfterData) {
     const afterSlot = document.getElementById('photo-after');
-    if (afterSlot && STATE.photoAfterData) {
+    if (afterSlot) {
       afterSlot.innerHTML = `<img src="${STATE.photoAfterData.compressed}" style="width:100%;height:100%;object-fit:cover;border-radius:4px">`;
       afterSlot.onclick = null;
       afterSlot.style.cursor = 'default';
     }
-    const actionsEl = document.getElementById('modal-actions');
-    if (actionsEl) {
-      actionsEl.innerHTML = `
-        <button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')" id="btn-confirm-resolved">
-          ✅ Konfirmasi Selesai & Simpan Foto
-        </button>
-        <button class="btn btn-secondary w-full" onclick="closeModal()">Batal</button>`;
-    }
-    showToast('success', '📷 Foto After siap', 'Tekan "Konfirmasi Selesai" untuk menyimpan');
+    document.getElementById('modal-actions').innerHTML = `
+      <button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')">✅ Konfirmasi Selesai & Simpan Foto</button>
+      <button class="btn btn-secondary w-full" onclick="closeModal()">Batal</button>`;
+    showToast('success', '📷 Foto After siap', 'Tekan "Konfirmasi Selesai"');
   }
 }
 
 // ════════════════════════════════════════════════════
-// REKOMENDASI MANUAL (berdasarkan kategori)
+// REKOMENDASI
 // ════════════════════════════════════════════════════
-
 function showRecommendationInForm() {
   const cat = document.getElementById('f-category')?.value;
   const box = document.getElementById('rec-box');
   const content = document.getElementById('rec-content');
-  if (!box || !content || !cat || !RECOMMENDATIONS[cat]) {
-    if (box) box.style.display = 'none';
-    return;
-  }
+  if (!box || !content || !cat || !RECOMMENDATIONS[cat]) { if (box) box.style.display = 'none'; return; }
   const rec = RECOMMENDATIONS[cat];
   box.style.display = 'block';
   content.innerHTML = buildRecHTML(rec);
@@ -1677,59 +1560,30 @@ function showRecommendationInModal(category) {
 }
 
 function buildRecHTML(rec) {
-  const steps = rec.steps.map((s, i) =>
-    `<div style="display:flex;gap:8px;margin-bottom:6px">
-      <span style="background:var(--accent-blue);color:white;font-size:9px;font-weight:800;min-width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</span>
-      <span>${s}</span>
-    </div>`
-  ).join('');
-
-  return `
-    ${steps}
-    <div style="margin-top:10px;padding:8px 10px;background:var(--bg-3);border-radius:6px;font-size:12px">
-      🔩 <strong>Part kemungkinan dibutuhkan:</strong> ${rec.parts.join(' · ')}
-    </div>
-    <div style="margin-top:6px;padding:8px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:6px;font-size:12px;color:var(--accent-amber)">
-      ⏱️ <strong>Estimasi waktu:</strong> ${rec.estimatedHours}
-    </div>
-    ${rec.tips ? `<div style="margin-top:6px;padding:8px 10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:6px;font-size:12px;color:var(--accent-green)">
-      💡 <strong>Tips:</strong> ${rec.tips}
-    </div>` : ''}`;
+  const steps = rec.steps.map((s, i) => `<div style="display:flex;gap:8px;margin-bottom:6px"><span style="background:var(--accent-blue);color:white;font-size:9px;font-weight:800;min-width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center">${i+1}</span><span>${s}</span></div>`).join('');
+  return `${steps}<div style="margin-top:10px;padding:8px 10px;background:var(--bg-3);border-radius:6px;font-size:12px">🔩 <strong>Part:</strong> ${rec.parts.join(' · ')}</div>
+    <div style="margin-top:6px;padding:8px 10px;background:rgba(245,158,11,0.1);border-radius:6px;font-size:12px;color:var(--accent-amber)">⏱️ <strong>Estimasi:</strong> ${rec.estimatedHours}</div>
+    ${rec.tips ? `<div style="margin-top:6px;padding:8px 10px;background:rgba(16,185,129,0.08);border-radius:6px;font-size:12px;color:var(--accent-green)">💡 <strong>Tips:</strong> ${rec.tips}</div>` : ''}`;
 }
 
 // ════════════════════════════════════════════════════
-// GAS COMMUNICATION (dengan fallback mock data)
+// GAS COMMUNICATION
 // ════════════════════════════════════════════════════
-
-// Data mock untuk fallback saat GAS offline
 function getMockDefects() {
   return [
     { ID: 'DEF-0001', RoomNumber: '101', Category: 'AC_HVAC', Description: 'AC tidak dingin', Priority: 'MEDIUM', Status: 'OPEN', Reporter: 'DANU (HK)', CreatedAt: new Date().toISOString() },
     { ID: 'DEF-0002', RoomNumber: '205', Category: 'Plumbing', Description: 'Wastafel mampet', Priority: 'HIGH', Status: 'IN_PROGRESS', Reporter: 'SARI (HK)', Engineer: 'PRIYONO (ENG)', CreatedAt: new Date().toISOString() },
-    { ID: 'DEF-0003', RoomNumber: '310', Category: 'Door_Lock', Description: 'Gagang pintu longgar', Priority: 'LOW', Status: 'RESOLVED', Reporter: 'BUDI (HK)', Engineer: 'JOKO (ENG)', CreatedAt: new Date().toISOString(), ResolvedAt: new Date().toISOString() },
   ];
-}
-
-function getMockMetrics() {
-  return {
-    counts: { OPEN: 2, IN_PROGRESS: 1, RESOLVED: 1, CLOSED: 3 },
-    avgByCategory: {},
-    engPerf: { 'PRIYONO': 3, 'BUDI': 2 },
-    slaViolations: 1,
-  };
 }
 
 async function gasCall(action, payload = {}) {
   if (!CONFIG.GAS_URL) throw new Error('GAS_URL belum dikonfigurasi');
-  
   try {
     const resp = await fetch(CONFIG.GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action, payload }),
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'follow',
+      mode: 'cors', credentials: 'omit', redirect: 'follow',
     });
     const text = await resp.text();
     try {
@@ -1737,76 +1591,60 @@ async function gasCall(action, payload = {}) {
       if (!json.success) throw new Error(json.error || 'GAS error');
       STATE.gasAvailable = true;
       return json.data;
-    } catch (e) {
-      throw new Error('Response error: ' + text.substring(0, 200));
-    }
+    } catch (e) { throw new Error('Response error: ' + text.substring(0, 200)); }
   } catch (err) {
-    console.warn('GAS fetch failed, using mock data:', err);
+    console.warn('GAS fetch failed:', err);
     STATE.gasAvailable = false;
-    // Fallback data untuk aksi tertentu
     if (action === 'getDefects') return getMockDefects();
-    if (action === 'getMetrics') return getMockMetrics();
-    if (action === 'aiCategorize') return { error: 'GAS tidak tersedia' };
-    if (action === 'aiPredictive') return { predictions: [], message: 'GAS offline' };
+    if (action === 'getMetrics') return { counts: { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 } };
     if (action === 'validateUser') return { valid: true, warning: 'Mode offline' };
     throw err;
   }
 }
 
-const gasGetDefects = (f)     => gasCall('getDefects', f || {});
-const gasGetMetrics = ()      => gasCall('getMetrics', {});
-const gasAddDefect  = (d)     => gasCall('addDefect', d);
-const gasUpdateDef  = (d)     => gasCall('updateDefect', d);
-const gasAiCat      = (t)     => gasCall('aiCategorize', { text: t });
-const gasAiPredict  = ()      => gasCall('aiPredictive', {});
-const gasSavePhoto  = (d)     => gasCall('savePhoto', d);
-const gasValidateUser = (d)   => gasCall('validateUser', d);
+const gasGetDefects = (f) => gasCall('getDefects', f || {});
+const gasGetMetrics = () => gasCall('getMetrics', {});
+const gasAddDefect = (d) => gasCall('addDefect', d);
+const gasAiCat = (t) => gasCall('aiCategorize', { text: t });
+const gasAiPredict = () => gasCall('aiPredictive', {});
+const gasSavePhoto = (d) => gasCall('savePhoto', d);
+const gasValidateUser = (d) => gasCall('validateUser', d);
+
+const gasUpdateDef = (d) => {
+  const payload = { id: d.id, status: d.status, updatedBy: d.updatedBy || `${STATE.user} (${STATE.role})` };
+  if (d.engineer) payload.engineer = d.engineer;
+  if (d.photoBefore) payload.photoBefore = d.photoBefore;
+  if (d.photoAfter) payload.photoAfter = d.photoAfter;
+  if (d.notes) payload.notes = d.notes;
+  console.log('📤 Update Defect Payload:', payload);
+  return gasCall('updateDefect', payload);
+};
 
 // ════════════════════════════════════════════════════
-// SESSION PERSISTENCE (localStorage)
+// SESSION
 // ════════════════════════════════════════════════════
 const SESSION_KEY = 'rdv_session_v1';
-
 function saveSession() {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-      user: STATE.user,
-      role: STATE.role,
-      savedAt: Date.now(),
-    }));
-  } catch(e) {}
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ user: STATE.user, role: STATE.role, savedAt: Date.now() })); } catch(e) {}
 }
-
-function clearSession() {
-  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
-}
-
+function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch(e) {} }
 function restoreSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
-    if (!s.user || !s.role || (Date.now() - s.savedAt) > 12 * 3600 * 1000) {
-      clearSession(); return false;
-    }
+    if (!s.user || !s.role || (Date.now() - s.savedAt) > 12 * 3600 * 1000) { clearSession(); return false; }
     return s;
   } catch(e) { return false; }
 }
-
 function applySession(s) {
-  STATE.user = s.user;
-  STATE.role = s.role;
-
+  STATE.user = s.user; STATE.role = s.role;
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app-shell').classList.add('visible');
   document.getElementById('topbar-role').textContent = STATE.role;
   document.getElementById('dash-greeting').textContent = `Halo, ${STATE.user} 👋`;
-
-  document.querySelectorAll('.role-card').forEach(c => {
-    c.classList.toggle('active', c.dataset.role === STATE.role);
-  });
+  document.querySelectorAll('.role-card').forEach(c => c.classList.toggle('active', c.dataset.role === STATE.role));
   document.getElementById('login-name').value = STATE.user;
-
   updateNavForRole(STATE.role);
 }
 
@@ -1824,33 +1662,24 @@ async function doLogin() {
   if (!name) { showToast('error', 'Nama diperlukan', 'Masukkan nama Anda'); return; }
   const btn = document.querySelector('#auth-screen .btn-primary');
   btn.disabled = true; btn.textContent = '⏳ Memvalidasi...';
-
   try {
     try {
       const vResult = await gasValidateUser({ name, role: STATE.role });
       if (vResult?.valid === false) {
-        showToast('error', 'Akses Ditolak', vResult.error || 'Nama/role tidak terdaftar');
+        showToast('error', 'Akses Ditolak', vResult.error);
         btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem';
         return;
       }
-      if (vResult?.warning) {
-        showToast('warn', 'Validasi dilewati', vResult.warning);
-      }
-    } catch {
-      showToast('warn', 'Validasi tidak tersedia', 'Login tanpa verifikasi Sheet_Users');
-    }
-
+    } catch { showToast('warn', 'Validasi tidak tersedia', 'Login tanpa verifikasi'); }
     STATE.user = name;
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-shell').classList.add('visible');
     document.getElementById('topbar-role').textContent = STATE.role;
     document.getElementById('dash-greeting').textContent = `Halo, ${name} 👋`;
-
     updateNavForRole(STATE.role);
     saveSession();
-
     await fetchAndRender();
-    showToast('success', 'Berhasil masuk', `Selamat datang, ${name}! (${STATE.role})`);
+    showToast('success', 'Berhasil masuk', `Selamat datang, ${name}!`);
   } catch (err) {
     showToast('error', 'Login gagal', err.message);
   } finally {
@@ -1859,33 +1688,23 @@ async function doLogin() {
 }
 
 function doLogout() {
-  stopQRScan();
-  clearSession();
+  stopQRScan(); clearSession();
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('auth-screen').style.display = 'flex';
   STATE.user = null; STATE.defects = [];
   STATE.photoBeforeData = null; STATE.photoAfterData = null;
-  document.querySelectorAll('.nav-item').forEach(n => n.style.display = '');
 }
 
 // ════════════════════════════════════════════════════
-// LIVE FETCH FROM SPREADSHEET
+// FETCH & RENDER
 // ════════════════════════════════════════════════════
 async function fetchAndRender(toast = false) {
   if (STATE.isLoading) return;
   STATE.isLoading = true;
-  const listEl = document.getElementById('defect-list');
-  if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-1)">
-    <div class="ai-loading" style="justify-content:center;margin-bottom:8px">
-      <div class="ai-dots"><span></span><span></span><span></span></div> Mengambil data...
-    </div></div>`;
   try {
     const rawDefects = await gasGetDefects();
     STATE.defects = (rawDefects || []).map(normalizeDefect);
-    if (toast) {
-      const src = STATE.gasAvailable ? 'spreadsheet' : 'lokal (offline)';
-      showToast('success', 'Data diperbarui', `${STATE.defects.length} defect dari ${src}`);
-    }
+    if (toast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect`);
     renderDashboard(); renderDefectList();
   } catch (err) {
     showToast('error', 'Gagal ambil data', err.message);
@@ -1896,52 +1715,44 @@ async function fetchAndRender(toast = false) {
 
 function normalizeDefect(d) {
   return {
-    id:          d.ID          || d.id          || '',
-    room:        d.RoomNumber  || d.room        || '',
-    category:    d.Category    || d.category    || '',
-    desc:        d.Description || d.desc        || d.description || '',
-    priority:    d.Priority    || d.priority    || 'MEDIUM',
-    status:      d.Status      || d.status      || 'OPEN',
-    reporter:    d.Reporter    || d.reporter    || '',
-    engineer:    d.Engineer    || d.engineer    || null,
-    notes:       d.Notes       || d.notes       || '',
-    photoBefore: d.PhotoBefore || d.photoBefore || null,
-    photoAfter:  d.PhotoAfter  || d.photoAfter  || null,
-    createdAt:   d.CreatedAt   ? new Date(d.CreatedAt).getTime()  : (d.createdAt  || Date.now()),
-    startedAt:   d.StartedAt   ? new Date(d.StartedAt).getTime()  : (d.startedAt  || null),
-    resolvedAt:  d.ResolvedAt  ? new Date(d.ResolvedAt).getTime() : (d.resolvedAt || null),
-    closedAt:    d.ClosedAt    ? new Date(d.ClosedAt).getTime()   : (d.closedAt   || null),
+    id: d.ID || d.id || '', room: d.RoomNumber || d.room || '',
+    category: d.Category || d.category || '', desc: d.Description || d.desc || '',
+    priority: d.Priority || d.priority || 'MEDIUM', status: d.Status || d.status || 'OPEN',
+    reporter: d.Reporter || d.reporter || '', engineer: d.Engineer || d.engineer || null,
+    notes: d.Notes || d.notes || '', photoBefore: d.PhotoBefore || d.photoBefore || null,
+    photoAfter: d.PhotoAfter || d.photoAfter || null,
+    createdAt: d.CreatedAt ? new Date(d.CreatedAt).getTime() : Date.now(),
+    startedAt: d.StartedAt ? new Date(d.StartedAt).getTime() : null,
+    resolvedAt: d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null,
+    closedAt: d.ClosedAt ? new Date(d.ClosedAt).getTime() : null,
     logs: buildLogs(d),
   };
 }
 
 function buildLogs(d) {
   const logs = [];
-  const created  = d.CreatedAt  ? new Date(d.CreatedAt).getTime()  : null;
-  const started  = d.StartedAt  ? new Date(d.StartedAt).getTime()  : null;
+  const created = d.CreatedAt ? new Date(d.CreatedAt).getTime() : null;
+  const started = d.StartedAt ? new Date(d.StartedAt).getTime() : null;
   const resolved = d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null;
-  const closed   = d.ClosedAt   ? new Date(d.ClosedAt).getTime()   : null;
-  const rep      = d.Reporter   || d.reporter || '?';
-  const eng      = d.Engineer   || d.engineer || 'Engineering';
-  if (created)  logs.push({ action: `Dilaporkan oleh ${rep}`, time: created });
-  if (started)  logs.push({ action: `Mulai dikerjakan oleh ${eng}`, time: started });
+  const closed = d.ClosedAt ? new Date(d.ClosedAt).getTime() : null;
+  const rep = d.Reporter || d.reporter || '?';
+  const eng = d.Engineer || d.engineer || 'Engineering';
+  if (created) logs.push({ action: `Dilaporkan oleh ${rep}`, time: created });
+  if (started) logs.push({ action: `Mulai dikerjakan oleh ${eng}`, time: started });
   if (resolved) logs.push({ action: `Selesai diperbaiki oleh ${eng}`, time: resolved });
-  if (closed)   logs.push({ action: `Diverifikasi & ditutup`, time: closed });
+  if (closed) logs.push({ action: `Diverifikasi & ditutup`, time: closed });
   return logs;
 }
 
 // ════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════
-
 function updateNavForRole(role) {
   const allowed = ROLE_ACCESS[role] || [];
   document.querySelectorAll('.nav-item').forEach(navItem => {
     const page = navItem.id.replace('nav-', '');
     navItem.style.display = allowed.includes(page) ? '' : 'none';
   });
-  const topbarQr = document.querySelector('.topbar-actions .icon-btn[title="QR Scan"]');
-  if (topbarQr) topbarQr.style.display = allowed.includes('qr-scan') ? '' : 'none';
 }
 
 function showPage(page) {
@@ -1950,7 +1761,6 @@ function showPage(page) {
     showToast('error', 'Akses Ditolak', `Role ${STATE.role} tidak dapat mengakses halaman ini`);
     return;
   }
-
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
@@ -1966,41 +1776,16 @@ function showPage(page) {
 function renderDashboard() {
   const counts = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 };
   STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
-  document.getElementById('m-open').textContent    = counts.OPEN;
-  document.getElementById('m-inprog').textContent  = counts.IN_PROGRESS;
+  document.getElementById('m-open').textContent = counts.OPEN;
+  document.getElementById('m-inprog').textContent = counts.IN_PROGRESS;
   document.getElementById('m-resolved').textContent = counts.RESOLVED;
-  document.getElementById('m-closed').textContent  = counts.CLOSED;
-
+  document.getElementById('m-closed').textContent = counts.CLOSED;
   const overdueCount = STATE.defects.filter(d => {
     if (d.status==='CLOSED'||d.status==='RESOLVED') return false;
     return (Date.now()-d.createdAt)/3600000 > (CONFIG.SLA_HOURS[d.priority]||8);
   }).length;
   document.getElementById('sla-count').textContent = `${overdueCount} defect`;
   document.getElementById('sla-alert-banner').style.display = overdueCount > 0 ? 'flex' : 'none';
-
-  const catTimes = {};
-  STATE.defects.filter(d => d.startedAt && d.resolvedAt).forEach(d => {
-    const h = (d.resolvedAt - d.startedAt) / 3600000;
-    if (!catTimes[d.category]) catTimes[d.category] = [];
-    catTimes[d.category].push(h);
-  });
-  const avgData = {};
-  Object.entries(catTimes).forEach(([c, arr]) => {
-    avgData[c] = arr.reduce((s,v)=>s+v,0)/arr.length;
-  });
-  const chartEl = document.getElementById('avg-time-chart');
-  if (!Object.keys(avgData).length) {
-    chartEl.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Belum ada data repair selesai.</div>';
-  } else {
-    const maxH = Math.max(...Object.values(avgData));
-    chartEl.innerHTML = Object.entries(avgData).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
-      <div class="bar-row">
-        <div class="bar-label">${k.replace('_','/')}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(v/maxH)*100}%"></div></div>
-        <div class="bar-val">${v.toFixed(1)}h</div>
-      </div>`).join('');
-  }
-
   loadAiPredictive();
 }
 
@@ -2012,8 +1797,7 @@ function renderDefectList() {
   const list = STATE.defects.filter(d => filter==='ALL' || d.status===filter);
   const el = document.getElementById('defect-list');
   if (!list.length) {
-    el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:40px">
-      ${STATE.defects.length===0 ? '✅ Tidak ada defect.' : 'Tidak ada defect dengan filter ini.'}</div>`;
+    el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:40px">Tidak ada defect.</div>`;
     return;
   }
   const colorMap = { OPEN:'var(--accent-red)', IN_PROGRESS:'var(--accent-amber)', RESOLVED:'var(--accent-blue)', CLOSED:'var(--accent-green)' };
@@ -2022,25 +1806,18 @@ function renderDefectList() {
     const elH = (Date.now()-d.createdAt)/3600000;
     const overdue = (d.status==='OPEN'||d.status==='IN_PROGRESS') && elH>slaH;
     const slaText = overdue ? `⚠️ SLA +${(elH-slaH).toFixed(1)}h` : `⏱ ${elH.toFixed(1)}h/${slaH}h`;
-    const hasPhoto = d.photoBefore ? '📷 ' : '';
     return `
-    <div class="defect-card stagger-child" style="--status-color:${colorMap[d.status]||'var(--accent-blue)'}" onclick="openDefect('${d.id}')">
+    <div class="defect-card stagger-child" style="--status-color:${colorMap[d.status]}" onclick="openDefect('${d.id}')">
       <div class="defect-header">
-        <div>
-          <div class="defect-room">${hasPhoto}Kamar ${d.room}</div>
-          <div class="defect-id">${d.id}</div>
-        </div>
+        <div><div class="defect-room">${d.photoBefore?'📷 ':''}Kamar ${d.room}</div><div class="defect-id">${d.id}</div></div>
         <div class="${getStatusClass(d.status)}">${getStatusLabel(d.status)}</div>
       </div>
       <div class="defect-category">
         <span class="defect-cat-tag">${(d.category||'').replace('_','/')}</span>
         <span class="defect-cat-tag" style="color:${d.priority==='HIGH'?'var(--accent-red)':d.priority==='MEDIUM'?'var(--accent-amber)':'var(--accent-green)'}">${d.priority}</span>
       </div>
-      <div class="text-sm text-muted mb-3">${(d.desc||'').substring(0,70)}${(d.desc||'').length>70?'...':''}</div>
-      <div class="defect-meta">
-        <span>${d.reporter}</span>
-        <span class="defect-sla ${overdue?'sla-overdue':'sla-timer'}">${slaText}</span>
-      </div>
+      <div class="text-sm text-muted mb-3">${(d.desc||'').substring(0,70)}</div>
+      <div class="defect-meta"><span>${d.reporter}</span><span class="defect-sla ${overdue?'sla-overdue':'sla-timer'}">${slaText}</span></div>
     </div>`;
   }).join('');
 }
@@ -2053,50 +1830,37 @@ function filterDefects(el) {
 }
 
 function getStatusClass(s) {
-  return {OPEN:'status-badge status-open',IN_PROGRESS:'status-badge status-inprogress',
-          RESOLVED:'status-badge status-resolved',CLOSED:'status-badge status-closed'}[s]||'status-badge';
+  return {OPEN:'status-badge status-open',IN_PROGRESS:'status-badge status-inprogress',RESOLVED:'status-badge status-resolved',CLOSED:'status-badge status-closed'}[s]||'status-badge';
 }
 function getStatusLabel(s) {
   return {OPEN:'🔴 Open',IN_PROGRESS:'🟡 In Progress',RESOLVED:'🔵 Resolved',CLOSED:'✅ Closed'}[s]||s;
 }
 
 // ════════════════════════════════════════════════════
-// PHOTO SLOT HELPERS
+// PHOTO HELPERS
 // ════════════════════════════════════════════════════
-
 function driveImgUrl(src) {
   if (!src) return '';
-  if (src === '[stored-in-sheets]' || src.startsWith('[stored')) return '';
   if (src.startsWith('data:image')) return src;
   if (src.startsWith('https://lh3.googleusercontent.com/d/')) return src;
   const ucMatch = src.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
   if (ucMatch) return `https://lh3.googleusercontent.com/d/${ucMatch[1]}=w600`;
-  const pathMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})\//);
-  if (pathMatch) return `https://lh3.googleusercontent.com/d/${pathMatch[1]}=w600`;
   return src;
 }
 
 function photoSlotWithImage(src, label) {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'position:relative;width:100%;height:100%';
-
   const img = document.createElement('img');
   img.src = src;
   img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;display:block';
-  img.onerror = function() {
-    this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label + ' (gagal muat)');
-  };
-
+  img.onerror = function() { this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label); };
   const badge = document.createElement('div');
   badge.className = 'photo-slot-label';
-  badge.style.cssText = 'position:absolute;bottom:6px;left:50%;transform:translateX(-50%);z-index:2;pointer-events:none';
+  badge.style.cssText = 'position:absolute;bottom:6px;left:50%;transform:translateX(-50%);z-index:2';
   badge.textContent = label;
-
-  wrapper.appendChild(img);
-  wrapper.appendChild(badge);
-
-  const tmp = document.createElement('div');
-  tmp.appendChild(wrapper);
+  wrapper.appendChild(img); wrapper.appendChild(badge);
+  const tmp = document.createElement('div'); tmp.appendChild(wrapper);
   return tmp.innerHTML;
 }
 
@@ -2105,64 +1869,35 @@ function photoSlotEmpty(icon, label) {
 }
 
 // ════════════════════════════════════════════════════
-// MODAL DETAIL
+// MODAL
 // ════════════════════════════════════════════════════
 function openDefect(id) {
   const d = STATE.defects.find(x=>x.id===id);
   if (!d) return;
   STATE.currentDefect = d;
   STATE.photoAfterData = null;
-
   document.getElementById('modal-room').textContent = `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
   document.getElementById('modal-meta').textContent = `${d.id} · ${d.priority} · ${d.reporter}`;
-
   document.getElementById('modal-timeline').innerHTML = (d.logs||[]).map((l,i,arr) => `
-    <div class="timeline-item">
-      <div class="timeline-dot-wrap">
-        <div class="timeline-dot"></div>
-        ${i<arr.length-1?'<div class="timeline-line"></div>':''}
-      </div>
-      <div class="timeline-body">
-        <div class="timeline-action">${l.action}</div>
-        <div class="timeline-meta">${timeAgo(l.time)}</div>
-      </div>
-    </div>`).join('');
-
+    <div class="timeline-item"><div class="timeline-dot-wrap"><div class="timeline-dot"></div>${i<arr.length-1?'<div class="timeline-line"></div>':''}</div>
+    <div class="timeline-body"><div class="timeline-action">${l.action}</div><div class="timeline-meta">${timeAgo(l.time)}</div></div></div>`).join('');
   const beforeSlot = document.getElementById('photo-before');
-  beforeSlot.innerHTML = d.photoBefore
-    ? photoSlotWithImage(driveImgUrl(d.photoBefore), 'BEFORE')
-    : photoSlotEmpty('📷', 'BEFORE');
-
+  beforeSlot.innerHTML = d.photoBefore ? photoSlotWithImage(driveImgUrl(d.photoBefore), 'BEFORE') : photoSlotEmpty('📷', 'BEFORE');
   const afterSlot = document.getElementById('photo-after');
   afterSlot.onclick = null;
   if (d.photoAfter) {
     const url = driveImgUrl(d.photoAfter);
-    if (url) {
-      afterSlot.innerHTML = photoSlotWithImage(url, 'AFTER');
-    } else {
-      afterSlot.innerHTML = photoSlotEmpty('🗄️', 'AFTER (di Sheets)');
-    }
+    afterSlot.innerHTML = url ? photoSlotWithImage(url, 'AFTER') : photoSlotEmpty('🗄️', 'AFTER');
     afterSlot.style.cursor = 'default';
   } else {
     const inputId = 'f-photo-after-modal-' + Date.now();
-    afterSlot.innerHTML = `
-      <input type="file" id="${inputId}" accept="image/*" capture="environment" style="display:none">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-        <div style="font-size:20px;opacity:0.4">📷</div>
-        <div style="font-size:10px;color:var(--accent-blue)">Tap upload foto After</div>
-      </div>
-      <div class="photo-slot-label">AFTER</div>`;
+    afterSlot.innerHTML = `<input type="file" id="${inputId}" accept="image/*" capture="environment" style="display:none"><div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:20px;opacity:0.4">📷</div><div style="font-size:10px;color:var(--accent-blue)">Tap upload foto After</div></div><div class="photo-slot-label">AFTER</div>`;
     afterSlot.style.cursor = 'pointer';
     const newInput = document.getElementById(inputId);
-    if (newInput) {
-      newInput.addEventListener('change', function() {
-        handlePhotoUploadModal(this);
-      });
-    }
+    if (newInput) { newInput.addEventListener('change', function() { handlePhotoUploadModal(this); }); }
     afterSlot.onclick = () => newInput?.click();
   }
   document.getElementById('photo-after-info').style.display = 'none';
-
   showRecommendationInModal(d.category);
   renderModalActions(d);
   document.getElementById('detail-modal').classList.add('open');
@@ -2172,15 +1907,12 @@ function renderModalActions(d) {
   const el = document.getElementById('modal-actions');
   let html = `<button class="btn btn-secondary w-full" onclick="closeModal()">Tutup</button>`;
   if (STATE.role==='ENG') {
-    if (d.status==='OPEN')
-      html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
-    else if (d.status==='IN_PROGRESS')
-      html = `<button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')">✅ Selesai & Upload Foto After</button>` + html;
+    if (d.status==='OPEN') html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
+    else if (d.status==='IN_PROGRESS') html = `<button class="btn btn-success w-full" onclick="updateStatus('RESOLVED')">✅ Selesai & Upload Foto After</button>` + html;
   }
   if ((STATE.role==='SPV'||STATE.role==='GM') && d.status==='RESOLVED') {
-    html = `
-      <button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
-      <button class="btn btn-danger" onclick="updateStatus('OPEN')" style="flex:1">↩️ Re-open</button>`;
+    html = `<button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
+            <button class="btn btn-danger" onclick="updateStatus('OPEN')" style="flex:1">↩️ Re-open</button>`;
   }
   el.innerHTML = html;
 }
@@ -2190,117 +1922,84 @@ function closeModal() {
   STATE.photoAfterData = null;
 }
 
+// ════════════════════════════════════════════════════
+// UPDATE STATUS (PERBAIKAN LENGKAP)
+// ════════════════════════════════════════════════════
 async function updateStatus(newStatus) {
   const d = STATE.currentDefect;
   if (!d) return;
 
   if (newStatus === 'RESOLVED') {
     if (!STATE.photoAfterData) {
-      showToast('warn', '📷 Upload foto After dulu', 'Pilih foto hasil perbaikan, lalu sistem otomatis menyimpan');
+      showToast('warn', '📷 Upload foto After dulu', 'Pilih foto hasil perbaikan');
       const btn = document.querySelector('#modal-actions .btn-success');
-      if (btn) {
-        btn.textContent = '📷 Pilih Foto After...';
-        btn.style.background = 'var(--accent-amber)';
-        btn.style.color = '#000';
-      }
-      const dynInput = document.querySelector('#photo-after input[type="file"]');
-      if (dynInput) dynInput.click();
+      if (btn) { btn.textContent = '📷 Pilih Foto After...'; btn.style.background = 'var(--accent-amber)'; }
+      document.querySelector('#photo-after input[type="file"]')?.click();
       return;
     }
-
-    showToast('info', '⏳ Menyimpan foto dan update status...', '');
+    showToast('info', '⏳ Menyimpan foto...', '');
     let photoAfterRef = STATE.photoAfterData.compressed;
-
     if (STATE.gasAvailable) {
       try {
         const photoResult = await gasSavePhoto({
-          defectId: d.id,
-          slot: 'after',
-          base64: STATE.photoAfterData.compressed,
-          mimeType: STATE.photoAfterData.mimeType,
-          sizeKB: STATE.photoAfterData.sizeKB,
-          uploadedBy: `${STATE.user} (${STATE.role})`,
-          room: d.room,
+          defectId: d.id, slot: 'after', base64: STATE.photoAfterData.compressed,
+          mimeType: STATE.photoAfterData.mimeType, sizeKB: STATE.photoAfterData.sizeKB,
+          uploadedBy: `${STATE.user} (${STATE.role})`, room: d.room,
         });
-
-        if (photoResult?.driveUrl) {
-          photoAfterRef = photoResult.driveUrl;
-          showToast('success', '📁 Foto tersimpan di Drive', '');
-        } else if (photoResult?.driveError) {
-          showToast('warn', '⚠️ Drive tidak tersedia', 'Foto disimpan di spreadsheet (tidak permanen).');
-        }
-      } catch (photoErr) {
-        showToast('warn', '⚠️ Gagal upload foto', 'Menggunakan salinan lokal untuk preview.');
-      }
-    } else {
-      showToast('warn', '📴 Mode offline', 'Foto disimpan lokal, tidak tersimpan di server.');
+        if (photoResult?.driveUrl) { photoAfterRef = photoResult.driveUrl; showToast('success', '📁 Foto di Drive', ''); }
+        else if (photoResult?.driveError) showToast('warn', '⚠️ Drive gagal', 'Foto di spreadsheet');
+      } catch (e) { showToast('warn', '⚠️ Upload gagal', 'Pakai lokal'); }
     }
-
-    // Update state lokal
-    d.photoAfter = photoAfterRef;
-    d.status = newStatus;
-    d.resolvedAt = Date.now();
-    d.logs.push({ action: `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})`, time: Date.now() });
-
+    d.photoAfter = photoAfterRef; d.status = newStatus; d.resolvedAt = Date.now();
+    d.logs.push({ action: `Selesai diperbaiki oleh ${STATE.user}`, time: Date.now() });
     if (STATE.gasAvailable) {
-      try {
-        await gasUpdateDef({
-          id: d.id,
-          status: newStatus,
-          engineer: d.engineer,
-          updatedBy: `${STATE.user} (${STATE.role})`,
-          photoAfter: photoAfterRef,
-        });
-        showToast('success', '✅ Perbaikan selesai!', `${d.id} → ${newStatus}`);
-      } catch (err) {
-        showToast('warn', '⚠️ Gagal update server', 'Perubahan hanya disimpan lokal.');
-      }
-    } else {
-      showToast('info', '📴 Mode offline', 'Perubahan hanya disimpan lokal.');
+      try { await gasUpdateDef({ id: d.id, status: newStatus, engineer: d.engineer, updatedBy: STATE.user, photoAfter: photoAfterRef }); }
+      catch (e) { showToast('warn', 'Gagal update server', e.message); }
     }
-
-    STATE.photoAfterData = null;
-    closeModal();
-    renderDefectList();
-    renderDashboard();
+    STATE.photoAfterData = null; closeModal(); renderDefectList(); renderDashboard();
+    showToast('success', '✅ Selesai!', d.id);
     return;
   }
 
-  // Untuk status selain RESOLVED
-  const actionMap = {
-    IN_PROGRESS: `Mulai dikerjakan oleh ${STATE.user} (${STATE.role})`,
-    CLOSED:      `Diverifikasi & ditutup oleh ${STATE.user} (${STATE.role})`,
-    OPEN:        `Di-reopen oleh ${STATE.user} (${STATE.role})`,
-  };
+  if (newStatus === 'IN_PROGRESS') {
+    const engineerName = `${STATE.user} (${STATE.role})`;
+    d.status = newStatus; d.engineer = engineerName; d.startedAt = Date.now();
+    d.logs.push({ action: `Mulai dikerjakan oleh ${engineerName}`, time: Date.now() });
+    closeModal(); renderDefectList(); renderDashboard();
+    if (STATE.gasAvailable) {
+      try {
+        await gasUpdateDef({ id: d.id, status: newStatus, engineer: engineerName, updatedBy: engineerName });
+        showToast('success', '✅ Perbaikan dimulai!', d.id);
+      } catch (e) { showToast('error', 'Gagal simpan', e.message); }
+    } else { showToast('warn', '📴 Mode offline', 'Perubahan lokal'); }
+    return;
+  }
 
-  d.status = newStatus;
-  d.logs.push({ action: actionMap[newStatus], time: Date.now() });
-  if (newStatus==='IN_PROGRESS') { d.startedAt=Date.now(); d.engineer=`${STATE.user} (${STATE.role})`; }
-  if (newStatus==='CLOSED')      { d.closedAt=Date.now(); }
-
-  closeModal();
-  renderDefectList();
-  renderDashboard();
-  showToast('info', '⏳ Menyimpan ke Spreadsheet...', d.id);
-
-  if (STATE.gasAvailable) {
-    try {
-      await gasUpdateDef({
-        id: d.id, status: newStatus,
-        engineer: d.engineer,
-        updatedBy: `${STATE.user} (${STATE.role})`,
-      });
-      showToast('success', '✅ Tersimpan!', `${d.id} → ${newStatus}`);
-    } catch (err) {
-      showToast('error', 'Gagal simpan ke GAS', err.message);
+  if (newStatus === 'CLOSED') {
+    d.status = newStatus; d.closedAt = Date.now();
+    d.logs.push({ action: `Diverifikasi oleh ${STATE.user}`, time: Date.now() });
+    closeModal(); renderDefectList(); renderDashboard();
+    if (STATE.gasAvailable) {
+      try { await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user }); showToast('success', '✅ Ditutup!', d.id); }
+      catch (e) { showToast('error', 'Gagal simpan', e.message); }
     }
-  } else {
-    showToast('warn', '📴 Mode offline', 'Perubahan hanya disimpan lokal.');
+    return;
+  }
+
+  if (newStatus === 'OPEN') {
+    d.status = newStatus; d.resolvedAt = null; d.closedAt = null;
+    d.logs.push({ action: `Di-reopen oleh ${STATE.user}`, time: Date.now() });
+    closeModal(); renderDefectList(); renderDashboard();
+    if (STATE.gasAvailable) {
+      try { await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user, notes: 'Reopen' }); showToast('success', '✅ Dibuka kembali!', d.id); }
+      catch (e) { showToast('error', 'Gagal simpan', e.message); }
+    }
+    return;
   }
 }
 
 // ════════════════════════════════════════════════════
-// SUBMIT DEFECT (with compressed photo)
+// SUBMIT DEFECT (PERBAIKAN LENGKAP)
 // ════════════════════════════════════════════════════
 async function submitDefect() {
   const room = document.getElementById('f-room').value.trim();
@@ -2308,103 +2007,41 @@ async function submitDefect() {
   const cat  = document.getElementById('f-category').value;
   const prio = document.getElementById('f-priority').value;
   const notes = document.getElementById('f-notes')?.value.trim() || '';
-
-  if (!room||!desc||!cat) {
-    showToast('error', 'Form belum lengkap', 'Isi nomor kamar, deskripsi, dan kategori');
-    return;
-  }
-
+  if (!room||!desc||!cat) { showToast('error', 'Form belum lengkap', ''); return; }
   const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Menyimpan...';
-
+  btn.disabled = true; btn.textContent = '⏳ Menyimpan...';
   try {
     let realId = `DEF-${String(STATE.defects.length+1).padStart(4,'0')}`;
     let photoBeforeRef = STATE.photoBeforeData?.compressed || null;
-
     if (STATE.gasAvailable) {
-      showToast('info', '⏳ Menyimpan laporan...', 'Menghubungi server...');
-      const result = await gasAddDefect({
-        room, desc, description: desc, category: cat,
-        priority: prio, notes,
-        reporter: `${STATE.user} (${STATE.role})`,
-        photoBefore: '',
-      });
+      const result = await gasAddDefect({ room, desc, category: cat, priority: prio, notes, reporter: `${STATE.user} (${STATE.role})`, photoBefore: '' });
       realId = result?.id || realId;
-
       if (STATE.photoBeforeData) {
-        showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
         try {
-          const photoResult = await gasSavePhoto({
-            defectId: realId,
-            slot: 'before',
-            base64: STATE.photoBeforeData.compressed,
-            mimeType: STATE.photoBeforeData.mimeType,
-            sizeKB: STATE.photoBeforeData.sizeKB,
-            uploadedBy: `${STATE.user} (${STATE.role})`,
-            room, category: cat,
-          });
-          if (photoResult?.driveUrl) {
-            photoBeforeRef = photoResult.driveUrl;
-            showToast('info', '📁 Foto tersimpan di Drive', '');
-            try {
-              await gasUpdateDef({
-                id: realId,
-                status: 'OPEN',
-                photoBefore: photoBeforeRef,
-                updatedBy: `${STATE.user} (${STATE.role})`,
-              });
-            } catch (_) {}
-          } else if (photoResult?.driveError) {
-            showToast('warn', '⚠️ Drive gagal', 'Foto tampil dari memori lokal, tidak tersimpan permanen');
-          }
-        } catch (photoErr) {
-          showToast('warn', '⚠️ Upload foto gagal', photoErr.message.substring(0, 60));
-        }
+          const photoResult = await gasSavePhoto({ defectId: realId, slot: 'before', base64: STATE.photoBeforeData.compressed, mimeType: STATE.photoBeforeData.mimeType, sizeKB: STATE.photoBeforeData.sizeKB, uploadedBy: `${STATE.user} (${STATE.role})`, room, category: cat });
+          if (photoResult?.driveUrl) { photoBeforeRef = photoResult.driveUrl; showToast('success', '📁 Foto di Drive', ''); }
+          else if (photoResult?.driveError) { showToast('warn', '⚠️ Drive gagal', ''); photoBeforeRef = STATE.photoBeforeData.compressed; }
+          if (photoBeforeRef) { try { await gasUpdateDef({ id: realId, photoBefore: photoBeforeRef, updatedBy: STATE.user }); } catch(e) {} }
+        } catch(e) { photoBeforeRef = STATE.photoBeforeData.compressed; }
       }
-    } else {
-      showToast('warn', '📴 Mode offline', 'Laporan hanya disimpan lokal.');
-    }
-
-    const newDefect = normalizeDefect({
-      ID: realId, RoomNumber: room, Description: desc,
-      Category: cat, Priority: prio, Status: 'OPEN',
-      Reporter: `${STATE.user} (${STATE.role})`,
-      Notes: notes, PhotoBefore: photoBeforeRef,
-      CreatedAt: new Date().toISOString(),
-    });
-    STATE.defects.unshift(newDefect);
-
-    resetReportForm();
-    renderDefectList(); renderDashboard();
-    showPage('defects');
-    showToast('success', `✅ ${realId} tersimpan!`, `Foto: ${photoBeforeRef ? (photoBeforeRef.startsWith('data:') ? 'lokal (Drive gagal)' : 'di Google Drive') : 'tidak ada'}`);
-
-  } catch (err) {
-    showToast('error', 'Gagal simpan', err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🚀 Kirim Laporan';
-  }
+    } else { showToast('warn', '📴 Mode offline', ''); }
+    STATE.defects.unshift(normalizeDefect({ ID: realId, RoomNumber: room, Description: desc, Category: cat, Priority: prio, Status: 'OPEN', Reporter: `${STATE.user} (${STATE.role})`, Notes: notes, PhotoBefore: photoBeforeRef, CreatedAt: new Date().toISOString() }));
+    resetReportForm(); renderDefectList(); renderDashboard(); showPage('defects');
+    showToast('success', `✅ ${realId} tersimpan!`, photoBeforeRef ? (photoBeforeRef.startsWith('data:') ? '📱 lokal' : '☁️ Drive') : '❌ tanpa foto');
+  } catch (err) { showToast('error', 'Gagal simpan', err.message); }
+  finally { btn.disabled = false; btn.textContent = '🚀 Kirim Laporan'; }
 }
 
 function resetReportForm() {
-  ['f-room','f-desc','f-notes','f-category','f-priority'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { if (id==='f-priority') el.value='MEDIUM'; else el.value=''; }
-  });
+  ['f-room','f-desc','f-notes','f-category'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-priority').value = 'MEDIUM';
   const preview = document.getElementById('photo-preview-before');
   if (preview) { preview.classList.remove('visible'); preview.src=''; }
-  const placeholder = document.getElementById('upload-placeholder-before');
-  if (placeholder) placeholder.style.display='block';
-  const area = document.getElementById('upload-area-before');
-  if (area) { area.classList.remove('has-photo'); area.style.opacity='1'; }
-  const infoEl = document.getElementById('photo-info-before');
-  if (infoEl) infoEl.style.display='none';
-  const recBox = document.getElementById('rec-box');
-  if (recBox) recBox.style.display='none';
-  const aiCat = document.getElementById('ai-cat-result');
-  if (aiCat) aiCat.textContent='Ketik deskripsi untuk saran kategori otomatis...';
+  document.getElementById('upload-placeholder-before').style.display='block';
+  document.getElementById('upload-area-before').classList.remove('has-photo');
+  document.getElementById('photo-info-before').style.display='none';
+  document.getElementById('rec-box').style.display='none';
+  document.getElementById('ai-cat-result').textContent='Ketik deskripsi untuk analisis otomatis...';
   STATE.photoBeforeData = null;
 }
 
@@ -2414,51 +2051,16 @@ function resetReportForm() {
 function renderAnalytics() {
   const counts = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 };
   STATE.defects.forEach(d => { if (counts[d.status]!==undefined) counts[d.status]++; });
-  const total = STATE.defects.length;
   document.getElementById('leg-open').textContent = counts.OPEN;
   document.getElementById('leg-prog').textContent = counts.IN_PROGRESS;
-  document.getElementById('leg-res').textContent  = counts.RESOLVED;
-  document.getElementById('leg-cls').textContent  = counts.CLOSED;
-  document.getElementById('donut-total').textContent = total;
-
-  const cats = {};
-  STATE.defects.forEach(d => { cats[d.category]=(cats[d.category]||0)+1; });
-  const maxC = Object.values(cats).length ? Math.max(...Object.values(cats)) : 1;
-  document.getElementById('cat-chart').innerHTML = Object.entries(cats).length
-    ? Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
-        <div class="bar-row">
-          <div class="bar-label">${k.replace('_','/')}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${(v/maxC)*100}%"></div></div>
-          <div class="bar-val">${v}</div>
-        </div>`).join('')
-    : '<div class="text-muted text-sm">Belum ada data.</div>';
-
-  const eng = {};
-  STATE.defects.forEach(d => { if (d.engineer) eng[d.engineer]=(eng[d.engineer]||0)+1; });
-  const sorted = Object.entries(eng).sort((a,b)=>b[1]-a[1]);
-  const rankClass = ['gold','silver','bronze'];
-  document.getElementById('eng-leaderboard').innerHTML = sorted.length
-    ? sorted.map(([name,count],i)=>`
-        <div class="lb-item">
-          <div class="lb-rank ${rankClass[i]||''}">#${i+1}</div>
-          <div class="lb-name">${name}</div>
-          <div class="lb-stat">${count} selesai</div>
-        </div>`).join('')
-    : '<div class="text-muted text-sm">Belum ada data engineering.</div>';
-
-  const overdue = STATE.defects.filter(d => {
-    if (d.status==='CLOSED'||d.status==='RESOLVED') return false;
-    return (Date.now()-d.createdAt)/3600000 > (CONFIG.SLA_HOURS[d.priority]||8);
-  });
-  document.getElementById('escalation-log').innerHTML = overdue.length
-    ? overdue.map(d => {
-        const late = ((Date.now()-d.createdAt)/3600000-(CONFIG.SLA_HOURS[d.priority]||8)).toFixed(1);
-        return `<div class="flex items-center gap-2 mb-2">
-          <span style="color:var(--accent-red)">🚨</span>
-          <span>${d.id} — Kamar ${d.room} — ${d.category} — Terlambat <strong>${late}h</strong></span>
-        </div>`;
-      }).join('')
-    : '<div class="text-muted text-sm">✅ Tidak ada eskalasi aktif.</div>';
+  document.getElementById('leg-res').textContent = counts.RESOLVED;
+  document.getElementById('leg-cls').textContent = counts.CLOSED;
+  document.getElementById('donut-total').textContent = STATE.defects.length;
+  const cats = {}; STATE.defects.forEach(d => { cats[d.category]=(cats[d.category]||0)+1; });
+  const maxC = Math.max(...Object.values(cats), 1);
+  document.getElementById('cat-chart').innerHTML = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><div class="bar-label">${k}</div><div class="bar-track"><div class="bar-fill" style="width:${(v/maxC)*100}%"></div></div><div class="bar-val">${v}</div></div>`).join('') || '<div class="text-muted">Belum ada data.</div>';
+  const eng = {}; STATE.defects.forEach(d => { if (d.engineer) eng[d.engineer]=(eng[d.engineer]||0)+1; });
+  document.getElementById('eng-leaderboard').innerHTML = Object.entries(eng).sort((a,b)=>b[1]-a[1]).map(([n,c],i)=>`<div class="lb-item"><div class="lb-rank ${['gold','silver','bronze'][i]||''}">#${i+1}</div><div class="lb-name">${n}</div><div class="lb-stat">${c} selesai</div></div>`).join('') || '<div class="text-muted">Belum ada data.</div>';
 }
 
 // ════════════════════════════════════════════════════
@@ -2467,90 +2069,38 @@ function renderAnalytics() {
 function generateQRGrid() {
   const floor = document.getElementById('qr-floor-input').value || '1';
   const rooms = Array.from({length:10},(_,i)=>`${floor}${String(i+1).padStart(2,'0')}`);
-  document.getElementById('qr-grid').innerHTML = rooms.map(r => {
-    const url = encodeURIComponent(`${CONFIG.APP_URL}?room=${r}`);
-    return `<div class="qr-room-card" onclick="preSelectRoom('${r}')">
-      <div class="qr-room-number">${r}</div>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${url}" width="80" height="80" style="border-radius:6px;margin:0 auto 6px;display:block">
-      <div class="text-xs text-muted">Scan to report</div>
-    </div>`;
-  }).join('');
+  document.getElementById('qr-grid').innerHTML = rooms.map(r => `<div class="qr-room-card" onclick="preSelectRoom('${r}')"><div class="qr-room-number">${r}</div><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(CONFIG.APP_URL+'?room='+r)}" width="80" height="80"></div>`).join('');
 }
-
-function preSelectRoom(room) {
-  STATE.scannedRoom = room;
-  showPage('report');
-  document.getElementById('f-room').value = room;
-  showToast('info', 'Kamar dipilih', `Kamar ${room}`);
-}
-
+function preSelectRoom(room) { STATE.scannedRoom = room; showPage('report'); document.getElementById('f-room').value = room; }
 async function startQRScan() {
   const video = document.getElementById('qr-video');
   try {
     STATE.qrStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     video.srcObject = STATE.qrStream;
-    showToast('info', 'Kamera aktif', 'Arahkan ke QR code kamar');
     if ('BarcodeDetector' in window) {
       const detector = new BarcodeDetector({formats:['qr_code']});
       const scan = async () => {
-        try {
-          const codes = await detector.detect(video);
-          if (codes.length) {
-            const m = codes[0].rawValue.match(/room=([^&]+)/);
-            if (m) {
-              const room = decodeURIComponent(m[1]);
-              document.getElementById('qr-room-found').textContent = `Kamar ${room} terdeteksi`;
-              document.getElementById('qr-result').classList.remove('hidden');
-              STATE.scannedRoom = room; stopQRScan(); return;
-            }
-          }
-        } catch {}
+        try { const codes = await detector.detect(video); if (codes.length) { const m = codes[0].rawValue.match(/room=([^&]+)/); if (m) { STATE.scannedRoom = decodeURIComponent(m[1]); stopQRScan(); document.getElementById('qr-room-found').textContent = `Kamar ${STATE.scannedRoom}`; document.getElementById('qr-result').classList.remove('hidden'); return; } } } catch {}
         if (STATE.qrStream) requestAnimationFrame(scan);
       };
       video.onloadedmetadata = () => requestAnimationFrame(scan);
     }
-  } catch { showToast('error','Kamera gagal','Izin kamera diperlukan'); }
+  } catch { showToast('error','Kamera gagal',''); }
 }
-
-function stopQRScan() {
-  if (STATE.qrStream) { STATE.qrStream.getTracks().forEach(t=>t.stop()); STATE.qrStream=null; }
-}
+function stopQRScan() { if (STATE.qrStream) { STATE.qrStream.getTracks().forEach(t=>t.stop()); STATE.qrStream=null; } }
 function reportFromQR() { if (STATE.scannedRoom) preSelectRoom(STATE.scannedRoom); }
 
 // ════════════════════════════════════════════════════
-// AI — Auto-kategorisasi teks saja (bukan analisis foto)
+// AI & UTILS
 // ════════════════════════════════════════════════════
 let aiDebounce = null;
 document.addEventListener('DOMContentLoaded', async () => {
-  // Tes koneksi GAS
-  try {
-    await gasCall('getMetrics', {});
-    STATE.gasAvailable = true;
-    console.log('✅ GAS terhubung');
-  } catch {
-    STATE.gasAvailable = false;
-    console.warn('⚠️ GAS tidak terjangkau, mode offline');
-    showToast('warn', 'Mode Offline', 'Menggunakan data lokal. Periksa koneksi internet dan URL GAS.');
-  }
-
+  try { await gasCall('getMetrics', {}); STATE.gasAvailable = true; console.log('✅ GAS terhubung'); }
+  catch { STATE.gasAvailable = false; showToast('warn', 'Mode Offline', 'Menggunakan data lokal'); }
   const savedSession = restoreSession();
-  if (savedSession) {
-    applySession(savedSession);
-    await fetchAndRender();
-    showToast('info', `👋 Selamat datang kembali, ${savedSession.user}!`, `Role: ${savedSession.role} · Session dipulihkan`);
-  }
-
-  const descInput = document.getElementById('f-desc');
-  if (descInput) descInput.addEventListener('input', () => {
-    clearTimeout(aiDebounce);
-    aiDebounce = setTimeout(() => {
-      const txt = descInput.value.trim();
-      if (txt.length > 10) aiCategorize(txt);
-    }, 800);
-  });
-
-  const catInput = document.getElementById('f-category');
-  if (catInput) catInput.addEventListener('change', showRecommendationInForm);
+  if (savedSession) { applySession(savedSession); await fetchAndRender(); showToast('info', `👋 Selamat datang, ${savedSession.user}!`, ''); }
+  document.getElementById('f-desc')?.addEventListener('input', () => { clearTimeout(aiDebounce); aiDebounce = setTimeout(() => { const txt = document.getElementById('f-desc').value.trim(); if (txt.length > 10) aiCategorize(txt); }, 800); });
+  document.getElementById('f-category')?.addEventListener('change', showRecommendationInForm);
 });
 
 async function aiCategorize(text) {
@@ -2562,80 +2112,22 @@ async function aiCategorize(text) {
     el.innerHTML = `Saran: <strong>${data.category}</strong> · <strong>${data.priority}</strong> · Est: <strong>${data.estimatedHours}h</strong><br><span class="text-xs">${data.reason}</span>`;
     if (data.category) { document.getElementById('f-category').value = data.category; showRecommendationInForm(); }
     if (data.priority) document.getElementById('f-priority').value = data.priority;
-  } catch {
-    el.innerHTML = `<span class="text-muted">Gemini tidak tersedia — pilih kategori manual.</span>`;
-  }
+  } catch { el.innerHTML = `<span class="text-muted">Gemini tidak tersedia — pilih kategori manual.</span>`; }
 }
 
 async function loadAiPredictive() {
   const el = document.getElementById('predict-list');
   if (!el) return;
-  el.innerHTML = `<div class="ai-loading" style="padding:16px;justify-content:center">
-    <div class="ai-dots"><span></span><span></span><span></span></div> Memuat prediksi...
-  </div>`;
   try {
     const data = await gasAiPredict();
-    if (!data?.predictions?.length||data.error) { renderPredictiveFallback(); return; }
-    const scoreHtml = data.overallHealthScore!==undefined ? `
-      <div class="predict-card" style="margin-bottom:12px">
-        <div class="predict-header">
-          <div class="predict-title">🏥 Hotel Health Score</div>
-          <div class="risk-level" style="color:${data.overallHealthScore>=70?'var(--accent-green)':data.overallHealthScore>=50?'var(--accent-amber)':'var(--accent-red)'}">
-            ${data.overallHealthScore}/100
-          </div>
-        </div>
-        <div class="predict-bar"><div class="predict-fill" style="width:${data.overallHealthScore}%"></div></div>
-        <div class="predict-meta">${data.summary||''}</div>
-      </div>` : '';
-    el.innerHTML = scoreHtml + data.predictions.map(p=>`
-      <div class="predict-card">
-        <div class="predict-header">
-          <div class="predict-title">${p.item} — ${p.location}</div>
-          <div class="risk-level risk-${(p.risk||'').toLowerCase()}">${p.risk}</div>
-        </div>
-        <div class="predict-bar"><div class="predict-fill" style="width:${p.riskScore}%"></div></div>
-        <div class="predict-meta">Risk Score: <strong>${p.riskScore}%</strong> · ${p.count}x · Prediksi: <strong>${p.nextFailEstimate}</strong>
-          ${p.budgetEstimate?`<br>💰 ${p.budgetEstimate}`:''}${p.preventiveAction?`<br>💡 ${p.preventiveAction}`:''}
-        </div>
-      </div>`).join('');
-  } catch { renderPredictiveFallback(); }
+    if (!data?.predictions?.length) { el.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Belum ada prediksi.</div>'; return; }
+    el.innerHTML = data.predictions.map(p=>`<div class="predict-card"><div class="predict-header"><div class="predict-title">${p.item} — ${p.location}</div><div class="risk-level risk-${p.risk.toLowerCase()}">${p.risk}</div></div><div class="predict-bar"><div class="predict-fill" style="width:${p.riskScore}%"></div></div><div class="predict-meta">Risk: ${p.riskScore}% · ${p.count}x · ${p.nextFailEstimate}</div></div>`).join('');
+  } catch { el.innerHTML = '<div class="text-muted text-sm" style="padding:8px">AI tidak tersedia.</div>'; }
 }
 
-function renderPredictiveFallback() {
-  const el = document.getElementById('predict-list');
-  if (!el) return;
-  if (!STATE.defects.length) { el.innerHTML='<div class="text-muted text-sm" style="padding:8px">Belum ada data.</div>'; return; }
-  const catCount = {};
-  STATE.defects.forEach(d=>{ catCount[d.category]=(catCount[d.category]||0)+1; });
-  el.innerHTML = Object.entries(catCount).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([cat,count])=>{
-    const score = Math.min(95,count*15);
-    const risk = score>=60?'HIGH':score>=35?'MEDIUM':'LOW';
-    return `<div class="predict-card">
-      <div class="predict-header"><div class="predict-title">${cat.replace('_','/')} — Paling Sering</div>
-        <div class="risk-level risk-${risk.toLowerCase()}">${risk}</div></div>
-      <div class="predict-bar"><div class="predict-fill" style="width:${score}%"></div></div>
-      <div class="predict-meta">${count}x kejadian · Score: ${score}%</div>
-    </div>`;
-  }).join('');
-}
-
-// ════════════════════════════════════════════════════
-// REFRESH & WA & TOAST & UTILS
-// ════════════════════════════════════════════════════
 async function refreshData() { await fetchAndRender(true); }
-
-async function sendWANotification(msg) {
-  if (!CONFIG.WA_TOKEN||CONFIG.WA_TOKEN==='YOUR_FONNTE_TOKEN') return;
-  try {
-    await fetch(CONFIG.WA_API_URL,{
-      method:'POST', headers:{Authorization:CONFIG.WA_TOKEN},
-      body:JSON.stringify({target:'ENGINEERING_WA_NUMBER',message:msg})
-    });
-  } catch {}
-}
-
 function showToast(type, title, msg) {
-  const icons  = {success:'✅',error:'🚨',info:'ℹ️',warn:'⚠️'};
+  const icons = {success:'✅',error:'🚨',info:'ℹ️',warn:'⚠️'};
   const colors = {success:'var(--accent-green)',error:'var(--accent-red)',info:'var(--accent-blue)',warn:'var(--accent-amber)'};
   const el = document.createElement('div');
   el.className = 'toast';
@@ -2644,7 +2136,6 @@ function showToast(type, title, msg) {
   document.getElementById('toast-container').appendChild(el);
   setTimeout(()=>{ el.classList.add('exit'); setTimeout(()=>el.remove(),300); }, 3500);
 }
-
 function timeAgo(ts) {
   const d = (Date.now()-ts)/1000;
   if (d<60) return 'Baru saja';
@@ -2652,7 +2143,6 @@ function timeAgo(ts) {
   if (d<86400) return `${Math.floor(d/3600)} jam lalu`;
   return `${Math.floor(d/86400)} hari lalu`;
 }
-
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('room')) STATE.scannedRoom = urlParams.get('room');
 </script>
