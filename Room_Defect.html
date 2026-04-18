@@ -1477,7 +1477,7 @@ body::before {
 
         <!-- ── FOTO BEFORE ── -->
         <div class="form-group">
-          <label class="form-label">📷 Foto Kerusakan (Before)</label>
+          <label class="form-label">📷 Foto Kerusakan (Before) <span style="color:var(--accent-red);font-size:10px;font-weight:700;letter-spacing:.05em">★ WAJIB</span></label>
           <div class="photo-upload-area" id="upload-area-before" onclick="triggerUpload('before')">
             <input type="file" id="f-photo-before" accept="image/*" style="display:none" onchange="handlePhotoUpload(this,'before')">
             <div id="upload-placeholder-before">
@@ -1485,6 +1485,9 @@ body::before {
               <div class="upload-text">Tap untuk foto kondisi SEBELUM perbaikan</div>
             </div>
             <img class="photo-preview" id="photo-preview-before" src="" alt="Before">
+          </div>
+          <div id="foto-required-hint" style="text-align:center;font-size:11px;color:var(--accent-red);margin-top:6px;display:none">
+            ⚠️ Foto kerusakan wajib diupload sebelum kirim laporan
           </div>
           <div id="photo-info-before" class="text-xs text-muted mt-2" style="display:none"></div>
         </div>
@@ -1900,11 +1903,14 @@ async function handlePhotoUpload(input, slot) {
       const infoEl = $id('photo-info-before');
       if (preview) { preview.src = result.compressed; preview.classList.add('visible'); }
       if (placeholder) placeholder.style.display = 'none';
-      if (area) { area.classList.add('has-photo'); area.style.opacity = '1'; }
+      if (area) { area.classList.add('has-photo'); area.style.opacity = '1'; area.style.borderColor = ''; area.style.borderStyle = ''; }
       if (infoEl) {
         infoEl.style.display = 'block';
         infoEl.innerHTML = `✅ ${result.width}×${result.height}px · ${result.sizeKB} KB`;
       }
+      // Fix 3: Sembunyikan hint wajib foto setelah upload berhasil
+      const reqHint = document.getElementById('foto-required-hint');
+      if (reqHint) reqHint.style.display = 'none';
       showRecommendationInForm();
     } else {
       // slot=after: jangan replace innerHTML di sini (akan merusak state modal)
@@ -2463,9 +2469,41 @@ function photoSlotWithImage(src, label) {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'position:relative;width:100%;height:100%';
   const img = document.createElement('img');
-  img.src = src;
   img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;display:block';
-  img.onerror = function() { this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label); };
+
+  // Fix 6: Drive URL → fetch via GAS proxy ke data URI agar tampil tanpa login Google
+  const idMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})/);
+  const proxyUrl = idMatch ? `${CONFIG.GAS_URL}?action=photo&id=${idMatch[1]}` : null;
+
+  if (proxyUrl && !src.startsWith('data:')) {
+    img.src = '';
+    img.style.opacity = '0.3';
+    fetch(proxyUrl)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data) {
+          img.src = json.data;
+          img.style.opacity = '1';
+        } else {
+          if (wrapper.parentNode) wrapper.parentNode.innerHTML = photoSlotEmpty('❌', label);
+        }
+      })
+      .catch(() => {
+        // fetch gagal → fallback ke src langsung
+        img.src = src;
+        img.style.opacity = '1';
+      });
+    img.onerror = function() {
+      if (wrapper.parentNode) wrapper.parentNode.innerHTML = photoSlotEmpty('❌', label);
+    };
+  } else {
+    // Fix 4: base64 lokal atau URL non-Drive → set langsung, onerror show error
+    img.src = src;
+    img.onerror = function() {
+      if (wrapper.parentNode) wrapper.parentNode.innerHTML = photoSlotEmpty('❌', label);
+    };
+  }
+
   const badge = document.createElement('div');
   badge.className = badgeClass;
   badge.textContent = label;
@@ -2756,6 +2794,22 @@ async function submitDefect() {
   const prio = $id('f-priority').value;
   const notes = $id('f-notes')?.value.trim() || '';
   if (!room||!desc||!cat) { showToast('error', 'Form belum lengkap', ''); return; }
+  // Fix 1: Foto Before WAJIB — HK harus foto kondisi sebelum perbaikan
+  if (!STATE.photoBeforeData) {
+    showToast('warn', '📷 Foto Before wajib diupload', 'Tap area foto untuk ambil foto kerusakan');
+    const area = $id('upload-area-before');
+    if (area) {
+      area.style.borderColor = 'var(--accent-red)';
+      area.style.borderStyle = 'solid';
+      const hint = document.getElementById('foto-required-hint');
+      if (hint) hint.style.display = 'block';
+      setTimeout(() => {
+        area.style.borderColor = '';
+        area.style.borderStyle = '';
+      }, 3000);
+    }
+    return;
+  }
   const btn = $id('submit-btn');
   btn.disabled = true; btn.textContent = '⏳ Menyimpan...';
   try {
@@ -3616,13 +3670,49 @@ function lbLoad(idx) {
   const badge = $id('lb-badge');
   const dlBtn = $id('lb-download');
   img.classList.add('no-transition');
-  img.src = src;
   badge.textContent = label;
   badge.className = 'lb-badge ' + label.toLowerCase();
-  dlBtn.href = src;
-  dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
   lbResetTransform();
   setTimeout(() => img.classList.remove('no-transition'), 50);
+
+  // Fix 7: Foto Drive di-load via GAS proxy fetch → data URI
+  // Ini memastikan foto tampil di semua device tanpa perlu login Google
+  const idMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})/);
+  const proxyUrl = idMatch ? `${CONFIG.GAS_URL}?action=photo&id=${idMatch[1]}` : null;
+
+  if (proxyUrl && !src.startsWith('data:')) {
+    // Tampilkan loading indicator
+    img.src = '';
+    img.style.opacity = '0.3';
+    dlBtn.href = '#';
+    fetch(proxyUrl)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data) {
+          img.src = json.data;
+          img.style.opacity = '1';
+          dlBtn.href = json.data;
+          dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+        } else {
+          img.src = src; // fallback ke URL asli
+          img.style.opacity = '1';
+          dlBtn.href = src;
+          dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+        }
+      })
+      .catch(() => {
+        img.src = src; // fallback
+        img.style.opacity = '1';
+        dlBtn.href = src;
+        dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+      });
+  } else {
+    // base64 lokal atau URL non-Drive → set langsung
+    img.src = src;
+    img.style.opacity = '1';
+    dlBtn.href = src;
+    dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+  }
 }
 
 function lbNavigate(dir) {
