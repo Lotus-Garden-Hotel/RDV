@@ -18,6 +18,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
 <style>
 /* ═══════════════════════════════════════════
    DESIGN SYSTEM — Industrial Precision Dark
@@ -792,6 +794,105 @@ body::before {
 .modal-sub { font-size: 13px; color: var(--text-1); margin-bottom: 24px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
 
+/* ══════════════════════════════
+   CHECKLIST
+   ══════════════════════════════ */
+.checklist-box {
+  background: var(--bg-2);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.checklist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.checklist-progress-wrap {
+  height: 5px;
+  background: var(--bg-3);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.checklist-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green), #34d399);
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(.16,1,.3,1);
+}
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+.checklist-item:last-child { border-bottom: none; }
+.checklist-item.done { opacity: 0.5; }
+.checklist-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--text-2);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  transition: all 0.2s;
+  margin-top: 1px;
+}
+.checklist-item.done .checklist-check {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: white;
+}
+.checklist-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+.checklist-item.done .checklist-text {
+  text-decoration: line-through;
+  color: var(--text-2);
+}
+.checklist-count {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-green);
+}
+
+/* ══════════════════════════════
+   EXPORT BUTTONS
+   ══════════════════════════════ */
+.export-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.btn-export-pdf {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  flex: 1;
+  min-width: 120px;
+}
+.btn-export-csv {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  flex: 1;
+  min-width: 120px;
+}
+.btn-export-pdf:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-export-csv:hover { opacity: 0.9; transform: translateY(-1px); }
+
 /* PHOTO COMPARE */
 .photo-compare {
   display: grid;
@@ -1453,6 +1554,11 @@ body::before {
         <div class="section-sub">Real-time Overview</div>
       </div>
 
+      <div class="export-bar">
+        <button class="btn btn-export-pdf btn-sm" onclick="exportPDF()">📄 Export PDF</button>
+        <button class="btn btn-export-csv btn-sm" onclick="exportCSV()">📊 Export CSV</button>
+      </div>
+
       <div class="chart-card stagger-child">
         <div class="chart-title">Status Breakdown</div>
         <div class="donut-wrap">
@@ -1552,6 +1658,21 @@ body::before {
       <div id="modal-rec-content" class="ai-result" style="font-size:13px;line-height:1.7;color:var(--text-1)">
         Memuat panduan...
       </div>
+    </div>
+
+    <!-- ── CHECKLIST PERBAIKAN ── -->
+    <div id="modal-checklist-box" class="checklist-box" style="display:none">
+      <div class="checklist-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">CHECKLIST</span>
+          <span style="font-size:13px;font-weight:600">Langkah Perbaikan</span>
+        </div>
+        <span class="checklist-count" id="checklist-count">0/0</span>
+      </div>
+      <div class="checklist-progress-wrap">
+        <div class="checklist-progress-bar" id="checklist-progress-bar" style="width:0%"></div>
+      </div>
+      <div id="checklist-items"></div>
     </div>
 
     <div class="photo-compare" id="modal-photos">
@@ -2036,6 +2157,7 @@ function normalizeDefect(d) {
     resolvedAt: d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null,
     closedAt: d.ClosedAt ? new Date(d.ClosedAt).getTime() : null,
     reopenedAt: d.ReopenedAt ? new Date(d.ReopenedAt).getTime() : (d.reopenedAt || null),
+    checklist: null, // diisi dari localStorage saat modal dibuka
     logs: buildLogs(d),
   };
 }
@@ -2287,6 +2409,7 @@ function openDefect(id) {
   }
   $id('photo-after-info').style.display = 'none';
   showRecommendationInModal(d.category);
+  renderChecklist(d);
   renderModalActions(d);
   $id('detail-modal').classList.add('open');
 }
@@ -2881,6 +3004,264 @@ function sendBrowserNotification(title, body) {
     });
     setTimeout(() => n.close(), 8000);
   } catch(e) { /* silent */ }
+}
+
+// ════════════════════════════════════════════════════
+// FEATURE 5 — CHECKLIST PER KATEGORI
+// ════════════════════════════════════════════════════
+
+function getChecklistKey(defectId) { return `chk_${defectId}`; }
+
+function loadChecklist(defectId, totalSteps) {
+  try {
+    const raw = localStorage.getItem(getChecklistKey(defectId));
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length === totalSteps) return arr;
+    }
+  } catch(e) {}
+  return Array(totalSteps).fill(false);
+}
+
+function saveChecklist(defectId, state) {
+  try { localStorage.setItem(getChecklistKey(defectId), JSON.stringify(state)); } catch(e) {}
+}
+
+function renderChecklist(d) {
+  const box   = $id('modal-checklist-box');
+  const items = $id('checklist-items');
+  const count = $id('checklist-count');
+  const bar   = $id('checklist-progress-bar');
+  if (!box || !items) return;
+
+  // Hanya tampil jika role ENG atau SPV/GM, dan status IN_PROGRESS atau OPEN
+  const canSee = ['ENG','SPV','GM'].includes(STATE.role) &&
+                 (d.status === 'IN_PROGRESS' || d.status === 'OPEN');
+  if (!canSee) { box.style.display = 'none'; return; }
+
+  const rec = RECOMMENDATIONS[d.category] || RECOMMENDATIONS['Other'];
+  const steps = rec.steps;
+  const state = loadChecklist(d.id, steps.length);
+
+  // Simpan ke defect object agar bisa diakses dari toggleChecklistItem
+  d.checklist = state;
+
+  const doneCount = state.filter(Boolean).length;
+  const pct = steps.length ? Math.round((doneCount / steps.length) * 100) : 0;
+
+  count.textContent = `${doneCount}/${steps.length}`;
+  bar.style.width = pct + '%';
+
+  // Readonly jika bukan ENG
+  const readonly = STATE.role !== 'ENG';
+
+  items.innerHTML = steps.map((step, i) => `
+    <div class="checklist-item ${state[i] ? 'done' : ''}"
+         id="chk-item-${i}"
+         onclick="${readonly ? '' : `toggleChecklistItem('${d.id}',${i})`}"
+         style="${readonly ? 'cursor:default' : ''}">
+      <div class="checklist-check">${state[i] ? '✓' : ''}</div>
+      <div class="checklist-text">${step}</div>
+    </div>`).join('');
+
+  box.style.display = 'block';
+}
+
+function toggleChecklistItem(defectId, idx) {
+  const d = STATE.defects.find(x => x.id === defectId);
+  if (!d || STATE.role !== 'ENG') return;
+
+  const rec = RECOMMENDATIONS[d.category] || RECOMMENDATIONS['Other'];
+  const state = loadChecklist(defectId, rec.steps.length);
+  state[idx] = !state[idx];
+  saveChecklist(defectId, state);
+  d.checklist = state;
+
+  // Update UI tanpa re-render penuh
+  const itemEl = $id(`chk-item-${idx}`);
+  if (itemEl) {
+    itemEl.classList.toggle('done', state[idx]);
+    itemEl.querySelector('.checklist-check').textContent = state[idx] ? '✓' : '';
+  }
+
+  const doneCount = state.filter(Boolean).length;
+  const total = rec.steps.length;
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  const countEl = $id('checklist-count');
+  const barEl   = $id('checklist-progress-bar');
+  if (countEl) countEl.textContent = `${doneCount}/${total}`;
+  if (barEl)   barEl.style.width = pct + '%';
+
+  // Semua selesai → toast encouragement
+  if (doneCount === total && total > 0) {
+    showToast('success', '✅ Semua langkah selesai!', 'Upload foto After dan konfirmasi selesai.');
+  }
+}
+
+// ════════════════════════════════════════════════════
+// FEATURE 7 — EXPORT PDF & CSV
+// ════════════════════════════════════════════════════
+
+function exportCSV() {
+  if (!STATE.defects.length) { showToast('warn', 'Tidak ada data', 'Belum ada defect untuk di-export'); return; }
+
+  const now  = new Date();
+  const month = now.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+  const headers = ['ID','Kamar','Kategori','Deskripsi','Prioritas','Status','Reporter','Engineer','Dibuat','Selesai','Durasi (jam)'];
+
+  const rows = STATE.defects.map(d => {
+    const durH = (d.startedAt && d.resolvedAt)
+      ? ((d.resolvedAt - d.startedAt) / 3600000).toFixed(1)
+      : '-';
+    return [
+      d.id,
+      d.room,
+      (d.category||'').replace('_','/'),
+      `"${(d.desc||'').replace(/"/g,'""').substring(0,80)}"`,
+      d.priority,
+      d.status,
+      d.reporter,
+      d.engineer || '-',
+      d.createdAt  ? new Date(d.createdAt).toLocaleDateString('id-ID')  : '-',
+      d.resolvedAt ? new Date(d.resolvedAt).toLocaleDateString('id-ID') : '-',
+      durH,
+    ].join(',');
+  });
+
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `RoomDefect_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('success', '📊 CSV diunduh', `${STATE.defects.length} defect`);
+}
+
+function exportPDF() {
+  if (!window.jspdf) { showToast('warn', 'jsPDF belum siap', 'Coba lagi sebentar'); return; }
+  if (!STATE.defects.length) { showToast('warn', 'Tidak ada data', 'Belum ada defect untuk di-export'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const now  = new Date();
+  const dateStr = now.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+
+  // ── HEADER ──
+  doc.setFillColor(6, 11, 24);
+  doc.rect(0, 0, 297, 30, 'F');
+  doc.setTextColor(240, 244, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('ROOM DEFECT REPORT', 14, 12);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(148, 163, 184);
+  doc.text('Lotus Garden Hotel by Waringin Hospitality — Kediri', 14, 19);
+  doc.text(`Dicetak: ${dateStr} oleh ${STATE.user} (${STATE.role})`, 14, 25);
+
+  // ── SUMMARY CARDS ──
+  const counts = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 };
+  STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
+  const totalResolved = counts.RESOLVED + counts.CLOSED;
+  const slaViolations = STATE.defects.filter(d => {
+    if (d.status === 'CLOSED' || d.status === 'RESOLVED') return false;
+    return (Date.now() - d.createdAt) / 3600000 > (CONFIG.SLA_HOURS[d.priority] || 8);
+  }).length;
+
+  const summaryY = 36;
+  const cards = [
+    { label: 'Total Defect', val: STATE.defects.length, color: [59,130,246] },
+    { label: 'Open',         val: counts.OPEN,           color: [239,68,68]  },
+    { label: 'In Progress',  val: counts.IN_PROGRESS,    color: [245,158,11] },
+    { label: 'Resolved/Closed', val: totalResolved,      color: [16,185,129] },
+    { label: 'SLA Breach',   val: slaViolations,         color: [139,92,246] },
+  ];
+  cards.forEach((c, i) => {
+    const x = 14 + i * 56;
+    doc.setFillColor(13, 21, 41);
+    doc.roundedRect(x, summaryY, 52, 18, 2, 2, 'F');
+    doc.setFillColor(...c.color);
+    doc.roundedRect(x, summaryY, 4, 18, 1, 1, 'F');
+    doc.setTextColor(...c.color);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(String(c.val), x + 10, summaryY + 12);
+    doc.setTextColor(148, 163, 184);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(c.label, x + 10, summaryY + 16);
+  });
+
+  // ── TABLE ──
+  const tableData = STATE.defects.map(d => {
+    const durH = (d.startedAt && d.resolvedAt)
+      ? ((d.resolvedAt - d.startedAt) / 3600000).toFixed(1) + 'h'
+      : '-';
+    const statusLabel = { OPEN:'Open', IN_PROGRESS:'In Progress', RESOLVED:'Resolved', CLOSED:'Closed' };
+    return [
+      d.id,
+      d.room,
+      (d.category||'').replace('_','/'),
+      (d.desc||'').substring(0,45),
+      d.priority,
+      statusLabel[d.status] || d.status,
+      (d.reporter||'').substring(0,16),
+      (d.engineer||'-').substring(0,16),
+      d.createdAt ? new Date(d.createdAt).toLocaleDateString('id-ID') : '-',
+      durH,
+    ];
+  });
+
+  doc.autoTable({
+    startY: summaryY + 24,
+    head: [['ID','Kamar','Kategori','Deskripsi','Prioritas','Status','Reporter','Engineer','Tgl','Durasi']],
+    body: tableData,
+    theme: 'grid',
+    styles: { fontSize: 7, cellPadding: 2, textColor: [240,244,255], fillColor: [13,21,41], lineColor: [26,39,68], lineWidth: 0.2 },
+    headStyles: { fillColor: [26,39,68], textColor: [148,163,184], fontStyle: 'bold', fontSize: 7.5 },
+    alternateRowStyles: { fillColor: [18,29,56] },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 14 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 52 },
+      4: { cellWidth: 18 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 26 },
+      7: { cellWidth: 26 },
+      8: { cellWidth: 18 },
+      9: { cellWidth: 14 },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 5) {
+        const v = data.cell.raw;
+        const colorMap = { 'Open':[239,68,68], 'In Progress':[245,158,11], 'Resolved':[59,130,246], 'Closed':[16,185,129] };
+        if (colorMap[v]) data.cell.styles.textColor = colorMap[v];
+      }
+      if (data.section === 'body' && data.column.index === 4) {
+        const v = data.cell.raw;
+        if (v === 'HIGH') data.cell.styles.textColor = [239,68,68];
+        else if (v === 'MEDIUM') data.cell.styles.textColor = [245,158,11];
+        else data.cell.styles.textColor = [16,185,129];
+      }
+    },
+  });
+
+  // ── FOOTER ──
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(74,85,104);
+    doc.text(`Room Defect Management System — Lotus Garden Hotel`, 14, doc.internal.pageSize.height - 6);
+    doc.text(`Hal ${i} / ${pageCount}`, 297 - 14, doc.internal.pageSize.height - 6, { align: 'right' });
+  }
+
+  const filename = `RoomDefect_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}_${String(now.getDate()).padStart(2,'0')}.pdf`;
+  doc.save(filename);
+  showToast('success', '📄 PDF diunduh', `${STATE.defects.length} defect`);
 }
 
 // ════════════════════════════════════════════════════
