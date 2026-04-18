@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Room Defects">
 <meta name="application-name" content="Room Defects">
 <meta name="description" content="Room Defect Management System — Lotus Garden Hotel">
-<title>Room Defects v10 — Lotus Garden Hotel</title>
+<title>Room Defects — Lotus Garden Hotel</title>
 <link rel="manifest" id="pwa-manifest-link">
 <link rel="icon" type="image/x-icon" id="favicon-link">
 <link rel="apple-touch-icon" id="apple-touch-icon-link">
@@ -2039,6 +2039,91 @@ const gasAiPredict = () => gasCall('aiPredictive', {});
 const gasSavePhoto = (d) => gasCall('savePhoto', d);
 const gasValidateUser = (d) => gasCall('validateUser', d);
 
+// Fix: atomic resolve — satu call untuk photo save + status update
+const gasResolveDefect = (d) => gasCall('resolveDefect', d);
+
+// ── Pending Resolve Queue — untuk retry saat jaringan pulih ──
+const PENDING_RESOLVE_KEY = 'rdv_pending_resolve';
+
+function _queuePendingResolve(defectId, engineer, photoBase64, photoMeta) {
+  try {
+    const queue = JSON.parse(localStorage.getItem(PENDING_RESOLVE_KEY) || '[]');
+    const existing = queue.find(q => q.id === defectId);
+    if (existing) {
+      // Update foto jika ada yang baru
+      if (photoBase64) { existing.photoBase64 = photoBase64; existing.photoMeta = photoMeta || {}; }
+    } else {
+      queue.push({
+        id:          defectId,
+        engineer:    engineer    || '',
+        updatedBy:   STATE.user  || '',
+        photoBase64: photoBase64 || null,
+        photoMeta:   photoMeta   || {},
+        queuedAt:    Date.now(),
+      });
+    }
+    localStorage.setItem(PENDING_RESOLVE_KEY, JSON.stringify(queue));
+
+    // Cache photo + status agar normalizeDefect tidak rollback saat polling
+    if (photoBase64) localStorage.setItem('rdv_pa_' + defectId, photoBase64);
+    localStorage.setItem('rdv_ps_' + defectId, 'RESOLVED');
+
+    console.warn('[PendingResolve] Queued:', defectId, photoBase64 ? '(+foto)' : '(status only)');
+  } catch(e) { console.error('Queue error:', e); }
+}
+
+async function _flushPendingResolve() {
+  try {
+    const raw = localStorage.getItem(PENDING_RESOLVE_KEY);
+    if (!raw) return;
+    const queue = JSON.parse(raw);
+    if (!queue.length) return;
+
+    let flushedCount = 0;
+    const remaining  = [];
+
+    for (const item of queue) {
+      try {
+        if (item.photoBase64) {
+          // Ada foto → gunakan resolveDefect atomic (photo + status sekaligus)
+          await gasResolveDefect({
+            id:          item.id,
+            engineer:    item.engineer,
+            updatedBy:   item.updatedBy,
+            base64:      item.photoBase64,
+            mimeType:    item.photoMeta?.mimeType  || 'image/jpeg',
+            sizeKB:      item.photoMeta?.sizeKB    || 0,
+            width:       item.photoMeta?.width     || '',
+            height:      item.photoMeta?.height    || '',
+            room:        item.photoMeta?.room      || '',
+            category:    item.photoMeta?.category  || '',
+            uploadedBy:  item.updatedBy,
+          });
+        } else {
+          // Tidak ada foto → update status saja
+          await gasCall('updateDefect', { id: item.id, status: 'RESOLVED', engineer: item.engineer, updatedBy: item.updatedBy });
+        }
+        // Berhasil → hapus cache lokal
+        localStorage.removeItem('rdv_pa_' + item.id);
+        localStorage.removeItem('rdv_ps_' + item.id);
+        flushedCount++;
+        console.log('[PendingResolve] Flushed:', item.id);
+        showToast('success', '🔄 Sync berhasil', `${item.id} → RESOLVED`);
+      } catch(e) {
+        remaining.push(item); // masih gagal → simpan kembali
+        console.warn('[PendingResolve] Still failing:', item.id, e.message);
+      }
+    }
+
+    if (remaining.length) {
+      localStorage.setItem(PENDING_RESOLVE_KEY, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(PENDING_RESOLVE_KEY);
+    }
+    if (flushedCount > 0) fetchAndRender(false);
+  } catch(e) { console.error('Flush error:', e); }
+}
+
 const gasUpdateDef = (d) => {
   // Bug #1 fix: status hanya dimasukkan jika benar-benar diberikan.
   // Tanpa ini, update photoBefore saja akan mengirim status:undefined → GAS kosongin field status.
@@ -2162,15 +2247,31 @@ async function fetchAndRender(toast = false) {
 
 function normalizeDefect(d) {
   const desc = d.Description || d.desc || d.description || '';
+  const defectId = d.ID || d.id || '';
+
+  // ── FIX: Merge localStorage cache agar photoAfter & status tidak rollback saat polling
+  // Cache ditulis saat resolve gagal ke cloud, dihapus setelah flush berhasil
+  let photoAfterFinal = d.PhotoAfter || d.photoAfter || null;
+  let statusFinal     = d.Status    || d.status     || 'OPEN';
+  try {
+    const cachedPhoto  = localStorage.getItem('rdv_pa_' + defectId);
+    const cachedStatus = localStorage.getItem('rdv_ps_' + defectId);
+    // Gunakan cached photo jika GAS belum punya (masih null/kosong)
+    if (!photoAfterFinal && cachedPhoto) photoAfterFinal = cachedPhoto;
+    // Gunakan cached status HANYA jika GAS belum maju ke CLOSED
+    // (RESOLVED lokal tidak boleh menimpa CLOSED yang sudah approved)
+    if (cachedStatus && statusFinal !== 'CLOSED') statusFinal = cachedStatus;
+  } catch(e) {}
+
   return {
-    id: d.ID || d.id || '', room: d.RoomNumber || d.room || '',
+    id: defectId, room: d.RoomNumber || d.room || '',
     category: d.Category || d.category || '',
     desc,
     description: desc,   // Bug #10: alias untuk GAS aiAnalyzeDefect yang expect 'description'
-    priority: d.Priority || d.priority || 'MEDIUM', status: d.Status || d.status || 'OPEN',
+    priority: d.Priority || d.priority || 'MEDIUM', status: statusFinal,
     reporter: d.Reporter || d.reporter || '', engineer: d.Engineer || d.engineer || null,
     notes: d.Notes || d.notes || '', photoBefore: d.PhotoBefore || d.photoBefore || null,
-    photoAfter: d.PhotoAfter || d.photoAfter || null,
+    photoAfter: photoAfterFinal,
     createdAt: d.CreatedAt ? new Date(d.CreatedAt).getTime() : Date.now(),
     startedAt: d.StartedAt ? new Date(d.StartedAt).getTime() : null,
     resolvedAt: d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null,
@@ -2350,27 +2451,6 @@ function driveImgUrl(src) {
   return src;
 }
 
-// Ekstrak Drive File ID dari berbagai format URL (lh3, uc?export, dsb)
-// Digunakan untuk konstruksi proxy URL jika lh3 tidak bisa diakses
-function driveFileId(src) {
-  if (!src || src.startsWith('data:image')) return null;
-  // Format lh3: https://lh3.googleusercontent.com/d/{fileId}=w600
-  const lh3Match = src.match(/\/d\/([A-Za-z0-9_-]{20,})/);
-  if (lh3Match) return lh3Match[1];
-  // Format uc?export: https://drive.google.com/uc?...&id={fileId}
-  const ucMatch = src.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
-  if (ucMatch) return ucMatch[1];
-  return null;
-}
-
-// Konstruksi proxy URL via GAS doGet → foto SELALU tampil di device apapun
-// karena GAS execute as Me (script owner) punya akses folder Drive
-function driveProxyUrl(src) {
-  const fid = driveFileId(src);
-  if (!fid || !CONFIG.GAS_URL) return null;
-  return `${CONFIG.GAS_URL}?action=photo&id=${fid}`;
-}
-
 function photoSlotWithImage(src, label) {
   const isAfter = label === 'AFTER';
   const badgeClass = isAfter ? 'photo-slot-label after-badge' : 'photo-slot-label before-badge';
@@ -2379,37 +2459,7 @@ function photoSlotWithImage(src, label) {
   const img = document.createElement('img');
   img.src = src;
   img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;display:block';
-
-  // ── CROSS-DEVICE FIX: onerror dengan 2 lapis fallback ──
-  // BUG FIX: sebelumnya menggunakan this.src = 'PROXY_FETCHING' sebagai guard,
-  // yang memicu onerror KEDUA dan langsung mengganti DOM dengan ❌ sebelum
-  // fetch proxy selesai. img element sudah detached saat json kembali.
-  // FIX: gunakan dataset.proxyFetching sebagai flag → onerror kedua tidak terjadi.
-  const proxyUrl = driveProxyUrl(src);
-  img.onerror = function() {
-    if (this.dataset.proxyFetching) return; // guard — sudah dalam proses proxy
-    if (proxyUrl) {
-      this.dataset.proxyFetching = '1'; // set flag SEBELUM ubah src
-      // Tampilkan spinner sementara menunggu proxy
-      this.style.opacity = '0.3';
-      fetch(proxyUrl)
-        .then(r => r.json())
-        .then(json => {
-          if (json.success && json.data) {
-            this.src = json.data; // data URI dari GAS proxy
-            this.style.opacity = '1';
-            delete this.dataset.proxyFetching;
-          } else {
-            this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label);
-          }
-        })
-        .catch(() => {
-          this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label);
-        });
-    } else {
-      this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label);
-    }
-  };
+  img.onerror = function() { this.parentNode.parentNode.innerHTML = photoSlotEmpty('❌', label); };
   const badge = document.createElement('div');
   badge.className = badgeClass;
   badge.textContent = label;
@@ -2525,9 +2575,8 @@ async function updateStatus(newStatus) {
   if (!d) return;
 
   if (newStatus === 'RESOLVED') {
-    // Validasi: foto After wajib ada sebelum lanjut
     if (!STATE.photoAfterData) {
-      showToast('warn', '📷 Upload foto After dulu', 'Tap tombol "Upload Foto After"');
+      showToast('warn', '📷 Upload foto After dulu', 'Tap slot foto AFTER di atas');
       const uploadLabel = $id('modal-actions')?.querySelector('label[for="f-photo-after-persistent"]');
       if (uploadLabel) {
         uploadLabel.style.animation = 'pulse-border 0.8s 3';
@@ -2540,68 +2589,97 @@ async function updateStatus(newStatus) {
       return;
     }
 
-    // Disable tombol selama proses berlangsung
     const konfirmasiBtn = document.getElementById('btn-konfirmasi-selesai');
-    const _resetKonfirmasiBtn = () => {
-      if (konfirmasiBtn) { konfirmasiBtn.disabled = false; konfirmasiBtn.textContent = '✅ Konfirmasi Selesai & Simpan Foto'; }
-    };
     if (konfirmasiBtn) { konfirmasiBtn.disabled = true; konfirmasiBtn.textContent = '⏳ Menyimpan...'; }
 
-    showToast('info', '⏳ Mengupload & menyimpan secara atomik...', '');
+    // ── FIX: simpan foto base64 sebelum apapun — agar tidak hilang di mid-async
+    const photoBase64  = STATE.photoAfterData.compressed;
+    const photoMime    = STATE.photoAfterData.mimeType;
+    const photoSizeKB  = STATE.photoAfterData.sizeKB;
+    const photoWidth   = STATE.photoAfterData.width  || '';
+    const photoHeight  = STATE.photoAfterData.height || '';
 
-    if (STATE.gasAvailable) {
-      try {
-        // ── FIX BUG D: Satu panggilan resolveDefect (atomic) menggantikan
-        //    gasSavePhoto + gasUpdateDef yang terpisah dan rentan race condition ──
-        const result = await gasCall('resolveDefect', {
-          id:         d.id,
-          base64:     STATE.photoAfterData.compressed,
-          mimeType:   STATE.photoAfterData.mimeType,
-          sizeKB:     STATE.photoAfterData.sizeKB,
-          width:      STATE.photoAfterData.width  || '',
-          height:     STATE.photoAfterData.height || '',
-          engineer:   d.engineer || `${STATE.user} (${STATE.role})`,
-          updatedBy:  STATE.user,
-          room:       d.room,
-          category:   d.category,
-        });
+    // Cache foto ke localStorage SEGERA — mencegah kehilangan saat polling overwrite STATE.defects
+    try {
+      localStorage.setItem('rdv_pa_' + d.id, photoBase64);
+      localStorage.setItem('rdv_ps_' + d.id, 'RESOLVED');
+    } catch(e) {}
 
-        // ── FIX BUG B: Strict validation — blok RESOLVED jika foto gagal ke Drive ──
-        // Tiket tidak boleh berstatus RESOLVED jika URL Drive belum diamankan.
-        if (result?.driveError && !result?.driveUrl) {
-          showToast('error', '❌ Foto gagal tersimpan di Drive', 'Status TIDAK berubah. Coba lagi atau periksa koneksi.');
-          _resetKonfirmasiBtn();
-          return; // ← BLOK KERAS: status lokal TIDAK diubah
-        }
+    // Tampilkan preview lokal SEGERA — user tidak perlu menunggu cloud
+    d.photoAfter = photoBase64;
+    // ── JANGAN update d.status dulu — tunggu GAS konfirmasi ──
 
-        // Sukses — update local state dengan Drive URL
-        d.photoAfter  = result?.driveUrl || STATE.photoAfterData.compressed;
-        d.status      = newStatus;
-        d.resolvedAt  = Date.now();
-        d.logs.push({ action: `Selesai diperbaiki oleh ${STATE.user} (${STATE.role}) — foto Drive OK`, time: Date.now() });
-        showToast('success', '✅ Status RESOLVED + foto Drive tersimpan!', d.id);
+    showToast('info', '⏳ Menyimpan ke server...', 'Harap tunggu');
 
-      } catch (e) {
-        // Error jaringan — blok total, jangan ubah status
-        showToast('error', '❌ Gagal terhubung ke server', 'Status TIDAK berubah. Coba lagi.');
-        _resetKonfirmasiBtn();
-        console.error('[resolveDefect] network error:', e);
-        return; // ← BLOK KERAS
+    // ── FIX: Gunakan satu GAS call atomic (resolveDefect)
+    // Ini menghindari race condition dua call terpisah di jaringan mobile yang tidak stabil
+    let serverSuccess = false;
+    let finalPhotoRef = photoBase64; // fallback ke lokal
+
+    // ── FIX: Cek GAS secara independen — jangan bergantung STATE.gasAvailable
+    // STATE.gasAvailable bisa false karena error lain yang tidak terkait
+    try {
+      const result = await gasResolveDefect({
+        id:          d.id,
+        engineer:    d.engineer,
+        updatedBy:   STATE.user,
+        // Foto dikirim sekaligus — GAS handle save + status update atomically
+        base64:      photoBase64,
+        mimeType:    photoMime,
+        sizeKB:      photoSizeKB,
+        width:       photoWidth,
+        height:      photoHeight,
+        room:        d.room,
+        category:    d.category,
+        uploadedBy:  STATE.user,
+      });
+      serverSuccess = true;
+      STATE.gasAvailable = true;
+      // Berhasil → hapus cache lokal (tidak perlu lagi)
+      try { localStorage.removeItem('rdv_pa_' + d.id); localStorage.removeItem('rdv_ps_' + d.id); } catch(e) {}
+      if (result?.driveUrl) {
+        finalPhotoRef = result.driveUrl;
+        showToast('success', '📁 Foto & status tersimpan di Drive', '');
+      } else {
+        showToast('success', '✅ Status RESOLVED tersimpan', '');
       }
-    } else {
-      // Mode offline — simpan lokal sementara (perlu sync manual)
-      d.photoAfter = STATE.photoAfterData.compressed;
-      d.status     = newStatus;
-      d.resolvedAt = Date.now();
-      d.logs.push({ action: `Selesai (offline) oleh ${STATE.user} (${STATE.role}) — foto belum di Drive`, time: Date.now() });
-      showToast('warn', '📴 Mode offline', 'Foto hanya tersimpan lokal. Sync saat online kembali.');
+    } catch (e) {
+      console.error('[resolveDefect] error:', e);
+      // ── FIX: Fallback — coba gasUpdateDef saja (tanpa foto) sebagai last resort
+      try {
+        await gasCall('updateDefect', {
+          id: d.id, status: 'RESOLVED',
+          engineer: d.engineer,
+          updatedBy: STATE.user,
+        });
+        STATE.gasAvailable = true;
+        serverSuccess = true;
+        try { localStorage.removeItem('rdv_ps_' + d.id); } catch(e) {}
+        // Foto tetap di cache (rdv_pa_) agar preview lokal tetap muncul
+        showToast('warn', '⚠️ Foto gagal upload ke cloud', 'Status RESOLVED tersimpan (foto lokal)');
+      } catch (e2) {
+        console.error('[updateDefect fallback] error:', e2);
+        showToast('error', '❌ Tidak terhubung ke server', 'Status disimpan lokal — sync otomatis saat online');
+        // Simpan ke pending queue untuk retry — sertakan foto agar retry bisa kirim ke cloud
+        _queuePendingResolve(d.id, d.engineer, photoBase64, {
+          mimeType: photoMime, sizeKB: photoSizeKB,
+          width: photoWidth, height: photoHeight,
+          room: d.room, category: d.category,
+        });
+      }
     }
+
+    // ── Update local state SETELAH proses selesai (berhasil atau tidak)
+    d.photoAfter  = finalPhotoRef;
+    d.status      = 'RESOLVED';
+    d.resolvedAt  = Date.now();
+    d.logs.push({ action: `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})${serverSuccess ? '' : ' [pending sync]'}`, time: Date.now() });
 
     STATE.photoAfterData = null;
     closeModal();
     renderDefectList();
     renderDashboard();
-    showToast('success', '✅ Perbaikan selesai!', d.id);
+    if (serverSuccess) showToast('success', '✅ Perbaikan selesai!', d.id);
     return;
   }
 
@@ -2927,6 +3005,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   $id('lightbox')?.addEventListener('click', (e) => {
     if (e.target === $id('lightbox')) closeLightbox();
   });
+
+  // ── FIX: visibilitychange — saat app kembali ke foreground (dari kamera/galeri/switch app)
+  // Ini mencegah data stale setelah HP di-background saat proses upload
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !STATE.user) return;
+    // App kembali ke foreground
+    console.log('[Visibility] App kembali ke foreground');
+    // Flush pending resolves dulu (jika ada yang gagal sebelumnya)
+    _flushPendingResolve();
+    // Re-fetch hanya jika modal tidak sedang terbuka
+    if (!document.getElementById('detail-modal')?.classList.contains('open')) {
+      fetchAndRender(false);
+    }
+  });
+
+  // ── FIX: pageshow — tangani bfcache restore (iOS Safari, Android Chrome)
+  // Tanpa ini, halaman yang di-restore dari bfcache tidak trigger DOMContentLoaded
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted || !STATE.user) return;
+    console.log('[pageshow] bfcache restore — re-sync data');
+    _flushPendingResolve();
+    if (!document.getElementById('detail-modal')?.classList.contains('open')) {
+      fetchAndRender(false);
+    }
+  });
+
+  // ── Flush pending resolves saat startup (kalau ada yang tertinggal dari sesi sebelumnya)
+  if (STATE.user) _flushPendingResolve();
 });
 
 async function aiCategorize(text) {
@@ -3419,6 +3525,8 @@ function startPolling() {
     // Jangan poll saat modal buka atau sedang upload
     if (document.getElementById('detail-modal')?.classList.contains('open')) return;
     if (STATE.isLoading) return;
+    // Flush pending resolves setiap poll — auto-retry yang gagal saat offline
+    await _flushPendingResolve();
     await fetchAndRender(false);
   }, POLL_INTERVAL_MS);
   console.log('[Polling] Started — interval 30s');
@@ -3509,27 +3617,6 @@ function lbLoad(idx) {
   dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
   lbResetTransform();
   setTimeout(() => img.classList.remove('no-transition'), 50);
-
-  // ── CROSS-DEVICE FIX: proxy fallback di lightbox (same dataset flag fix) ──
-  const proxyUrl = driveProxyUrl(src);
-  img.onerror = function() {
-    if (this.dataset.proxyFetching) return;
-    if (proxyUrl) {
-      this.dataset.proxyFetching = '1';
-      this.style.opacity = '0.3';
-      fetch(proxyUrl)
-        .then(r => r.json())
-        .then(json => {
-          if (json.success && json.data) {
-            this.src = json.data;
-            this.style.opacity = '1';
-            dlBtn.href = json.data;
-            delete this.dataset.proxyFetching;
-          }
-        })
-        .catch(() => { /* biarkan broken img icon */ });
-    }
-  };
 }
 
 function lbNavigate(dir) {
