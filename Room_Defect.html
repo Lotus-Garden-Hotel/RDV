@@ -2471,14 +2471,25 @@ function photoSlotWithImage(src, label) {
   const img = document.createElement('img');
   img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;display:block';
 
-  // Fix 6: Drive URL → fetch via GAS proxy ke data URI agar tampil tanpa login Google
-  const idMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})/);
-  const proxyUrl = idMatch ? `${CONFIG.GAS_URL}?action=photo&id=${idMatch[1]}` : null;
+  // Fix 6: Deteksi apakah src adalah GAS proxy URL (?action=photo&id=...)
+  // driveImgUrl() sudah mengkonversi Drive/lh3 URL ke format ini sebelum memanggil fungsi ini
+  const isProxyUrl = src.includes('action=photo') && src.includes(CONFIG.GAS_URL.split('/exec')[0]);
+  // Juga handle raw Drive URL yang mungkin belum dikonversi
+  const rawIdMatch = !isProxyUrl ? src.match(/\/d\/([A-Za-z0-9_-]{20,})/) : null;
+  const proxyIdMatch = isProxyUrl ? src.match(/[?&]id=([A-Za-z0-9_-]{20,})/) : null;
 
-  if (proxyUrl && !src.startsWith('data:')) {
+  const needsFetch = isProxyUrl || !!rawIdMatch;
+  const fetchUrl = isProxyUrl
+    ? src  // sudah proxy URL — fetch langsung
+    : rawIdMatch
+      ? CONFIG.GAS_URL + '?action=photo&id=' + rawIdMatch[1]
+      : null;
+
+  if (needsFetch && fetchUrl) {
+    // Foto Drive → fetch via GAS proxy → data URI agar tampil di semua device tanpa login
     img.src = '';
     img.style.opacity = '0.3';
-    fetch(proxyUrl)
+    fetch(fetchUrl)
       .then(r => r.json())
       .then(json => {
         if (json.success && json.data) {
@@ -2489,15 +2500,15 @@ function photoSlotWithImage(src, label) {
         }
       })
       .catch(() => {
-        // fetch gagal → fallback ke src langsung
-        img.src = src;
+        // Network error — coba set img.src ke fetchUrl sebagai last resort
+        img.src = fetchUrl;
         img.style.opacity = '1';
       });
     img.onerror = function() {
       if (wrapper.parentNode) wrapper.parentNode.innerHTML = photoSlotEmpty('❌', label);
     };
   } else {
-    // Fix 4: base64 lokal atau URL non-Drive → set langsung, onerror show error
+    // base64 lokal atau URL non-Drive → set langsung
     img.src = src;
     img.onerror = function() {
       if (wrapper.parentNode) wrapper.parentNode.innerHTML = photoSlotEmpty('❌', label);
@@ -3675,43 +3686,46 @@ function lbLoad(idx) {
   lbResetTransform();
   setTimeout(() => img.classList.remove('no-transition'), 50);
 
-  // Fix 7: Foto Drive di-load via GAS proxy fetch → data URI
-  // Ini memastikan foto tampil di semua device tanpa perlu login Google
-  const idMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})/);
-  const proxyUrl = idMatch ? `${CONFIG.GAS_URL}?action=photo&id=${idMatch[1]}` : null;
+  // Fix 7: Sama seperti photoSlotWithImage — deteksi proxy URL atau raw Drive URL
+  const isProxyUrl = src.includes('action=photo') && src.includes(CONFIG.GAS_URL.split('/exec')[0]);
+  const rawIdMatch = !isProxyUrl ? src.match(/\/d\/([A-Za-z0-9_-]{20,})/) : null;
+  const needsFetch = isProxyUrl || !!rawIdMatch;
+  const fetchUrl = isProxyUrl ? src
+    : rawIdMatch ? CONFIG.GAS_URL + '?action=photo&id=' + rawIdMatch[1]
+    : null;
 
-  if (proxyUrl && !src.startsWith('data:')) {
-    // Tampilkan loading indicator
+  if (needsFetch && fetchUrl && !src.startsWith('data:')) {
     img.src = '';
     img.style.opacity = '0.3';
     dlBtn.href = '#';
-    fetch(proxyUrl)
+    fetch(fetchUrl)
       .then(r => r.json())
       .then(json => {
         if (json.success && json.data) {
           img.src = json.data;
           img.style.opacity = '1';
           dlBtn.href = json.data;
-          dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+          dlBtn.download = label.toLowerCase() + '-photo.jpg';
         } else {
-          img.src = src; // fallback ke URL asli
+          // GAS error — set img.src ke fetchUrl, biar browser coba sendiri
+          img.src = fetchUrl;
           img.style.opacity = '1';
-          dlBtn.href = src;
-          dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+          dlBtn.href = fetchUrl;
+          dlBtn.download = label.toLowerCase() + '-photo.jpg';
         }
       })
       .catch(() => {
-        img.src = src; // fallback
+        img.src = fetchUrl;
         img.style.opacity = '1';
-        dlBtn.href = src;
-        dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+        dlBtn.href = fetchUrl;
+        dlBtn.download = label.toLowerCase() + '-photo.jpg';
       });
   } else {
-    // base64 lokal atau URL non-Drive → set langsung
+    // base64 lokal → set langsung
     img.src = src;
     img.style.opacity = '1';
     dlBtn.href = src;
-    dlBtn.download = `${label.toLowerCase()}-photo.jpg`;
+    dlBtn.download = label.toLowerCase() + '-photo.jpg';
   }
 }
 
