@@ -2045,15 +2045,30 @@ const gasResolveDefect = (d) => gasCall('resolveDefect', d);
 // ── Pending Resolve Queue — untuk retry saat jaringan pulih ──
 const PENDING_RESOLVE_KEY = 'rdv_pending_resolve';
 
-function _queuePendingResolve(defectId, engineer) {
+function _queuePendingResolve(defectId, engineer, photoBase64, photoMeta) {
   try {
     const queue = JSON.parse(localStorage.getItem(PENDING_RESOLVE_KEY) || '[]');
-    // Hindari duplikat
-    if (!queue.find(q => q.id === defectId)) {
-      queue.push({ id: defectId, engineer: engineer || '', updatedBy: STATE.user, queuedAt: Date.now() });
-      localStorage.setItem(PENDING_RESOLVE_KEY, JSON.stringify(queue));
-      console.warn('[PendingResolve] Queued:', defectId);
+    const existing = queue.find(q => q.id === defectId);
+    if (existing) {
+      // Update foto jika ada yang baru
+      if (photoBase64) { existing.photoBase64 = photoBase64; existing.photoMeta = photoMeta || {}; }
+    } else {
+      queue.push({
+        id:          defectId,
+        engineer:    engineer    || '',
+        updatedBy:   STATE.user  || '',
+        photoBase64: photoBase64 || null,
+        photoMeta:   photoMeta   || {},
+        queuedAt:    Date.now(),
+      });
     }
+    localStorage.setItem(PENDING_RESOLVE_KEY, JSON.stringify(queue));
+
+    // Cache photo + status agar normalizeDefect tidak rollback saat polling
+    if (photoBase64) localStorage.setItem('rdv_pa_' + defectId, photoBase64);
+    localStorage.setItem('rdv_ps_' + defectId, 'RESOLVED');
+
+    console.warn('[PendingResolve] Queued:', defectId, photoBase64 ? '(+foto)' : '(status only)');
   } catch(e) { console.error('Queue error:', e); }
 }
 
@@ -2063,22 +2078,49 @@ async function _flushPendingResolve() {
     if (!raw) return;
     const queue = JSON.parse(raw);
     if (!queue.length) return;
-    const remaining = [];
+
+    let flushedCount = 0;
+    const remaining  = [];
+
     for (const item of queue) {
       try {
-        await gasCall('updateDefect', { id: item.id, status: 'RESOLVED', engineer: item.engineer, updatedBy: item.updatedBy });
+        if (item.photoBase64) {
+          // Ada foto → gunakan resolveDefect atomic (photo + status sekaligus)
+          await gasResolveDefect({
+            id:          item.id,
+            engineer:    item.engineer,
+            updatedBy:   item.updatedBy,
+            base64:      item.photoBase64,
+            mimeType:    item.photoMeta?.mimeType  || 'image/jpeg',
+            sizeKB:      item.photoMeta?.sizeKB    || 0,
+            width:       item.photoMeta?.width     || '',
+            height:      item.photoMeta?.height    || '',
+            room:        item.photoMeta?.room      || '',
+            category:    item.photoMeta?.category  || '',
+            uploadedBy:  item.updatedBy,
+          });
+        } else {
+          // Tidak ada foto → update status saja
+          await gasCall('updateDefect', { id: item.id, status: 'RESOLVED', engineer: item.engineer, updatedBy: item.updatedBy });
+        }
+        // Berhasil → hapus cache lokal
+        localStorage.removeItem('rdv_pa_' + item.id);
+        localStorage.removeItem('rdv_ps_' + item.id);
+        flushedCount++;
         console.log('[PendingResolve] Flushed:', item.id);
         showToast('success', '🔄 Sync berhasil', `${item.id} → RESOLVED`);
       } catch(e) {
-        remaining.push(item); // simpan kembali jika masih gagal
+        remaining.push(item); // masih gagal → simpan kembali
+        console.warn('[PendingResolve] Still failing:', item.id, e.message);
       }
     }
+
     if (remaining.length) {
       localStorage.setItem(PENDING_RESOLVE_KEY, JSON.stringify(remaining));
     } else {
       localStorage.removeItem(PENDING_RESOLVE_KEY);
     }
-    if (remaining.length < queue.length) fetchAndRender(false);
+    if (flushedCount > 0) fetchAndRender(false);
   } catch(e) { console.error('Flush error:', e); }
 }
 
@@ -2205,15 +2247,31 @@ async function fetchAndRender(toast = false) {
 
 function normalizeDefect(d) {
   const desc = d.Description || d.desc || d.description || '';
+  const defectId = d.ID || d.id || '';
+
+  // ── FIX: Merge localStorage cache agar photoAfter & status tidak rollback saat polling
+  // Cache ditulis saat resolve gagal ke cloud, dihapus setelah flush berhasil
+  let photoAfterFinal = d.PhotoAfter || d.photoAfter || null;
+  let statusFinal     = d.Status    || d.status     || 'OPEN';
+  try {
+    const cachedPhoto  = localStorage.getItem('rdv_pa_' + defectId);
+    const cachedStatus = localStorage.getItem('rdv_ps_' + defectId);
+    // Gunakan cached photo jika GAS belum punya (masih null/kosong)
+    if (!photoAfterFinal && cachedPhoto) photoAfterFinal = cachedPhoto;
+    // Gunakan cached status HANYA jika GAS belum maju ke CLOSED
+    // (RESOLVED lokal tidak boleh menimpa CLOSED yang sudah approved)
+    if (cachedStatus && statusFinal !== 'CLOSED') statusFinal = cachedStatus;
+  } catch(e) {}
+
   return {
-    id: d.ID || d.id || '', room: d.RoomNumber || d.room || '',
+    id: defectId, room: d.RoomNumber || d.room || '',
     category: d.Category || d.category || '',
     desc,
     description: desc,   // Bug #10: alias untuk GAS aiAnalyzeDefect yang expect 'description'
-    priority: d.Priority || d.priority || 'MEDIUM', status: d.Status || d.status || 'OPEN',
+    priority: d.Priority || d.priority || 'MEDIUM', status: statusFinal,
     reporter: d.Reporter || d.reporter || '', engineer: d.Engineer || d.engineer || null,
     notes: d.Notes || d.notes || '', photoBefore: d.PhotoBefore || d.photoBefore || null,
-    photoAfter: d.PhotoAfter || d.photoAfter || null,
+    photoAfter: photoAfterFinal,
     createdAt: d.CreatedAt ? new Date(d.CreatedAt).getTime() : Date.now(),
     startedAt: d.StartedAt ? new Date(d.StartedAt).getTime() : null,
     resolvedAt: d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null,
@@ -2541,6 +2599,12 @@ async function updateStatus(newStatus) {
     const photoWidth   = STATE.photoAfterData.width  || '';
     const photoHeight  = STATE.photoAfterData.height || '';
 
+    // Cache foto ke localStorage SEGERA — mencegah kehilangan saat polling overwrite STATE.defects
+    try {
+      localStorage.setItem('rdv_pa_' + d.id, photoBase64);
+      localStorage.setItem('rdv_ps_' + d.id, 'RESOLVED');
+    } catch(e) {}
+
     // Tampilkan preview lokal SEGERA — user tidak perlu menunggu cloud
     d.photoAfter = photoBase64;
     // ── JANGAN update d.status dulu — tunggu GAS konfirmasi ──
@@ -2571,6 +2635,8 @@ async function updateStatus(newStatus) {
       });
       serverSuccess = true;
       STATE.gasAvailable = true;
+      // Berhasil → hapus cache lokal (tidak perlu lagi)
+      try { localStorage.removeItem('rdv_pa_' + d.id); localStorage.removeItem('rdv_ps_' + d.id); } catch(e) {}
       if (result?.driveUrl) {
         finalPhotoRef = result.driveUrl;
         showToast('success', '📁 Foto & status tersimpan di Drive', '');
@@ -2588,12 +2654,18 @@ async function updateStatus(newStatus) {
         });
         STATE.gasAvailable = true;
         serverSuccess = true;
+        try { localStorage.removeItem('rdv_ps_' + d.id); } catch(e) {}
+        // Foto tetap di cache (rdv_pa_) agar preview lokal tetap muncul
         showToast('warn', '⚠️ Foto gagal upload ke cloud', 'Status RESOLVED tersimpan (foto lokal)');
       } catch (e2) {
         console.error('[updateDefect fallback] error:', e2);
         showToast('error', '❌ Tidak terhubung ke server', 'Status disimpan lokal — sync otomatis saat online');
-        // Simpan ke pending queue untuk retry
-        _queuePendingResolve(d.id, d.engineer);
+        // Simpan ke pending queue untuk retry — sertakan foto agar retry bisa kirim ke cloud
+        _queuePendingResolve(d.id, d.engineer, photoBase64, {
+          mimeType: photoMime, sizeKB: photoSizeKB,
+          width: photoWidth, height: photoHeight,
+          room: d.room, category: d.category,
+        });
       }
     }
 
