@@ -2444,10 +2444,16 @@ function getStatusLabel(s) {
 // ════════════════════════════════════════════════════
 function driveImgUrl(src) {
   if (!src) return '';
+  // base64 lokal — tampil langsung
   if (src.startsWith('data:image')) return src;
-  if (src.startsWith('https://lh3.googleusercontent.com/d/')) return src;
+  // GAS proxy URL — sudah benar, tidak perlu konversi
+  if (src.includes('script.google.com')) return src;
+  // lh3 CDN URL — konversi ke proxy agar tampil di semua device tanpa login Google
+  const idMatch = src.match(/\/d\/([A-Za-z0-9_-]{20,})/);
+  if (idMatch) return `${CONFIG.GAS_URL}?action=photo&id=${idMatch[1]}`;
+  // URL lama format ?id=FILE_ID
   const ucMatch = src.match(/[?&]id=([A-Za-z0-9_-]{20,})/);
-  if (ucMatch) return `https://lh3.googleusercontent.com/d/${ucMatch[1]}=w600`;
+  if (ucMatch) return `${CONFIG.GAS_URL}?action=photo&id=${ucMatch[1]}`;
   return src;
 }
 
