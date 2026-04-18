@@ -1883,8 +1883,10 @@ function compressImage(file) {
 }
 
 async function handlePhotoUpload(input, slot) {
-  if (!input.files || !input.files[0]) return;
-  const file = input.files[0];
+  // Ambil file reference SEGERA — sebelum await apapun
+  // (beberapa browser invalidasi input.files setelah value di-reset atau saat async)
+  const file = (input.files && input.files[0]) ? input.files[0] : null;
+  if (!file) return;
   const area = document.getElementById(slot === 'before' ? 'upload-area-before' : 'photo-after');
   if (area) area.style.opacity = '0.5';
   showToast('info', '⏳ Mengompres foto...', `Ukuran asli: ${Math.round(file.size/1024)} KB`);
@@ -2786,9 +2788,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   $id('f-category')?.addEventListener('change', showRecommendationInForm);
 
   // BUG C fix: wire persistent photo-after input — satu listener, tidak pernah hilang
-  document.getElementById('f-photo-after-persistent')?.addEventListener('change', function() {
-    handlePhotoUploadModal(this);
-    // Reset value agar onChange tetap trigger meski foto yang sama dipilih ulang
+  document.getElementById('f-photo-after-persistent')?.addEventListener('change', async function() {
+    // Simpan referensi file SEBELUM apapun — beberapa browser invalidasi files[] saat value di-reset
+    const fileRef = this.files && this.files[0] ? this.files[0] : null;
+    if (!fileRef) return;
+    // Tunggu sampai upload+compress selesai BARU reset value
+    // agar FileReader punya waktu cukup baca file dari galeri
+    await handlePhotoUploadModal(this);
+    // Reset setelah selesai — supaya foto yang sama bisa dipilih ulang
     this.value = '';
   });
 
