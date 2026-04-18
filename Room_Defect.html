@@ -1378,7 +1378,7 @@ body::before {
         <div class="form-group">
           <label class="form-label">📷 Foto Kerusakan (Before)</label>
           <div class="photo-upload-area" id="upload-area-before" onclick="triggerUpload('before')">
-            <input type="file" id="f-photo-before" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this,'before')">
+            <input type="file" id="f-photo-before" accept="image/*" style="display:none" onchange="handlePhotoUpload(this,'before')">
             <div id="upload-placeholder-before">
               <div class="upload-icon">📷</div>
               <div class="upload-text">Tap untuk foto kondisi SEBELUM perbaikan</div>
@@ -2016,6 +2016,7 @@ function normalizeDefect(d) {
     startedAt: d.StartedAt ? new Date(d.StartedAt).getTime() : null,
     resolvedAt: d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null,
     closedAt: d.ClosedAt ? new Date(d.ClosedAt).getTime() : null,
+    reopenedAt: d.ReopenedAt ? new Date(d.ReopenedAt).getTime() : (d.reopenedAt || null),
     logs: buildLogs(d),
   };
 }
@@ -2250,7 +2251,16 @@ function openDefect(id) {
     }
   } else {
     const inputId = 'f-photo-after-modal-' + Date.now();
-    afterSlot.innerHTML = `<input type="file" id="${inputId}" accept="image/*" capture="environment" style="display:none"><div class="photo-slot-upload-prompt"><div style="font-size:20px;opacity:0.4">📷</div><div style="font-size:10px;color:var(--accent-blue)">Tap upload foto After</div></div><div class="photo-slot-label after-badge">AFTER</div>`;
+    // Jika defect pernah di-reopen oleh SPV → tampilkan peringatan wajib foto ulang
+    const isReopen = !!d.reopenedAt;
+    const promptIcon  = isReopen ? '🔄' : '📷';
+    const promptText  = isReopen
+      ? '<div style="font-size:10px;color:var(--accent-amber);font-weight:700;margin-top:4px">FOTO ULANG DIPERLUKAN</div>'
+      : '<div style="font-size:10px;color:var(--accent-blue)">Tap untuk foto/galeri</div>';
+    const borderStyle = isReopen
+      ? 'border:2px dashed var(--accent-amber) !important;'
+      : '';
+    afterSlot.innerHTML = `<input type="file" id="${inputId}" accept="image/*" style="display:none"><div class="photo-slot-upload-prompt" style="${borderStyle}"><div style="font-size:${isReopen?'24px':'20px'};opacity:${isReopen?'1':'0.4'}">${promptIcon}</div>${promptText}</div><div class="photo-slot-label after-badge" style="${isReopen?'background:var(--accent-amber)':''}">${isReopen?'FOTO ULANG':'AFTER'}</div>`;
     afterSlot.style.cursor = 'pointer';
     const newInput = document.getElementById(inputId);
     if (newInput) { newInput.addEventListener('change', function() { handlePhotoUploadModal(this); }); }
@@ -2363,10 +2373,15 @@ async function updateStatus(newStatus) {
 
   if (newStatus === 'OPEN') {
     d.status = newStatus; d.resolvedAt = null; d.closedAt = null;
-    d.logs.push({ action: `Di-reopen oleh ${STATE.user}`, time: Date.now() });
+    d.photoAfter = null;        // hapus foto After lama — engineer wajib foto ulang
+    d.reopenedAt = Date.now();  // tandai bahwa defect ini pernah di-reopen
+    d.logs.push({ action: `Di-reopen oleh ${STATE.user} — foto After dihapus, wajib foto ulang`, time: Date.now() });
     closeModal(); renderDefectList(); renderDashboard();
     if (STATE.gasAvailable) {
-      try { await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user, notes: 'Reopen' }); showToast('success', '✅ Dibuka kembali!', d.id); }
+      try {
+        await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user, notes: 'Reopen — foto After dihapus', photoAfter: '' });
+        showToast('success', '↩️ Dibuka kembali!', `${d.id} — Engineer wajib foto ulang`);
+      }
       catch (e) { showToast('error', 'Gagal simpan', e.message); }
     }
     return;
