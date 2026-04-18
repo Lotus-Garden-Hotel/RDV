@@ -1627,6 +1627,10 @@ let STATE = {
   aiPredictiveCache: null,      // data hasil fetch
   aiPredictiveFetchedAt: 0,     // timestamp
   aiPredictiveLoading: false,   // loading guard
+  // Smart Polling + App Badge
+  pollingTimer: null,
+  lastDefectSnapshot: '',
+  badgeCount: 0,
 };
 
 // ════════════════════════════════════════════════════
@@ -1967,6 +1971,9 @@ async function doLogin() {
     updateNavForRole(STATE.role);
     saveSession();
     await fetchAndRender();
+    startPolling();
+    // Minta izin browser notification (hanya muncul sekali, tidak mengganggu)
+    requestNotificationPermission();
     showToast('success', 'Berhasil masuk', `Selamat datang, ${name}!`);
   } catch (err) {
     showToast('error', 'Login gagal', err.message);
@@ -1976,11 +1983,12 @@ async function doLogin() {
 }
 
 function doLogout() {
-  stopQRScan(); clearSession();
+  stopQRScan(); clearSession(); stopPolling();
   $id('app-shell').classList.remove('visible');
   $id('auth-screen').style.display = 'flex';
   STATE.user = null; STATE.defects = [];
   STATE.photoBeforeData = null; STATE.photoAfterData = null;
+  STATE.lastDefectSnapshot = ''; STATE.badgeCount = 0;
 }
 
 // ════════════════════════════════════════════════════
@@ -1991,13 +1999,24 @@ async function fetchAndRender(toast = false) {
   STATE.isLoading = true;
   try {
     const rawDefects = await gasGetDefects();
-    STATE.defects = (rawDefects || []).map(normalizeDefect);
+    const newDefects = (rawDefects || []).map(normalizeDefect);
+
+    // ── DIFF DETECTION: cek perubahan sejak poll terakhir ──
+    const newSnapshot = newDefects.map(d => `${d.id}:${d.status}`).sort().join('|');
+    if (STATE.lastDefectSnapshot && STATE.lastDefectSnapshot !== newSnapshot && !toast) {
+      detectAndNotifyChanges(STATE.defects, newDefects);
+    }
+    STATE.lastDefectSnapshot = newSnapshot;
+    STATE.defects = newDefects;
+
     if (toast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect`);
     renderDashboard(); renderDefectList();
+    updateAppBadge();
   } catch (err) {
     showToast('error', 'Gagal ambil data', err.message);
     STATE.defects = getMockDefects().map(normalizeDefect);
     renderDashboard(); renderDefectList();
+    updateAppBadge();
   } finally { STATE.isLoading = false; }
 }
 
@@ -2547,6 +2566,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (savedSession) {
     applySession(savedSession);
     await fetchAndRender();
+    startPolling();
+    requestNotificationPermission();
     loadAiPredictive(); // load AI setelah data ready
     showToast('info', `👋 Selamat datang, ${savedSession.user}!`, '');
   }
@@ -2742,6 +2763,151 @@ function renderPredictiveFallback(el) {
 }
 
 async function refreshData() { await fetchAndRender(true); }
+
+// ════════════════════════════════════════════════════
+// APP BADGE — Ikon home screen menampilkan angka urgent
+// ════════════════════════════════════════════════════
+function getUrgentCount() {
+  if (!STATE.defects.length) return 0;
+  switch (STATE.role) {
+    case 'ENG':
+      // Defect OPEN yang belum ada engineer → perlu diambil
+      return STATE.defects.filter(d => d.status === 'OPEN' && !d.engineer).length;
+    case 'SPV':
+    case 'GM':
+      // Defect RESOLVED yang menunggu approval/close
+      return STATE.defects.filter(d => d.status === 'RESOLVED').length;
+    default: // HK
+      // Defect OPEN yang dilaporkan user ini
+      return STATE.defects.filter(d =>
+        d.status === 'OPEN' && d.reporter && d.reporter.includes(STATE.user || '')
+      ).length;
+  }
+}
+
+function updateAppBadge() {
+  const count = getUrgentCount();
+  STATE.badgeCount = count;
+  if (!navigator.setAppBadge) return; // browser tidak support, skip tanpa error
+  try {
+    if (count > 0) {
+      navigator.setAppBadge(count);
+    } else {
+      navigator.clearAppBadge();
+    }
+  } catch(e) { /* silent fail */ }
+}
+
+// ════════════════════════════════════════════════════
+// DIFF DETECTION — Deteksi perubahan antar poll
+// ════════════════════════════════════════════════════
+function detectAndNotifyChanges(oldDefects, newDefects) {
+  if (!STATE.user) return;
+
+  const oldMap = {};
+  (oldDefects || []).forEach(d => { oldMap[d.id] = d.status; });
+
+  const statusLabel = { OPEN:'🔴 Open', IN_PROGRESS:'🟡 In Progress', RESOLVED:'🔵 Resolved', CLOSED:'✅ Closed' };
+  const changes = [];
+
+  newDefects.forEach(d => {
+    const oldStatus = oldMap[d.id];
+    if (!oldStatus) {
+      // Defect baru
+      changes.push({ type: 'new', defect: d });
+    } else if (oldStatus !== d.status) {
+      // Status berubah
+      changes.push({ type: 'status', defect: d, from: oldStatus, to: d.status });
+    }
+  });
+
+  if (!changes.length) return;
+
+  // Batasi notif maksimal 3 sekaligus agar tidak spam
+  changes.slice(0, 3).forEach(change => {
+    if (change.type === 'new') {
+      const d = change.defect;
+      showToast('info', `🆕 Defect Baru — Kamar ${d.room}`, `${d.category} · ${d.priority}`);
+      sendBrowserNotification(
+        `🆕 Defect Baru — Kamar ${d.room}`,
+        `${d.category} · ${d.priority}
+${(d.desc||'').substring(0,60)}`
+      );
+    } else {
+      const d = change.defect;
+      const isRelevantToMe = (
+        STATE.role === 'SPV' || STATE.role === 'GM' ||
+        (d.engineer && d.engineer.includes(STATE.user || '')) ||
+        (d.reporter && d.reporter.includes(STATE.user || ''))
+      );
+      if (!isRelevantToMe) return;
+      showToast('info',
+        `📋 ${d.id} — Kamar ${d.room}`,
+        `${statusLabel[change.from] || change.from} → ${statusLabel[change.to] || change.to}`
+      );
+      sendBrowserNotification(
+        `Status berubah — Kamar ${d.room}`,
+        `${d.id}: ${statusLabel[change.from]||change.from} → ${statusLabel[change.to]||change.to}`
+      );
+    }
+  });
+
+  if (changes.length > 3) {
+    showToast('info', `+${changes.length - 3} perubahan lain`, 'Tap Refresh untuk detail');
+  }
+}
+
+// ════════════════════════════════════════════════════
+// BROWSER NOTIFICATION (in-browser push permission)
+// ════════════════════════════════════════════════════
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  const result = await Notification.requestPermission();
+  return result === 'granted';
+}
+
+function sendBrowserNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: 'https://raw.githubusercontent.com/googlefonts/noto-emoji/main/png/128/emoji_u1f527.png',
+      badge: 'https://raw.githubusercontent.com/googlefonts/noto-emoji/main/png/128/emoji_u1f527.png',
+      tag: 'room-defect',       // replace notif sebelumnya agar tidak tumpuk
+      renotify: true,
+      silent: false,
+    });
+    setTimeout(() => n.close(), 8000);
+  } catch(e) { /* silent */ }
+}
+
+// ════════════════════════════════════════════════════
+// SMART POLLING — Auto-refresh setiap 30 detik
+// ════════════════════════════════════════════════════
+const POLL_INTERVAL_MS = 30000; // 30 detik
+
+function startPolling() {
+  if (STATE.pollingTimer) clearInterval(STATE.pollingTimer);
+  STATE.pollingTimer = setInterval(async () => {
+    // Jangan poll saat modal buka atau sedang upload
+    if (document.getElementById('detail-modal')?.classList.contains('open')) return;
+    if (STATE.isLoading) return;
+    await fetchAndRender(false);
+  }, POLL_INTERVAL_MS);
+  console.log('[Polling] Started — interval 30s');
+}
+
+function stopPolling() {
+  if (STATE.pollingTimer) {
+    clearInterval(STATE.pollingTimer);
+    STATE.pollingTimer = null;
+    console.log('[Polling] Stopped');
+  }
+  // Clear badge saat logout
+  try { if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch(e) {}
+}
 function showToast(type, title, msg) {
   const icons = {success:'✅',error:'🚨',info:'ℹ️',warn:'⚠️'};
   const colors = {success:'var(--accent-green)',error:'var(--accent-red)',info:'var(--accent-blue)',warn:'var(--accent-amber)'};
