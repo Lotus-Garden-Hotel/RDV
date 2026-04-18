@@ -2498,10 +2498,11 @@ async function updateStatus(newStatus) {
     }
 
     showToast('info', '⏳ Mengupload foto ke Drive...', '');
-    let photoAfterRef = STATE.photoAfterData.compressed; // fallback lokal
+    let photoAfterRef = null; // null = belum ada URL Drive
+    let photoSavedToCloud = false;
+
     if (STATE.gasAvailable) {
       try {
-        // BUG E fix: tambahkan width + height ke payload
         const photoResult = await gasSavePhoto({
           defectId: d.id,
           slot: 'after',
@@ -2516,35 +2517,51 @@ async function updateStatus(newStatus) {
         });
         if (photoResult?.driveUrl) {
           photoAfterRef = photoResult.driveUrl;
+          photoSavedToCloud = true;
           showToast('success', '📁 Foto tersimpan di Drive', '');
         } else if (photoResult?.driveError) {
-          showToast('warn', '⚠️ Drive gagal', 'Foto disimpan di Spreadsheet');
+          // Drive gagal tapi GAS menyimpan di Sheet — gunakan photoId sebagai ref
+          photoAfterRef = photoResult.photoId || null;
+          showToast('warn', '⚠️ Drive gagal', 'Foto di Spreadsheet, status tetap disimpan');
         }
       } catch (e) {
-        showToast('warn', '⚠️ Upload foto gagal', 'Menggunakan penyimpanan lokal');
+        // gasSavePhoto gagal total — foto hanya di lokal, tapi status TETAP harus disimpan
+        showToast('warn', '⚠️ Upload foto gagal', 'Status tetap disimpan tanpa foto cloud');
         console.error('gasSavePhoto error:', e);
       }
     }
 
-    // Update local state
-    d.photoAfter = photoAfterRef;
+    // Simpan foto lokal untuk preview sementara
+    const photoLocalRef = STATE.photoAfterData.compressed;
+
+    // Update local state — gunakan cloud ref jika ada, lokal jika tidak
+    d.photoAfter = photoAfterRef || photoLocalRef;
     d.status = newStatus;
     d.resolvedAt = Date.now();
     d.logs.push({ action: `Selesai diperbaiki oleh ${STATE.user} (${STATE.role})`, time: Date.now() });
 
-    // Simpan ke GAS
+    // KUNCI: gasUpdateDef SELALU dipanggil untuk update status
+    // photoAfter hanya dikirim jika berupa URL pendek (Drive/photoId) — BUKAN base64
     if (STATE.gasAvailable) {
       try {
-        await gasUpdateDef({
+        const updatePayload = {
           id: d.id,
           status: newStatus,
           engineer: d.engineer,
           updatedBy: STATE.user,
-          photoAfter: photoAfterRef,
-        });
+        };
+        // Hanya kirim photoAfter jika bukan base64 (max aman ~200 char untuk Drive URL)
+        if (photoAfterRef && !photoAfterRef.startsWith('data:')) {
+          updatePayload.photoAfter = photoAfterRef;
+        }
+        await gasUpdateDef(updatePayload);
+        showToast('success', '✅ Status RESOLVED tersimpan di server', '');
       } catch (e) {
-        showToast('warn', 'Status tersimpan lokal', 'Sinkronisasi server gagal: ' + e.message);
+        showToast('error', '❌ Gagal simpan status ke server', e.message);
+        console.error('gasUpdateDef error:', e);
       }
+    } else {
+      showToast('warn', '📴 Mode offline', 'Status berubah lokal — akan sync saat online');
     }
 
     STATE.photoAfterData = null;
