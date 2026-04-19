@@ -2644,7 +2644,79 @@ function renderModalActions(d) {
     html = `<button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
             <button class="btn btn-danger" onclick="updateStatus('OPEN')" style="flex:1">↩️ Re-open</button>`;
   }
+  // Tombol hapus — hanya GM, semua status
+  if (STATE.role === 'GM') {
+    html += `<button class="btn btn-danger w-full" onclick="confirmDeleteDefect()"
+      style="margin-top:8px;background:transparent;border:1px solid rgba(239,68,68,0.4);color:var(--accent-red)">
+      🗑️ Hapus Defect Ini
+    </button>`;
+  }
   el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════
+// DELETE DEFECT — GM only
+// ════════════════════════════════════════════════════
+function confirmDeleteDefect() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+
+  // Tampilkan konfirmasi inline di dalam modal
+  const el = $id('modal-actions');
+  el.innerHTML = `
+    <div style="width:100%;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.35);
+                border-radius:var(--radius-md);padding:14px;text-align:center">
+      <div style="font-size:13px;font-weight:600;color:var(--accent-red);margin-bottom:4px">
+        ⚠️ Hapus permanen?
+      </div>
+      <div style="font-size:12px;color:var(--text-1);margin-bottom:14px">
+        ${d.id} · Kamar ${d.room} · ${d.category}<br>
+        <span style="color:var(--accent-red);font-weight:500">Tindakan ini tidak bisa dibatalkan.</span>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="flex:1" onclick="renderModalActions(STATE.currentDefect)">
+          Batal
+        </button>
+        <button class="btn btn-danger" style="flex:1" id="btn-confirm-delete" onclick="executeDeleteDefect()">
+          🗑️ Ya, Hapus
+        </button>
+      </div>
+    </div>`;
+}
+
+async function executeDeleteDefect() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+
+  const btn = document.getElementById('btn-confirm-delete');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Menghapus...'; }
+
+  if (STATE.gasAvailable) {
+    try {
+      await gasCall('deleteDefect', {
+        id: d.id,
+        deletedBy: STATE.user,
+      });
+      // Hapus dari local state
+      STATE.defects = STATE.defects.filter(x => x.id !== d.id);
+      STATE.currentDefect = null;
+      closeModal();
+      renderDefectList();
+      renderDashboard();
+      showToast('success', '🗑️ Defect dihapus', d.id);
+    } catch (e) {
+      showToast('error', '❌ Gagal hapus', e.message);
+      renderModalActions(d); // reset tombol
+    }
+  } else {
+    // Offline — hapus lokal saja, beri peringatan
+    STATE.defects = STATE.defects.filter(x => x.id !== d.id);
+    STATE.currentDefect = null;
+    closeModal();
+    renderDefectList();
+    renderDashboard();
+    showToast('warn', '📴 Hapus lokal (offline)', 'Sync ke server saat online kembali');
+  }
 }
 
 function closeModal() {
