@@ -2214,6 +2214,7 @@ async function doLogin() {
     saveSession();
     await fetchAndRender();
     startPolling();
+    startLiveTick();
     // Minta izin browser notification (hanya muncul sekali, tidak mengganggu)
     requestNotificationPermission();
     showToast('success', 'Berhasil masuk', `Selamat datang, ${name}!`);
@@ -3414,6 +3415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applySession(savedSession);
     await fetchAndRender();
     startPolling();
+    startLiveTick();
     requestNotificationPermission();
     loadAiPredictive(); // load AI setelah data ready
     showToast('info', `👋 Selamat datang, ${savedSession.user}!`, '');
@@ -4052,8 +4054,61 @@ function stopPolling() {
     STATE.pollingTimer = null;
     console.log('[Polling] Stopped');
   }
+  stopLiveTick();
   // Clear badge saat logout
   try { if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════
+// LIVE TIMER TICK — Update badge ⏳ elapsed & ⏱ SLA
+// setiap 60 detik dari cache STATE.defects (tanpa hit GAS)
+// ════════════════════════════════════════════════════
+let _liveTickTimer = null;
+
+function startLiveTick() {
+  if (_liveTickTimer) clearInterval(_liveTickTimer);
+  _liveTickTimer = setInterval(() => {
+    // Hanya jalan jika ada defect aktif
+    const hasActive = STATE.defects.some(
+      d => d.status === 'OPEN' || d.status === 'IN_PROGRESS'
+    );
+    if (!hasActive) return;
+
+    // Re-render list & urgent panel dari cache — tidak hit server
+    renderDefectList();
+    renderUrgentPanel();
+
+    // Update modal-dur-meta jika detail modal sedang terbuka
+    const modal = document.getElementById('detail-modal');
+    if (modal?.classList.contains('open') && STATE.currentDefect) {
+      const d = STATE.currentDefect;
+      if (d.status === 'OPEN' || d.status === 'IN_PROGRESS') {
+        const durMeta = document.getElementById('modal-dur-meta');
+        if (durMeta) {
+          const fmtMin = m => { const h=Math.floor(m/60),mn=m%60; return h>0?`${h}j ${mn}m`:`${mn}m`; };
+          const onMin = Math.round((Date.now() - d.createdAt) / 60000);
+          const score = d.urgencyScore > 0
+            ? d.urgencyScore
+            : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt);
+          const urg = _urgLabelJS(score);
+          durMeta.innerHTML = `<div class="dur-row">
+            <span class="dur-badge ongoing">⏳ Menunggu ${fmtMin(onMin)}</span>
+            ${d.waitDurationLabel ? `<span class="dur-badge wait">🕐 Respons ${d.waitDurationLabel}</span>` : ''}
+            ${score >= 40 ? `<span class="urg-chip ${urg}">Urgensi ${score} — ${urg}</span>` : ''}
+          </div>`;
+        }
+      }
+    }
+  }, 60000); // 60 detik — cukup presisi, tidak membebani DOM
+  console.log('[LiveTick] Started — interval 60s');
+}
+
+function stopLiveTick() {
+  if (_liveTickTimer) {
+    clearInterval(_liveTickTimer);
+    _liveTickTimer = null;
+    console.log('[LiveTick] Stopped');
+  }
 }
 function showToast(type, title, msg) {
   const icons = {success:'✅',error:'🚨',info:'ℹ️',warn:'⚠️'};
