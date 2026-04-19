@@ -2314,7 +2314,7 @@ function normalizeDefect(d) {
     reporter: d.Reporter || d.reporter || '', engineer: d.Engineer || d.engineer || null,
     notes: d.Notes || d.notes || '', photoBefore: d.PhotoBefore || d.photoBefore || null,
     photoAfter: photoAfterFinal,
-    createdAt: _parseTs(d.CreatedAt) || Date.now(),
+    createdAt: _parseTs(d.CreatedAt) || _parseTs(d.Timestamp) || Date.now(),
     startedAt:  _parseTs(d.StartedAt),
     resolvedAt: _parseTs(d.ResolvedAt),
     closedAt:   _parseTs(d.ClosedAt),
