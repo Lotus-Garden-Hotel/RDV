@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Room Defects">
 <meta name="application-name" content="Room Defects">
-<meta name="description" content="Room Defect Management System — Lotus Garden Hotel">
+<meta name="description" content="Room Defect Management System V.20 — Lotus Garden Hotel">
 <title>Room Defects — Lotus Garden Hotel</title>
 <link rel="manifest" id="pwa-manifest-link">
 <link rel="icon" type="image/x-icon" id="favicon-link">
@@ -67,6 +67,35 @@
 .defect-card, .metric-card, .predict-card {
   contain: layout style;
 }
+.dur-row{display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 3px}
+.dur-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:100px;background:rgba(255,255,255,.06);color:var(--text-1);border:1px solid var(--border)}
+.dur-badge.wait{color:#f59e0b;border-color:rgba(245,158,11,.3)}
+.dur-badge.repair{color:#10b981;border-color:rgba(16,185,129,.3)}
+.dur-badge.total{color:#3b82f6;border-color:rgba(59,130,246,.3)}
+.dur-badge.ongoing{color:#ef4444;border-color:rgba(239,68,68,.3);animation:pdur 2s infinite}
+@keyframes pdur{0%,100%{opacity:1}50%{opacity:.5}}
+.urg-chip{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.08em;padding:1px 6px;border-radius:3px;text-transform:uppercase}
+.urg-chip.CRITICAL{background:rgba(239,68,68,.18);color:#ef4444}
+.urg-chip.HIGH{background:rgba(245,158,11,.18);color:#f59e0b}
+.urg-chip.MEDIUM{background:rgba(59,130,246,.18);color:#3b82f6}
+.urg-chip.LOW{background:rgba(16,185,129,.15);color:#10b981}
+.urgent-panel{margin-bottom:18px}
+.urgent-item{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:var(--radius-md);background:var(--bg-1);border:1px solid var(--border);margin-bottom:7px;cursor:pointer;transition:border-color .2s}
+.urgent-item:hover{border-color:var(--border-active)}
+.urgent-score-box{width:36px;height:36px;border-radius:8px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.urgent-score-box.CRITICAL{background:rgba(239,68,68,.15);color:#ef4444}
+.urgent-score-box.HIGH{background:rgba(245,158,11,.15);color:#f59e0b}
+.urgent-score-box.MEDIUM{background:rgba(59,130,246,.15);color:#3b82f6}
+.urgent-score-box.LOW{background:rgba(16,185,129,.12);color:#10b981}
+.dur-stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
+.dur-stat-box{background:var(--bg-2);border-radius:var(--radius-sm);padding:9px;text-align:center}
+.dur-stat-label{font-size:9px;color:var(--text-1);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.dur-stat-val{font-size:17px;font-weight:800}
+.ana-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);background:var(--bg-1);border:1px solid var(--border);margin-bottom:6px}
+.ana-rank{width:22px;font-size:11px;font-weight:700;color:var(--text-2);flex-shrink:0;text-align:center}
+.ana-name{flex:1;font-size:13px;font-weight:600;color:var(--text-0)}
+.ana-sub{font-size:10px;color:var(--text-1)}
+.ana-val{font-size:12px;font-weight:700;text-align:right;white-space:nowrap}
 .modal-backdrop {
   will-change: opacity;
 }
@@ -1358,11 +1387,35 @@ body::before {
         </div>
       </div>
 
-      <!-- Avg SLA -->
+      <!-- Urgent Panel (GM/SPV only, hidden by default) -->
+      <div id="urgent-panel" class="urgent-panel stagger-child" style="display:none">
+        <div class="section-header" style="margin-bottom:8px">
+          <div class="section-title" style="font-size:14px">🚨 Perlu Perhatian Segera</div>
+          <span style="font-size:11px;color:var(--text-1)" id="urgent-count-label"></span>
+        </div>
+        <div id="urgent-list"></div>
+        <div id="urgent-see-all" style="display:none;text-align:center;margin-top:4px">
+          <button class="btn btn-secondary btn-sm" onclick="showPage('analytics')">Lihat semua di Analytics ↗</button>
+        </div>
+      </div>
+
+      <!-- Duration Stats -->
       <div class="chart-card stagger-child">
         <div class="chart-title">⏱️ Rata-rata Waktu Perbaikan</div>
-        <div class="bar-chart" id="avg-time-chart">
-          <!-- JS fill -->
+        <div class="bar-chart" id="avg-time-chart"><!-- JS fill --></div>
+        <div class="dur-stat-grid">
+          <div class="dur-stat-box">
+            <div class="dur-stat-label">Avg Tunggu</div>
+            <div class="dur-stat-val" id="avg-wait-val" style="color:#f59e0b">—</div>
+          </div>
+          <div class="dur-stat-box">
+            <div class="dur-stat-label">Avg Repair</div>
+            <div class="dur-stat-val" id="avg-repair-val" style="color:#10b981">—</div>
+          </div>
+          <div class="dur-stat-box">
+            <div class="dur-stat-label">Avg Total</div>
+            <div class="dur-stat-val" id="avg-total-val" style="color:#3b82f6">—</div>
+          </div>
         </div>
       </div>
 
@@ -1553,6 +1606,24 @@ body::before {
         <div class="chart-title">🚨 SLA Escalation Log</div>
         <div id="escalation-log" class="text-sm text-muted">Tidak ada eskalasi aktif.</div>
       </div>
+
+      <!-- Duration per Engineer -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">⏱ Durasi Perbaikan per Engineer</div>
+        <div id="eng-duration-list"></div>
+      </div>
+
+      <!-- Duration per Category -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">📂 Avg Durasi per Kategori</div>
+        <div id="cat-duration-list"></div>
+      </div>
+
+      <!-- Full Urgency Table -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">🔴 Semua Defect Aktif — Ranking Urgensi</div>
+        <div id="urgency-full-list"></div>
+      </div>
     </div>
 
   </div><!-- /main-content -->
@@ -1591,6 +1662,7 @@ body::before {
       <button class="modal-close-btn" onclick="closeModal()" aria-label="Tutup">✕</button>
     </div>
     <div class="modal-sub" id="modal-meta">ID: DEF-001 · 2 jam lalu</div>
+    <div id="modal-dur-meta" style="margin:-8px 0 10px"></div>
 
     <div id="modal-rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -2226,8 +2298,17 @@ function normalizeDefect(d) {
     resolvedAt: d.ResolvedAt ? new Date(d.ResolvedAt).getTime() : null,
     closedAt: d.ClosedAt ? new Date(d.ClosedAt).getTime() : null,
     reopenedAt: d.ReopenedAt ? new Date(d.ReopenedAt).getTime() : (d.reopenedAt || null),
-    checklist: null, // diisi dari localStorage saat modal dibuka
+    checklist: null,
     logs: buildLogs(d),
+    // ── Durasi (dihitung server-side oleh GAS)
+    repairDurationMin:   Number(d.RepairDurationMin   || d.repairDurationMin   || 0) || 0,
+    repairDurationLabel: d.RepairDurationLabel  || d.repairDurationLabel  || null,
+    waitDurationMin:     Number(d.WaitDurationMin     || d.waitDurationMin     || 0) || 0,
+    waitDurationLabel:   d.WaitDurationLabel    || d.waitDurationLabel    || null,
+    totalDurationMin:    Number(d.TotalDurationMin    || d.totalDurationMin    || 0) || 0,
+    totalDurationLabel:  d.TotalDurationLabel   || d.totalDurationLabel   || null,
+    urgencyScore:        Number(d.UrgencyScore   || d.urgencyScore   || 0) || 0,
+    slaClockIso:         d.SLA_Clock || d.slaClockIso || null,
   };
 }
 
@@ -2296,11 +2377,87 @@ function renderDashboard() {
   document.getElementById('sla-count').textContent = `${overdueCount} defect`;
   document.getElementById('sla-alert-banner').style.display = overdueCount > 0 ? 'flex' : 'none';
   // Bug #4 fix: loadAiPredictive TIDAK dipanggil di sini (dipindah ke showPage)
+  renderUrgentPanel();
+  renderAvgDurStats();
 }
 
 // ════════════════════════════════════════════════════
 // DEFECT LIST
 // ════════════════════════════════════════════════════
+// ── Urgency helpers (mirror dari GAS)
+function _urgLabelJS(score) {
+  if (score >= 80) return 'CRITICAL';
+  if (score >= 60) return 'HIGH';
+  if (score >= 40) return 'MEDIUM';
+  return 'LOW';
+}
+function _urgScoreJS(createdAt, priority, slaClockIso, reopenedAt) {
+  try {
+    const now  = Date.now();
+    const slaH = ({HIGH:2,MEDIUM:8,LOW:24})[priority] || 8;
+    const dl   = slaClockIso ? new Date(slaClockIso).getTime() : createdAt + slaH*3600000;
+    const overMs = now - dl;
+    const slaMs  = slaH * 3600000;
+    const A = overMs > 0 ? Math.min(50, Math.round((overMs/slaMs)*25)) : 0;
+    const B = priority==='HIGH' ? 30 : priority==='MEDIUM' ? 20 : 10;
+    const C = reopenedAt ? 20 : 0;
+    return Math.min(100, A+B+C);
+  } catch(e){ return 0; }
+}
+
+function renderUrgentPanel() {
+  const panel = document.getElementById('urgent-panel');
+  const list  = document.getElementById('urgent-list');
+  const lbl   = document.getElementById('urgent-count-label');
+  const seeAll= document.getElementById('urgent-see-all');
+  if (!panel || !list) return;
+  if (!['SPV','GM'].includes(STATE.role)) { panel.style.display='none'; return; }
+  const active = STATE.defects
+    .filter(d => d.status==='OPEN' || d.status==='IN_PROGRESS')
+    .map(d => ({...d, _score: d.urgencyScore > 0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt)}))
+    .filter(d => d._score >= 40)
+    .sort((a,b) => b._score - a._score);
+  if (!active.length) { panel.style.display='none'; return; }
+  panel.style.display='block';
+  const crit = active.filter(d=>d._score>=80).length;
+  const high = active.filter(d=>d._score>=60&&d._score<80).length;
+  if (lbl) lbl.textContent = `${crit?crit+' CRITICAL · ':''}${high?high+' HIGH · ':''}${active.length} total`;
+  if (seeAll) seeAll.style.display = active.length>4 ? 'block' : 'none';
+  list.innerHTML = active.slice(0,4).map(d => {
+    const urg = _urgLabelJS(d._score);
+    const onMin = Math.round((Date.now()-d.createdAt)/60000);
+    const oh=Math.floor(onMin/60),om=onMin%60;
+    const onLabel=oh>0?`${oh}j ${om}m`:`${om}m`;
+    const noEng=d.status==='OPEN'&&!d.engineer;
+    return `<div class="urgent-item" onclick="openDefect('${d.id}')">
+      <div class="urgent-score-box ${urg}">${d._score}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--text-0);margin-bottom:2px">Kamar ${d.room} — ${(d.category||'').replace('_','/')} <span class="urg-chip ${urg}" style="margin-left:5px">${urg}</span></div>
+        <div style="font-size:11px;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(d.desc||'').substring(0,55)}</div>
+        <div class="dur-row" style="margin-top:4px">
+          <span class="dur-badge ongoing">⏳ ${onLabel}</span>
+          ${d.waitDurationLabel?`<span class="dur-badge wait">🕐 ${d.waitDurationLabel}</span>`:''}
+          ${noEng?'<span style="font-size:10px;color:#ef4444;font-weight:700">⚠ Belum ada engineer!</span>':`<span style="font-size:10px;color:var(--text-1)">${d.engineer||d.status}</span>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAvgDurStats() {
+  const fmtMin=m=>{if(!m)return '—';const h=Math.floor(m/60),mn=m%60;return h>0?`${h}j ${mn}m`:`${mn}m`;};
+  const avg=arr=>arr.length?Math.round(arr.reduce((s,v)=>s+v,0)/arr.length):0;
+  const avgR=avg(STATE.defects.filter(d=>d.repairDurationMin>0).map(d=>d.repairDurationMin));
+  const avgW=avg(STATE.defects.filter(d=>d.waitDurationMin>0).map(d=>d.waitDurationMin));
+  const avgT=avg(STATE.defects.filter(d=>d.totalDurationMin>0).map(d=>d.totalDurationMin));
+  const rEl=document.getElementById('avg-repair-val');
+  const wEl=document.getElementById('avg-wait-val');
+  const tEl=document.getElementById('avg-total-val');
+  if(rEl)rEl.textContent=fmtMin(avgR);
+  if(wEl)wEl.textContent=fmtMin(avgW);
+  if(tEl)tEl.textContent=fmtMin(avgT);
+}
+
 function renderDefectList() {
   const filter = STATE.activeFilter;
   const list = STATE.defects.filter(d => filter==='ALL' || d.status===filter);
@@ -2315,6 +2472,29 @@ function renderDefectList() {
     const elH = (Date.now()-d.createdAt)/3600000;
     const overdue = (d.status==='OPEN'||d.status==='IN_PROGRESS') && elH>slaH;
     const slaText = overdue ? `⚠️ SLA +${(elH-slaH).toFixed(1)}h` : `⏱ ${elH.toFixed(1)}h/${slaH}h`;
+    // Hitung urgency score client-side (fallback jika server belum update)
+    const urg = d.urgencyScore > 0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt);
+    const urgLabel = _urgLabelJS(urg);
+
+    // Badge durasi sesuai status
+    let durHtml = '';
+    if (d.status === 'OPEN' || d.status === 'IN_PROGRESS') {
+      const onMin = Math.round((Date.now() - d.createdAt) / 60000);
+      const oh = Math.floor(onMin/60), om = onMin%60;
+      const onLabel = oh > 0 ? `${oh}j ${om}m` : `${om}m`;
+      durHtml = `<div class="dur-row">
+        <span class="dur-badge ongoing">⏳ ${onLabel}</span>
+        ${d.waitDurationLabel ? `<span class="dur-badge wait">🕐 Respons ${d.waitDurationLabel}</span>` : ''}
+        ${urg >= 60 ? `<span class="urg-chip ${urgLabel}">${urgLabel}</span>` : ''}
+      </div>`;
+    } else if (d.status === 'RESOLVED' || d.status === 'CLOSED') {
+      durHtml = `<div class="dur-row">
+        ${d.waitDurationLabel   ? `<span class="dur-badge wait">🕐 ${d.waitDurationLabel}</span>` : ''}
+        ${d.repairDurationLabel ? `<span class="dur-badge repair">🔧 ${d.repairDurationLabel}</span>` : ''}
+        ${d.totalDurationLabel  ? `<span class="dur-badge total">⏱ ${d.totalDurationLabel}</span>` : ''}
+      </div>`;
+    }
+
     return `
     <div class="defect-card stagger-child" style="--status-color:${colorMap[d.status]}" onclick="openDefect('${d.id}')">
       <div class="defect-header">
@@ -2325,8 +2505,9 @@ function renderDefectList() {
         <span class="defect-cat-tag">${(d.category||'').replace('_','/')}</span>
         <span class="defect-cat-tag" style="color:${d.priority==='HIGH'?'var(--accent-red)':d.priority==='MEDIUM'?'var(--accent-amber)':'var(--accent-green)'}">${d.priority}</span>
       </div>
-      <div class="text-sm text-muted mb-3">${(d.desc||'').substring(0,70)}</div>
-      <div class="defect-meta"><span>${d.reporter}</span><span class="defect-sla ${overdue?'sla-overdue':'sla-timer'}">${slaText}</span></div>
+      <div class="text-sm text-muted" style="margin-bottom:4px">${(d.desc||'').substring(0,70)}</div>
+      ${durHtml}
+      <div class="defect-meta" style="margin-top:4px"><span>${d.reporter}</span><span class="defect-sla ${overdue?'sla-overdue':'sla-timer'}">${slaText}</span></div>
     </div>`;
   }).join('');
 }
@@ -2567,6 +2748,30 @@ function openDefect(id) {
   STATE.photoAfterData = null;
   document.getElementById('modal-room').textContent = `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
   document.getElementById('modal-meta').textContent = `${d.id} · ${d.priority} · ${d.reporter}`;
+
+  // ── Tampilkan durasi di bawah meta
+  const durMeta = document.getElementById('modal-dur-meta');
+  if (durMeta) {
+    const fmtMin = m => { const h=Math.floor(m/60),mn=m%60; return h>0?`${h}j ${mn}m`:`${mn}m`; };
+    let durHtml = '';
+    if (d.status==='OPEN'||d.status==='IN_PROGRESS') {
+      const onMin = Math.round((Date.now()-d.createdAt)/60000);
+      const score = d.urgencyScore>0 ? d.urgencyScore : _urgScoreJS(d.createdAt,d.priority,d.slaClockIso,d.reopenedAt);
+      const urg   = _urgLabelJS(score);
+      durHtml = `<div class="dur-row">
+        <span class="dur-badge ongoing">⏳ Menunggu ${fmtMin(onMin)}</span>
+        ${d.waitDurationLabel?`<span class="dur-badge wait">🕐 Respons ${d.waitDurationLabel}</span>`:''}
+        ${score>=40?`<span class="urg-chip ${urg}">Urgensi ${score} — ${urg}</span>`:''}
+      </div>`;
+    } else if (d.repairDurationLabel||d.totalDurationLabel) {
+      durHtml = `<div class="dur-row">
+        ${d.waitDurationLabel  ?`<span class="dur-badge wait">🕐 Tunggu ${d.waitDurationLabel}</span>`:''}
+        ${d.repairDurationLabel?`<span class="dur-badge repair">🔧 Repair ${d.repairDurationLabel}</span>`:''}
+        ${d.totalDurationLabel ?`<span class="dur-badge total">⏱ Total ${d.totalDurationLabel}</span>`:''}
+      </div>`;
+    }
+    durMeta.innerHTML = durHtml;
+  }
   document.getElementById('modal-timeline').innerHTML = (d.logs||[]).map((l,i,arr) => `
     <div class="timeline-item"><div class="timeline-dot-wrap"><div class="timeline-dot"></div>${i<arr.length-1?'<div class="timeline-line"></div>':''}</div>
     <div class="timeline-body"><div class="timeline-action">${l.action}</div><div class="timeline-meta">${timeAgo(l.time)}</div></div></div>`).join('');
@@ -2999,6 +3204,9 @@ function resetReportForm() {
 // ANALYTICS
 // ════════════════════════════════════════════════════
 function renderAnalytics() {
+  const fmtMin = m => { if(!m) return '—'; const h=Math.floor(m/60),mn=m%60; return h>0?`${h}j ${mn}m`:`${mn}m`; };
+
+  // ── Status donut
   const counts = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 };
   STATE.defects.forEach(d => { if (counts[d.status]!==undefined) counts[d.status]++; });
   document.getElementById('leg-open').textContent = counts.OPEN;
@@ -3006,11 +3214,104 @@ function renderAnalytics() {
   document.getElementById('leg-res').textContent = counts.RESOLVED;
   document.getElementById('leg-cls').textContent = counts.CLOSED;
   document.getElementById('donut-total').textContent = STATE.defects.length;
+
+  // ── Defect per kategori (bar chart)
   const cats = {}; STATE.defects.forEach(d => { cats[d.category]=(cats[d.category]||0)+1; });
   const maxC = Math.max(...Object.values(cats), 1);
   document.getElementById('cat-chart').innerHTML = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar-row"><div class="bar-label">${k}</div><div class="bar-track"><div class="bar-fill" style="width:${(v/maxC)*100}%"></div></div><div class="bar-val">${v}</div></div>`).join('') || '<div class="text-muted">Belum ada data.</div>';
-  const eng = {}; STATE.defects.forEach(d => { if (d.engineer) eng[d.engineer]=(eng[d.engineer]||0)+1; });
+
+  // ── Engineering performance (leaderboard jumlah selesai)
+  const eng = {}; STATE.defects.filter(d=>d.engineer&&(d.status==='CLOSED'||d.status==='RESOLVED')).forEach(d => { eng[d.engineer]=(eng[d.engineer]||0)+1; });
   document.getElementById('eng-leaderboard').innerHTML = Object.entries(eng).sort((a,b)=>b[1]-a[1]).map(([n,c],i)=>`<div class="lb-item"><div class="lb-rank ${['gold','silver','bronze'][i]||''}">#${i+1}</div><div class="lb-name">${n}</div><div class="lb-stat">${c} selesai</div></div>`).join('') || '<div class="text-muted">Belum ada data.</div>';
+
+  // ── Duration per Engineer
+  const engDur = {};
+  STATE.defects.filter(d => d.engineer && d.repairDurationMin > 0).forEach(d => {
+    if (!engDur[d.engineer]) engDur[d.engineer] = { repair:[], wait:[], total:[] };
+    engDur[d.engineer].repair.push(d.repairDurationMin);
+    if (d.waitDurationMin  > 0) engDur[d.engineer].wait.push(d.waitDurationMin);
+    if (d.totalDurationMin > 0) engDur[d.engineer].total.push(d.totalDurationMin);
+  });
+  const avgArr = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : 0;
+  const engDurEl = document.getElementById('eng-duration-list');
+  if (engDurEl) {
+    const rows = Object.entries(engDur).sort((a,b)=>avgArr(a[1].repair)-avgArr(b[1].repair));
+    engDurEl.innerHTML = rows.length ? rows.map(([name, v], i) => `
+      <div class="ana-row">
+        <div class="ana-rank">#${i+1}</div>
+        <div style="flex:1">
+          <div class="ana-name">${name}</div>
+          <div class="ana-sub">${v.repair.length} pekerjaan selesai</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--text-1);margin-bottom:2px">
+            <span class="dur-badge wait" style="font-size:9px">🕐 ${fmtMin(avgArr(v.wait))}</span>
+            <span class="dur-badge repair" style="font-size:9px;margin-left:3px">🔧 ${fmtMin(avgArr(v.repair))}</span>
+          </div>
+          <div style="font-size:10px;color:var(--text-1)">Total avg: <strong>${fmtMin(avgArr(v.total))}</strong></div>
+        </div>
+      </div>`).join('') : '<div class="text-muted text-sm">Belum ada data durasi.</div>';
+  }
+
+  // ── Duration per Kategori
+  const catDur = {};
+  STATE.defects.filter(d => d.category && d.repairDurationMin > 0).forEach(d => {
+    if (!catDur[d.category]) catDur[d.category] = { repair:[], wait:[], total:[], count:0 };
+    catDur[d.category].repair.push(d.repairDurationMin);
+    if (d.waitDurationMin  > 0) catDur[d.category].wait.push(d.waitDurationMin);
+    if (d.totalDurationMin > 0) catDur[d.category].total.push(d.totalDurationMin);
+    catDur[d.category].count++;
+  });
+  const catDurEl = document.getElementById('cat-duration-list');
+  if (catDurEl) {
+    const rows = Object.entries(catDur).sort((a,b)=>avgArr(b[1].repair)-avgArr(a[1].repair));
+    const maxR = Math.max(...rows.map(([,v])=>avgArr(v.repair)), 1);
+    catDurEl.innerHTML = rows.length ? rows.map(([cat, v]) => {
+      const avgR = avgArr(v.repair);
+      const pct  = Math.round((avgR/maxR)*100);
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600">${cat.replace('_','/')}</span>
+          <span style="font-size:11px;color:var(--text-1)">${v.count}x · <span class="dur-badge repair" style="font-size:9px">🔧 ${fmtMin(avgR)}</span> <span class="dur-badge wait" style="font-size:9px">🕐 ${fmtMin(avgArr(v.wait))}</span></span>
+        </div>
+        <div style="height:6px;background:var(--bg-3);border-radius:3px">
+          <div style="height:100%;width:${pct}%;background:#10b981;border-radius:3px;transition:width .4s"></div>
+        </div>
+      </div>`;
+    }).join('') : '<div class="text-muted text-sm">Belum ada data.</div>';
+  }
+
+  // ── Full Urgency Table
+  const urgEl = document.getElementById('urgency-full-list');
+  if (urgEl) {
+    const active = STATE.defects
+      .filter(d => d.status==='OPEN' || d.status==='IN_PROGRESS')
+      .map(d => ({...d, _score: d.urgencyScore>0 ? d.urgencyScore : _urgScoreJS(d.createdAt,d.priority,d.slaClockIso,d.reopenedAt)}))
+      .sort((a,b) => b._score-a._score);
+    urgEl.innerHTML = active.length ? active.map(d => {
+      const urg = _urgLabelJS(d._score);
+      const onMin = Math.round((Date.now()-d.createdAt)/60000);
+      const oh=Math.floor(onMin/60),om=onMin%60;
+      const onLabel = oh>0?`${oh}j ${om}m`:`${om}m`;
+      return `<div class="urgent-item" onclick="openDefect('${d.id}')">
+        <div class="urgent-score-box ${urg}" style="font-size:12px">${d._score}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700">Kamar ${d.room}</span>
+            <span class="urg-chip ${urg}">${urg}</span>
+            <span style="font-size:10px;color:var(--text-1)">${d.id}</span>
+            <span class="${getStatusClass(d.status)}" style="font-size:9px;padding:1px 5px">${getStatusLabel(d.status)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-1)">${(d.category||'').replace('_','/')} · ${(d.desc||'').substring(0,45)}</div>
+          <div class="dur-row" style="margin-top:3px">
+            <span class="dur-badge ongoing">⏳ ${onLabel}</span>
+            ${d.waitDurationLabel?`<span class="dur-badge wait">🕐 ${d.waitDurationLabel}</span>`:''}
+            <span style="font-size:10px;color:var(--text-1)">${d.engineer||'— belum ada'}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('') : '<div class="text-muted text-sm" style="padding:12px 0">Tidak ada defect aktif.</div>';
+  }
 }
 
 // ════════════════════════════════════════════════════
