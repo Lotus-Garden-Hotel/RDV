@@ -1419,6 +1419,35 @@ body::before {
         </div>
       </div>
 
+      <!-- ── MY PERFORMANCE CARD — ENG only ─────────────────── -->
+      <div id="eng-my-perf" class="chart-card stagger-child" style="display:none">
+        <div class="chart-title">🔧 Performa Saya — <span id="eng-my-name" style="color:var(--accent-cyan)"></span></div>
+        <!-- Active task banner -->
+        <div id="eng-active-banner" style="display:none;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+          <div style="font-size:11px;color:#f59e0b;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">⚙️ Sedang Dikerjakan</div>
+          <div id="eng-active-list"></div>
+        </div>
+        <!-- My stat grid -->
+        <div class="dur-stat-grid" style="margin-bottom:10px">
+          <div class="dur-stat-box">
+            <div class="dur-stat-label">Selesai</div>
+            <div class="dur-stat-val" id="eng-my-done" style="color:#10b981">0</div>
+          </div>
+          <div class="dur-stat-box">
+            <div class="dur-stat-label">Avg Repair</div>
+            <div class="dur-stat-val" id="eng-my-repair" style="color:#10b981;font-size:15px">—</div>
+          </div>
+          <div class="dur-stat-box">
+            <div class="dur-stat-label">Avg Tunggu</div>
+            <div class="dur-stat-val" id="eng-my-wait" style="color:#f59e0b;font-size:15px">—</div>
+          </div>
+        </div>
+        <!-- Recent resolved list -->
+        <div id="eng-recent-list" style="margin-top:6px"></div>
+        <!-- Motivational streak -->
+        <div id="eng-streak-bar" style="margin-top:8px;font-size:11px;color:var(--text-1);text-align:center"></div>
+      </div>
+
       <!-- Predictive Maintenance -->
       <div class="section-header mt-3">
         <div class="section-title">🔮 Predictive Maintenance</div>
@@ -2400,6 +2429,7 @@ function renderDashboard() {
   // Bug #4 fix: loadAiPredictive TIDAK dipanggil di sini (dipindah ke showPage)
   renderUrgentPanel();
   renderAvgDurStats();
+  renderEngPersonalStats();
 }
 
 // ════════════════════════════════════════════════════
@@ -2506,6 +2536,141 @@ function renderAvgDurStats() {
   if (rEl) rEl.textContent = fmtMin(avgR);
   if (wEl) wEl.textContent = fmtMin(avgW);
   if (tEl) tEl.textContent = fmtMin(avgT);
+}
+
+// ════════════════════════════════════════════════════
+// ENG PERSONAL PERFORMANCE — hanya tampil untuk role ENG
+// Menampilkan: task aktif, selesai, avg repair, avg tunggu,
+// riwayat 5 terakhir, dan motivational streak.
+// ════════════════════════════════════════════════════
+function renderEngPersonalStats() {
+  const card = document.getElementById('eng-my-perf');
+  if (!card) return;
+
+  // Hanya tampil untuk role ENG
+  if (STATE.role !== 'ENG') { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const fmtMin = m => {
+    if (!m || m <= 0) return '—';
+    const h = Math.floor(m / 60), mn = m % 60;
+    return h > 0 ? `${h}j ${mn}m` : `${mn}m`;
+  };
+  const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : 0;
+
+  // Nama engineer yang login — stored as "PRIYONO (ENG)" di defect.engineer
+  const myLabel = `${STATE.user} (${STATE.role})`;
+  document.getElementById('eng-my-name').textContent = STATE.user;
+
+  // ── Filter defect milik engineer ini ──
+  const myDefects = STATE.defects.filter(d =>
+    d.engineer && d.engineer.toLowerCase() === myLabel.toLowerCase()
+  );
+
+  // ── Active tasks (IN_PROGRESS) ──
+  const activeTasks = myDefects.filter(d => d.status === 'IN_PROGRESS');
+  const activeBanner = document.getElementById('eng-active-banner');
+  const activeList   = document.getElementById('eng-active-list');
+  if (activeTasks.length > 0) {
+    activeBanner.style.display = '';
+    activeList.innerHTML = activeTasks.map(d => {
+      const onMin = Math.round((Date.now() - (d.startedAt || d.createdAt)) / 60000);
+      const oh = Math.floor(onMin/60), om = onMin%60;
+      const durLabel = oh > 0 ? `${oh}j ${om}m` : `${om}m`;
+      return `<div onclick="openDefect('${d.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text-0)">Kamar ${d.room}</div>
+          <div style="font-size:11px;color:var(--text-1)">${(d.category||'').replace('_','/')} · ${d.desc.substring(0,40)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:8px">
+          <div class="dur-badge ongoing" style="font-size:10px">⚙️ ${durLabel}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    activeBanner.style.display = 'none';
+  }
+
+  // ── Selesai (RESOLVED + CLOSED) ──
+  const doneTasks = myDefects.filter(d => d.status === 'RESOLVED' || d.status === 'CLOSED');
+
+  const repairArr = [], waitArr = [];
+  doneTasks.forEach(d => {
+    const r = d.repairDurationMin > 0 ? d.repairDurationMin
+      : (d.startedAt && d.resolvedAt ? Math.round((d.resolvedAt - d.startedAt)/60000) : 0);
+    const w = d.waitDurationMin > 0 ? d.waitDurationMin
+      : (d.createdAt && d.startedAt ? Math.round((d.startedAt - d.createdAt)/60000) : 0);
+    if (r > 0) repairArr.push(r);
+    if (w > 0) waitArr.push(w);
+  });
+
+  document.getElementById('eng-my-done').textContent   = doneTasks.length;
+  document.getElementById('eng-my-repair').textContent = fmtMin(avg(repairArr));
+  document.getElementById('eng-my-wait').textContent   = fmtMin(avg(waitArr));
+
+  // ── Riwayat 5 pekerjaan terakhir ──
+  const recentEl = document.getElementById('eng-recent-list');
+  const recent = [...doneTasks]
+    .sort((a,b) => (b.resolvedAt||b.closedAt||0) - (a.resolvedAt||a.closedAt||0))
+    .slice(0, 5);
+
+  if (recent.length === 0) {
+    recentEl.innerHTML = `<div style="font-size:12px;color:var(--text-2);text-align:center;padding:8px 0">Belum ada pekerjaan selesai.</div>`;
+  } else {
+    recentEl.innerHTML = `<div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-2);margin-bottom:5px">Riwayat Terakhir</div>` +
+      recent.map(d => {
+        const r = d.repairDurationMin > 0 ? d.repairDurationMin
+          : (d.startedAt && d.resolvedAt ? Math.round((d.resolvedAt - d.startedAt)/60000) : 0);
+        const statusColor = d.status === 'CLOSED' ? '#10b981' : '#3b82f6';
+        const statusLabel = d.status === 'CLOSED' ? '✅ Closed' : '🔵 Resolved';
+        return `<div onclick="openDefect('${d.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <div style="min-width:0;flex:1">
+            <div style="font-size:12px;font-weight:700;color:var(--text-0)">Kamar ${d.room} <span style="font-size:10px;color:var(--text-2);font-weight:400">${d.id}</span></div>
+            <div style="font-size:11px;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(d.category||'').replace('_','/')} · ${(d.desc||'').substring(0,35)}</div>
+          </div>
+          <div style="flex-shrink:0;text-align:right;margin-left:8px">
+            <div style="font-size:10px;font-weight:700;color:${statusColor}">${statusLabel}</div>
+            ${r > 0 ? `<div class="dur-badge repair" style="font-size:10px;margin-top:2px">🔧 ${fmtMin(r)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+  }
+
+  // ── Motivational streak — hari berturut-turut tanpa SLA breach ──
+  const streakEl = document.getElementById('eng-streak-bar');
+  const slaBreachDays = new Set(
+    myDefects
+      .filter(d => {
+        if (!d.resolvedAt && !d.closedAt) return false; // belum selesai
+        const slaH = ({HIGH:2,MEDIUM:8,LOW:24})[d.priority] || 8;
+        const deadline = d.slaClockIso ? new Date(d.slaClockIso).getTime()
+          : d.createdAt + slaH*3600000;
+        const resolveTime = d.resolvedAt || d.closedAt;
+        return resolveTime > deadline;
+      })
+      .map(d => new Date(d.resolvedAt || d.closedAt).toDateString())
+  );
+  // Hitung streak dari hari ini ke belakang
+  let streak = 0;
+  const oneDay = 86400000;
+  const todayStr = new Date().toDateString();
+  for (let i = 0; i < 30; i++) {
+    const dayStr = new Date(Date.now() - i * oneDay).toDateString();
+    // Hari ini — skip jika belum ada pekerjaan selesai hari ini (bukan breach)
+    const doneToday = doneTasks.filter(d => {
+      const t = d.resolvedAt || d.closedAt;
+      return t && new Date(t).toDateString() === dayStr;
+    });
+    if (i === 0 && doneToday.length === 0) continue; // hari ini belum ada kerja
+    if (slaBreachDays.has(dayStr)) break;
+    streak++;
+  }
+  const medals = streak >= 7 ? '🥇' : streak >= 3 ? '🥈' : streak >= 1 ? '🥉' : '';
+  streakEl.innerHTML = streak > 0
+    ? `${medals} <strong style="color:var(--accent-green)">${streak} hari</strong> berturut-turut tanpa SLA breach`
+    : doneTasks.length === 0
+      ? `<span style="color:var(--text-2)">Selesaikan pekerjaan pertama untuk mulai streak 🎯</span>`
+      : `<span style="color:var(--accent-amber)">⚠ Terdapat SLA breach — tetap semangat!</span>`;
 }
 
 function renderDefectList() {
