@@ -690,36 +690,7 @@ body::before {
 .upload-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.5; }
 .upload-text { font-size: 13px; color: var(--text-1); }
 
-/* QR SCANNER */
-.qr-scanner-area {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  text-align: center;
-  margin-bottom: 16px;
-}
-#qr-video {
-  width: 100%;
-  max-width: 300px;
-  border-radius: var(--radius-sm);
-  border: 2px solid var(--accent-blue);
-}
-.qr-overlay {
-  position: relative;
-  display: inline-block;
-}
-.qr-corner {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border-color: var(--accent-cyan);
-  border-style: solid;
-}
-.qr-corner.tl { top: 8px; left: 8px; border-width: 3px 0 0 3px; }
-.qr-corner.tr { top: 8px; right: 8px; border-width: 3px 3px 0 0; }
-.qr-corner.bl { bottom: 8px; left: 8px; border-width: 0 0 3px 3px; }
-.qr-corner.br { bottom: 8px; right: 8px; border-width: 0 3px 3px 0; }
+
 
 /* ══════════════════════════════
    PREDICTIVE MAINTENANCE
@@ -1186,43 +1157,7 @@ body::before {
 .lb-name { flex: 1; font-size: 14px; font-weight: 500; }
 .lb-stat { font-family: monospace; font-size: 13px; color: var(--accent-cyan); }
 
-/* ══════════════════════════════
-   QR CODE GENERATOR
-   ══════════════════════════════ */
-.qr-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 16px;
-}
-.qr-room-card {
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.qr-room-card:hover { border-color: var(--border-active); }
-.qr-room-number {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.qr-placeholder {
-  width: 80px;
-  height: 80px;
-  background: white;
-  border-radius: 4px;
-  margin: 0 auto 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  color: #333;
-}
+
 
 /* ══════════════════════════════
    TOAST NOTIFICATION
@@ -1368,9 +1303,6 @@ body::before {
     <div class="topbar-brand">Room<span>Defects</span></div>
     <div class="topbar-badge" id="topbar-role">HK</div>
     <div class="topbar-actions">
-      <div class="icon-btn" onclick="showPage('qr-scan')" title="QR Scan">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      </div>
       <div class="icon-btn" onclick="doLogout()" title="Keluar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </div>
@@ -1557,43 +1489,6 @@ body::before {
       </button>
     </div>
 
-    <!-- ═══ PAGE: QR SCAN ═══ -->
-    <div class="page" id="page-qr-scan">
-      <div class="section-header">
-        <div class="section-title">QR Scan & Code</div>
-      </div>
-
-      <div class="form-card">
-        <div class="form-card-title">📷 Scan QR Kamar</div>
-        <div class="qr-scanner-area">
-          <div class="qr-overlay">
-            <video id="qr-video" autoplay playsinline muted></video>
-            <div class="qr-corner tl"></div>
-            <div class="qr-corner tr"></div>
-            <div class="qr-corner bl"></div>
-            <div class="qr-corner br"></div>
-          </div>
-        </div>
-        <div id="qr-result" class="ai-box hidden" style="margin-top:12px">
-          <div class="ai-box-header"><div class="ai-badge">SCANNED</div><div class="ai-box-title" id="qr-room-found"></div></div>
-          <button class="btn btn-primary w-full mt-2" onclick="reportFromQR()">+ Lapor Kerusakan Kamar Ini</button>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:12px">
-          <button class="btn btn-secondary w-full" onclick="startQRScan()">▶️ Mulai Scan</button>
-          <button class="btn btn-secondary w-full" onclick="stopQRScan()">⏹️ Stop</button>
-        </div>
-      </div>
-
-      <div class="form-card" id="qr-gen-section">
-        <div class="form-card-title">🖨️ Generate QR per Kamar</div>
-        <div class="form-group">
-          <input class="form-input" id="qr-floor-input" type="number" placeholder="Lantai (misal: 1, 2, 3)">
-        </div>
-        <button class="btn btn-secondary w-full" onclick="generateQRGrid()">Generate QR Lantai</button>
-        <div class="qr-grid" id="qr-grid"></div>
-      </div>
-    </div>
-
     <!-- ═══ PAGE: GM ANALYTICS ═══ -->
     <div class="page" id="page-analytics">
       <div class="section-header">
@@ -1676,10 +1571,7 @@ body::before {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span class="nav-label">Lapor</span>
     </div>
-    <div class="nav-item" id="nav-qr-scan" onclick="showPage('qr-scan')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      <span class="nav-label">QR</span>
-    </div>
+
     <div class="nav-item" id="nav-analytics" onclick="showPage('analytics')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span class="nav-label">Analytics</span>
@@ -1791,7 +1683,6 @@ let STATE = {
   user: null, role: 'HK',
   defects: [], activeFilter: 'ALL',
   currentDefect: null,
-  qrStream: null, scannedRoom: null,
   isLoading: false,
   photoBeforeData: null,
   photoAfterData: null,
@@ -1810,10 +1701,10 @@ let STATE = {
 // ROLE ACCESS CONTROL
 // ════════════════════════════════════════════════════
 const ROLE_ACCESS = {
-  HK:  ['dashboard', 'defects', 'report', 'qr-scan'],
-  ENG: ['dashboard', 'defects', 'report', 'qr-scan'],
-  SPV: ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],
-  GM:  ['dashboard', 'defects', 'report', 'qr-scan', 'analytics'],
+  HK:  ['dashboard', 'defects', 'report'],
+  ENG: ['dashboard', 'defects', 'report'],
+  SPV: ['dashboard', 'defects', 'report', 'analytics'],
+  GM:  ['dashboard', 'defects', 'report', 'analytics'],
 };
 
 // ════════════════════════════════════════════════════
@@ -2262,7 +2153,7 @@ async function doLogin() {
 }
 
 function doLogout() {
-  stopQRScan(); clearSession(); stopPolling();
+  clearSession(); stopPolling();
   $id('app-shell').classList.remove('visible');
   $id('auth-screen').style.display = 'flex';
   STATE.user = null; STATE.defects = [];
@@ -2386,7 +2277,6 @@ function showPage(page) {
       document.querySelector(`.metric-card[data-filter="${STATE.activeFilter}"]`)?.classList.add('metric-active');
     }
   }
-  if (page !== 'qr-scan') stopQRScan();
 }
 
 // ════════════════════════════════════════════════════
@@ -3052,32 +2942,6 @@ function renderAnalytics() {
 }
 
 // ════════════════════════════════════════════════════
-// QR
-// ════════════════════════════════════════════════════
-function generateQRGrid() {
-  const floor = document.getElementById('qr-floor-input').value || '1';
-  const rooms = Array.from({length:10},(_,i)=>`${floor}${String(i+1).padStart(2,'0')}`);
-  document.getElementById('qr-grid').innerHTML = rooms.map(r => `<div class="qr-room-card" onclick="preSelectRoom('${r}')"><div class="qr-room-number">${r}</div><img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(CONFIG.APP_URL+'?room='+r)}" width="80" height="80"></div>`).join('');
-}
-function preSelectRoom(room) { STATE.scannedRoom = room; showPage('report'); $id('f-room').value = room; }
-async function startQRScan() {
-  const video = document.getElementById('qr-video');
-  try {
-    STATE.qrStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    video.srcObject = STATE.qrStream;
-    if ('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({formats:['qr_code']});
-      const scan = async () => {
-        try { const codes = await detector.detect(video); if (codes.length) { const m = codes[0].rawValue.match(/room=([^&]+)/); if (m) { STATE.scannedRoom = decodeURIComponent(m[1]); stopQRScan(); document.getElementById('qr-room-found').textContent = `Kamar ${STATE.scannedRoom}`; document.getElementById('qr-result').classList.remove('hidden'); return; } } } catch {}
-        if (STATE.qrStream) requestAnimationFrame(scan);
-      };
-      video.onloadedmetadata = () => requestAnimationFrame(scan);
-    }
-  } catch { showToast('error','Kamera gagal',''); }
-}
-function stopQRScan() { if (STATE.qrStream) { STATE.qrStream.getTracks().forEach(t=>t.stop()); STATE.qrStream=null; } }
-function reportFromQR() { if (STATE.scannedRoom) preSelectRoom(STATE.scannedRoom); }
-
 // ════════════════════════════════════════════════════
 // AI & UTILS
 // ════════════════════════════════════════════════════
@@ -3782,7 +3646,6 @@ function timeAgo(ts) {
   return `${Math.floor(d/86400)} hari lalu`;
 }
 const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('room')) STATE.scannedRoom = urlParams.get('room');
 
 // ════════════════════════════════════════════════════
 // LIGHTBOX — Native CSS+JS, no library
