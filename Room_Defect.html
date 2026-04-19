@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Room Defects">
 <meta name="application-name" content="Room Defects">
-<meta name="description" content="Room Defect Management System V.20 — Lotus Garden Hotel">
+<meta name="description" content="Room Defect Management System — Lotus Garden Hotel">
 <title>Room Defects — Lotus Garden Hotel</title>
 <link rel="manifest" id="pwa-manifest-link">
 <link rel="icon" type="image/x-icon" id="favicon-link">
@@ -2445,17 +2445,46 @@ function renderUrgentPanel() {
 }
 
 function renderAvgDurStats() {
-  const fmtMin=m=>{if(!m)return '—';const h=Math.floor(m/60),mn=m%60;return h>0?`${h}j ${mn}m`:`${mn}m`;};
-  const avg=arr=>arr.length?Math.round(arr.reduce((s,v)=>s+v,0)/arr.length):0;
-  const avgR=avg(STATE.defects.filter(d=>d.repairDurationMin>0).map(d=>d.repairDurationMin));
-  const avgW=avg(STATE.defects.filter(d=>d.waitDurationMin>0).map(d=>d.waitDurationMin));
-  const avgT=avg(STATE.defects.filter(d=>d.totalDurationMin>0).map(d=>d.totalDurationMin));
-  const rEl=document.getElementById('avg-repair-val');
-  const wEl=document.getElementById('avg-wait-val');
-  const tEl=document.getElementById('avg-total-val');
-  if(rEl)rEl.textContent=fmtMin(avgR);
-  if(wEl)wEl.textContent=fmtMin(avgW);
-  if(tEl)tEl.textContent=fmtMin(avgT);
+  const fmtMin = m => {
+    if (!m || m <= 0) return '—';
+    const h = Math.floor(m/60), mn = m%60;
+    return h > 0 ? `${h}j ${mn}m` : `${mn}m`;
+  };
+  const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : 0;
+
+  // ── Gunakan data dari GAS jika ada, fallback hitung dari timestamp jika kolom belum ada
+  const repairArr = [], waitArr = [], totalArr = [];
+  STATE.defects.forEach(d => {
+    // Repair: dari kolom GAS ATAU hitung dari startedAt→resolvedAt
+    if (d.repairDurationMin > 0) {
+      repairArr.push(d.repairDurationMin);
+    } else if (d.startedAt && d.resolvedAt) {
+      repairArr.push(Math.round((d.resolvedAt - d.startedAt) / 60000));
+    }
+    // Wait: dari kolom GAS ATAU hitung dari createdAt→startedAt
+    if (d.waitDurationMin > 0) {
+      waitArr.push(d.waitDurationMin);
+    } else if (d.createdAt && d.startedAt) {
+      waitArr.push(Math.round((d.startedAt - d.createdAt) / 60000));
+    }
+    // Total: dari kolom GAS ATAU hitung dari createdAt→resolvedAt
+    if (d.totalDurationMin > 0) {
+      totalArr.push(d.totalDurationMin);
+    } else if (d.createdAt && d.resolvedAt) {
+      totalArr.push(Math.round((d.resolvedAt - d.createdAt) / 60000));
+    }
+  });
+
+  const avgR = avg(repairArr);
+  const avgW = avg(waitArr);
+  const avgT = avg(totalArr);
+
+  const rEl = document.getElementById('avg-repair-val');
+  const wEl = document.getElementById('avg-wait-val');
+  const tEl = document.getElementById('avg-total-val');
+  if (rEl) rEl.textContent = fmtMin(avgR);
+  if (wEl) wEl.textContent = fmtMin(avgW);
+  if (tEl) tEl.textContent = fmtMin(avgT);
 }
 
 function renderDefectList() {
@@ -3224,13 +3253,16 @@ function renderAnalytics() {
   const eng = {}; STATE.defects.filter(d=>d.engineer&&(d.status==='CLOSED'||d.status==='RESOLVED')).forEach(d => { eng[d.engineer]=(eng[d.engineer]||0)+1; });
   document.getElementById('eng-leaderboard').innerHTML = Object.entries(eng).sort((a,b)=>b[1]-a[1]).map(([n,c],i)=>`<div class="lb-item"><div class="lb-rank ${['gold','silver','bronze'][i]||''}">#${i+1}</div><div class="lb-name">${n}</div><div class="lb-stat">${c} selesai</div></div>`).join('') || '<div class="text-muted">Belum ada data.</div>';
 
-  // ── Duration per Engineer
+  // ── Duration per Engineer (dengan fallback timestamp)
   const engDur = {};
-  STATE.defects.filter(d => d.engineer && d.repairDurationMin > 0).forEach(d => {
+  STATE.defects.filter(d => d.engineer && (d.startedAt && d.resolvedAt || d.repairDurationMin > 0)).forEach(d => {
     if (!engDur[d.engineer]) engDur[d.engineer] = { repair:[], wait:[], total:[] };
-    engDur[d.engineer].repair.push(d.repairDurationMin);
-    if (d.waitDurationMin  > 0) engDur[d.engineer].wait.push(d.waitDurationMin);
-    if (d.totalDurationMin > 0) engDur[d.engineer].total.push(d.totalDurationMin);
+    const r = d.repairDurationMin > 0 ? d.repairDurationMin : (d.startedAt&&d.resolvedAt ? Math.round((d.resolvedAt-d.startedAt)/60000) : 0);
+    const w = d.waitDurationMin   > 0 ? d.waitDurationMin   : (d.createdAt&&d.startedAt  ? Math.round((d.startedAt-d.createdAt)/60000)   : 0);
+    const t = d.totalDurationMin  > 0 ? d.totalDurationMin  : (d.createdAt&&d.resolvedAt ? Math.round((d.resolvedAt-d.createdAt)/60000)  : 0);
+    if (r > 0) engDur[d.engineer].repair.push(r);
+    if (w > 0) engDur[d.engineer].wait.push(w);
+    if (t > 0) engDur[d.engineer].total.push(t);
   });
   const avgArr = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : 0;
   const engDurEl = document.getElementById('eng-duration-list');
@@ -3253,14 +3285,16 @@ function renderAnalytics() {
       </div>`).join('') : '<div class="text-muted text-sm">Belum ada data durasi.</div>';
   }
 
-  // ── Duration per Kategori
+  // ── Duration per Kategori (dengan fallback timestamp)
   const catDur = {};
-  STATE.defects.filter(d => d.category && d.repairDurationMin > 0).forEach(d => {
+  STATE.defects.filter(d => d.category && (d.startedAt && d.resolvedAt || d.repairDurationMin > 0)).forEach(d => {
     if (!catDur[d.category]) catDur[d.category] = { repair:[], wait:[], total:[], count:0 };
-    catDur[d.category].repair.push(d.repairDurationMin);
-    if (d.waitDurationMin  > 0) catDur[d.category].wait.push(d.waitDurationMin);
-    if (d.totalDurationMin > 0) catDur[d.category].total.push(d.totalDurationMin);
-    catDur[d.category].count++;
+    const r = d.repairDurationMin > 0 ? d.repairDurationMin : (d.startedAt&&d.resolvedAt ? Math.round((d.resolvedAt-d.startedAt)/60000) : 0);
+    const w = d.waitDurationMin   > 0 ? d.waitDurationMin   : (d.createdAt&&d.startedAt  ? Math.round((d.startedAt-d.createdAt)/60000)   : 0);
+    const t = d.totalDurationMin  > 0 ? d.totalDurationMin  : (d.createdAt&&d.resolvedAt ? Math.round((d.resolvedAt-d.createdAt)/60000)  : 0);
+    if (r > 0) { catDur[d.category].repair.push(r); catDur[d.category].count++; }
+    if (w > 0) catDur[d.category].wait.push(w);
+    if (t > 0) catDur[d.category].total.push(t);
   });
   const catDurEl = document.getElementById('cat-duration-list');
   if (catDurEl) {
