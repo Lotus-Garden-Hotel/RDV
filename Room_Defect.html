@@ -794,7 +794,38 @@ body::before {
   border-radius: 2px;
   margin: 0 auto 20px;
 }
-.modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+/* ── MODAL CLOSE BUTTON ── */
+.modal-header {
+  position: relative;
+  margin-bottom: 4px;
+}
+.modal-close-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.modal-close-btn:hover,
+.modal-close-btn:active {
+  background: rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.4);
+  color: var(--accent-red);
+}
+.modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin-bottom: 4px; padding-right: 40px; }
 .modal-sub { font-size: 13px; color: var(--text-1); margin-bottom: 24px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
 
@@ -1663,7 +1694,10 @@ body::before {
 <div class="modal-backdrop" id="detail-modal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-room">Kamar 201</div>
+    <div class="modal-header">
+      <div class="modal-title" id="modal-room">Kamar 201</div>
+      <button class="modal-close-btn" onclick="closeModal()" aria-label="Tutup">✕</button>
+    </div>
     <div class="modal-sub" id="modal-meta">ID: DEF-001 · 2 jam lalu</div>
 
     <div id="modal-rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
