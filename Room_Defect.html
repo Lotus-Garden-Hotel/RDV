@@ -1049,6 +1049,47 @@ body::before {
 }
 #lb-img.no-transition { transition: none; }
 
+/* ── Description overlay — muncul di atas foto BEFORE ── */
+#lb-desc-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 10px 14px 12px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.55) 75%, transparent 100%);
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.25s ease;
+}
+#lb-desc-overlay.hidden { opacity: 0; }
+.lb-desc-id {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f59e0b;
+  margin-bottom: 3px;
+}
+.lb-desc-room {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f0f4ff;
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+.lb-desc-text {
+  font-size: 12px;
+  color: rgba(240,244,255,0.88);
+  line-height: 1.45;
+  margin-bottom: 5px;
+}
+.lb-desc-reporter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: rgba(240,244,255,0.6);
+  font-weight: 600;
+}
+
 .lb-topbar {
   width: 100%;
   height: 52px;
@@ -1751,6 +1792,8 @@ body::before {
   </div>
   <div id="lb-img-wrap">
     <img id="lb-img" src="" alt="Photo preview" draggable="false">
+    <!-- Description overlay — tampil untuk foto BEFORE -->
+    <div id="lb-desc-overlay" class="hidden"></div>
     <div class="lb-zoom-level" id="lb-zoom-level">100%</div>
     <div class="lb-hint" id="lb-hint">Pinch/scroll untuk zoom · Swipe untuk Before/After</div>
   </div>
@@ -1885,9 +1928,73 @@ const RECOMMENDATIONS = {
 };
 
 // ════════════════════════════════════════════════════
-// PHOTO COMPRESSION
+// PHOTO COMPRESSION + WATERMARK
 // ════════════════════════════════════════════════════
-function compressImage(file) {
+
+/**
+ * Gambar watermark semi-transparan di pojok kiri bawah canvas.
+ * Dipanggil setelah ctx.drawImage() selesai.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} w - lebar canvas
+ * @param {number} h - tinggi canvas
+ * @param {string[]} lines - baris teks watermark (maks 3)
+ */
+function _burnWatermark(ctx, w, h, lines) {
+  if (!lines || !lines.length) return;
+  const fontSize  = Math.max(12, Math.round(w * 0.028)); // proporsional ≈2.8% lebar
+  const lineH     = Math.round(fontSize * 1.35);
+  const padX      = Math.round(w * 0.022);
+  const padY      = Math.round(h * 0.018);
+  const boxPad    = Math.round(fontSize * 0.45);
+  const totalH    = lines.length * lineH + boxPad * 2;
+  const boxY      = h - padY - totalH;
+
+  ctx.save();
+
+  // ── Ukur lebar kotak background ──
+  ctx.font = `700 ${fontSize}px Arial, sans-serif`;
+  const maxW = Math.max(...lines.map(l => ctx.measureText(l).width));
+  const boxW  = maxW + boxPad * 2;
+
+  // ── Background semi-transparan ──
+  ctx.globalAlpha = 0.72;
+  ctx.fillStyle   = '#000000';
+  _roundRect(ctx, padX, boxY, boxW, totalH, Math.round(fontSize * 0.35));
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // ── Teks putih ──
+  ctx.font      = `700 ${fontSize}px Arial, sans-serif`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textBaseline = 'top';
+  lines.forEach((line, i) => {
+    ctx.fillText(line, padX + boxPad, boxY + boxPad + i * lineH);
+  });
+
+  ctx.restore();
+}
+
+/** Helper: gambar rect dengan sudut membulat agar kompatibel semua browser */
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+/**
+ * Kompres gambar + opsional burn watermark ke canvas.
+ * @param {File} file
+ * @param {string[]|null} watermarkLines - null = tanpa watermark
+ */
+function compressImage(file, watermarkLines = null) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -1903,6 +2010,10 @@ function compressImage(file) {
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
+        // ── Burn watermark jika ada ──
+        if (watermarkLines && watermarkLines.length) {
+          _burnWatermark(ctx, w, h, watermarkLines);
+        }
         let quality = CONFIG.PHOTO_QUALITY;
         let compressed = canvas.toDataURL('image/jpeg', quality);
         let sizeKB = Math.round(compressed.length * 0.75 / 1024);
@@ -1933,7 +2044,20 @@ async function handlePhotoUpload(input, slot) {
   if (area) area.style.opacity = '0.5';
   showToast('info', '⏳ Mengompres foto...', `Ukuran asli: ${Math.round(file.size/1024)} KB`);
   try {
-    const result = await compressImage(file);
+    // ── Buat watermark lines untuk foto BEFORE ──
+    let wmLines = null;
+    if (slot === 'before') {
+      const room = ($id('f-room')?.value || '').trim();
+      const now  = new Date();
+      const pad2 = n => String(n).padStart(2,'0');
+      const dtStr = `${pad2(now.getDate())}/${pad2(now.getMonth()+1)}/${now.getFullYear()} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+      wmLines = [
+        `${STATE.user} (${STATE.role})`,
+        room ? `Kamar ${room}` : 'Lotus Garden Hotel',
+        dtStr,
+      ];
+    }
+    const result = await compressImage(file, wmLines);
     if (slot === 'before') STATE.photoBeforeData = result;
     else STATE.photoAfterData = result;
     if (slot === 'before') {
@@ -4301,6 +4425,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const LB = {
   images: [],   // [{src, label}]
   current: 0,
+  defect: null, // defect aktif — untuk overlay deskripsi
   scale: 1,
   minScale: 1,
   maxScale: 5,
@@ -4322,6 +4447,7 @@ function openLightbox(src, label, defect) {
   if (defect?.photoAfter) imgs.push({ src: driveImgUrl(defect.photoAfter), label: 'AFTER' });
   if (!imgs.length) imgs.push({ src, label });
   LB.images = imgs;
+  LB.defect  = defect || null;
   LB.current = imgs.findIndex(i => i.label === label);
   if (LB.current < 0) LB.current = 0;
   lbLoad(LB.current);
@@ -4347,6 +4473,9 @@ function lbLoad(idx) {
   badge.className = 'lb-badge ' + label.toLowerCase();
   lbResetTransform();
   setTimeout(() => img.classList.remove('no-transition'), 50);
+
+  // ── Update description overlay ──
+  _lbUpdateDescOverlay(label);
 
   // Tentukan fetchUrl sama seperti photoSlotWithImageDOM
   let fetchUrl = null;
@@ -4428,6 +4557,53 @@ function lbApplyTransform(smooth) {
     zl.textContent = Math.round(LB.scale * 100) + '%';
     zl.style.opacity = LB.scale === 1 ? '0' : '0.7';
   }
+  // Sembunyikan overlay deskripsi saat user sedang zoom
+  const ov = $id('lb-desc-overlay');
+  if (ov) ov.classList.toggle('hidden', LB.scale > 1.05);
+}
+
+/**
+ * Render overlay deskripsi di atas foto.
+ * Muncul hanya untuk BEFORE dan hanya jika LB.defect tersedia.
+ */
+function _lbUpdateDescOverlay(label) {
+  const ov = $id('lb-desc-overlay');
+  if (!ov) return;
+
+  const d = LB.defect;
+  // Overlay hanya untuk BEFORE dan ada data defect
+  if (label !== 'BEFORE' || !d) {
+    ov.innerHTML = '';
+    ov.classList.add('hidden');
+    return;
+  }
+
+  const desc     = (d.desc || d.description || '').trim();
+  const reporter = d.reporter || '';
+  const room     = d.room || '';
+  const defectId = d.id || '';
+  const cat      = (d.category || '').replace('_', '/');
+  const prio     = d.priority || '';
+
+  // Format tanggal laporan
+  let dateStr = '';
+  if (d.createdAt) {
+    const dt = new Date(d.createdAt);
+    const pad = n => String(n).padStart(2,'0');
+    dateStr = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  }
+
+  const prioColor = prio === 'HIGH' ? '#ef4444' : prio === 'MEDIUM' ? '#f59e0b' : '#10b981';
+
+  ov.innerHTML = `
+    <div class="lb-desc-id">${defectId}${cat ? ' · ' + cat : ''}${prio ? ` <span style="color:${prioColor}">${prio}</span>` : ''}</div>
+    ${room ? `<div class="lb-desc-room">Kamar ${room}</div>` : ''}
+    ${desc ? `<div class="lb-desc-text">${desc}</div>` : '<div class="lb-desc-text" style="color:rgba(240,244,255,0.4);font-style:italic">— Tidak ada deskripsi —</div>'}
+    <div class="lb-desc-reporter">
+      <span style="font-size:12px">👤</span>
+      ${reporter}${dateStr ? `<span style="opacity:0.5">·</span>${dateStr}` : ''}
+    </div>`;
+  ov.classList.remove('hidden');
 }
 
 function lbClampPan() {
