@@ -2080,7 +2080,7 @@ body::before {
         <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Pause SLA — Alasan Penundaan</div>
         <div style="font-size:11px;color:var(--text-1);margin-bottom:10px">
           SLA akan di-pause. Pilih alasan lalu tambahkan keterangan jika perlu.
-          <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting Material.</span>
+          <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting List.</span>
         </div>
         <div style="margin-bottom:10px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px">Alasan Utama</div>
@@ -3428,7 +3428,7 @@ function getStatusLabel(s) {
   return {
     OPEN:'🔴 Open',
     IN_PROGRESS:'🟡 In Progress',
-    WAITING_MATERIAL:'⏸ Waiting Material',
+    WAITING_MATERIAL:'⏸ Waiting List',
     RESOLVED:'🔵 Resolved',
     CLOSED:'✅ Closed'
   }[s]||s;
