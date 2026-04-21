@@ -45,6 +45,7 @@
 
   --status-open: #ef4444;
   --status-inprogress: #f59e0b;
+  --status-waiting: #a78bfa;
   --status-resolved: #3b82f6;
   --status-closed: #10b981;
 
@@ -646,6 +647,40 @@ body::before {
 }
 .status-open { background: rgba(239,68,68,0.15); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.3); }
 .status-inprogress { background: rgba(245,158,11,0.15); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.3); }
+.status-waiting    { background: rgba(139,92,246,0.15); color: #a78bfa;              border: 1px solid rgba(139,92,246,0.35); }
+
+/* ── AREA TYPE TOGGLE ── */
+.area-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.area-type-btn {
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s;
+}
+.area-type-btn.active-room   { border-color: var(--accent-blue);  background: rgba(59,130,246,.12); color: var(--accent-blue); }
+.area-type-btn.active-public { border-color: #10b981;              background: rgba(16,185,129,.12); color: #10b981; }
+.area-badge-public {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; padding: 2px 7px;
+  border-radius: 4px; margin-left: 6px;
+  background: rgba(16,185,129,.15); color: #10b981;
+  border: 1px solid rgba(16,185,129,.3);
+}
 .status-resolved { background: rgba(59,130,246,0.15); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.3); }
 .status-closed { background: rgba(16,185,129,0.15); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.3); }
 
@@ -828,6 +863,74 @@ body::before {
 .modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin-bottom: 4px; padding-right: 40px; }
 .modal-sub { font-size: 13px; color: var(--text-1); margin-bottom: 24px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+
+/* ── INLINE EDIT PANEL (SPV/GM) ── */
+#modal-edit-panel {
+  display: none;
+  background: var(--bg-2);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  animation: fadeSlideUp 0.2s ease;
+}
+#modal-edit-panel .edit-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 12px;
+}
+#modal-edit-panel .edit-row {
+  margin-bottom: 10px;
+}
+#modal-edit-panel .edit-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  margin-bottom: 5px;
+}
+#modal-edit-panel .edit-input,
+#modal-edit-panel .edit-select,
+#modal-edit-panel .edit-textarea {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-0);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 9px 12px;
+  outline: none;
+}
+#modal-edit-panel .edit-input:focus,
+#modal-edit-panel .edit-select:focus,
+#modal-edit-panel .edit-textarea:focus {
+  border-color: var(--accent-blue);
+}
+#modal-edit-panel .edit-textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+#modal-edit-panel .edit-select option { background: var(--bg-1); }
+#modal-edit-panel .edit-actions { display: flex; gap: 8px; margin-top: 14px; }
+.edit-priority-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; }
+.edit-prio-btn {
+  padding: 7px 0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.edit-prio-btn.HIGH   { background:rgba(239,68,68,.12);  color:#ef4444; border-color:rgba(239,68,68,.2);  }
+.edit-prio-btn.MEDIUM { background:rgba(245,158,11,.12); color:#f59e0b; border-color:rgba(245,158,11,.2); }
+.edit-prio-btn.LOW    { background:rgba(16,185,129,.10); color:#10b981; border-color:rgba(16,185,129,.2); }
+.edit-prio-btn.active.HIGH   { border-color:#ef4444; background:rgba(239,68,68,.25);  }
+.edit-prio-btn.active.MEDIUM { border-color:#f59e0b; background:rgba(245,158,11,.25); }
+.edit-prio-btn.active.LOW    { border-color:#10b981; background:rgba(16,185,129,.22); }
 
 /* ══════════════════════════════
    CHECKLIST
@@ -1426,6 +1529,19 @@ body::before {
           <div class="metric-icon">✅</div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
+        <!-- WAITING_MATERIAL metric — full width, purple -->
+        <div class="metric-card stagger-child" id="m-waiting-card"
+             style="--metric-color:var(--status-waiting);grid-column:1/-1;display:none"
+             onclick="tapMetric(this,'WAITING_MATERIAL')" data-filter="WAITING_MATERIAL">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div class="metric-value" id="m-waiting" style="font-size:26px">0</div>
+              <div class="metric-label">⏸ Menunggu Material</div>
+            </div>
+            <div id="m-waiting-materials" style="font-size:11px;color:#a78bfa;text-align:right;max-width:55%;line-height:1.5"></div>
+          </div>
+          <div class="metric-tap-hint">Lihat ↗</div>
+        </div>
       </div>
 
       <!-- Urgent Panel (GM/SPV only, hidden by default) -->
@@ -1437,6 +1553,20 @@ body::before {
         <div id="urgent-list"></div>
         <div id="urgent-see-all" style="display:none;text-align:center;margin-top:4px">
           <button class="btn btn-secondary btn-sm" onclick="showPage('analytics')">Lihat semua di Analytics ↗</button>
+        </div>
+      </div>
+
+      <!-- Public Area active banner — muncul jika ada PUBLIC defect aktif -->
+      <div id="public-area-banner" style="display:none;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:14px;cursor:pointer" onclick="filterByAreaType('PUBLIC')">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">🏢</span>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#10b981">Area Umum — Defect Aktif</div>
+              <div id="public-area-detail" style="font-size:11px;color:var(--text-1);margin-top:1px"></div>
+            </div>
+          </div>
+          <span id="public-area-count" style="font-size:22px;font-weight:800;color:#10b981">0</span>
         </div>
       </div>
 
@@ -1512,6 +1642,23 @@ body::before {
         <div class="filter-chip" data-filter="IN_PROGRESS" onclick="filterDefects(this)">🟡 In Progress</div>
         <div class="filter-chip" data-filter="RESOLVED" onclick="filterDefects(this)">🔵 Resolved</div>
         <div class="filter-chip" data-filter="CLOSED" onclick="filterDefects(this)">✅ Closed</div>
+        <div class="filter-chip" data-filter="WAITING_MATERIAL" onclick="filterDefects(this)">⏸ Waiting</div>
+      </div>
+
+      <!-- Area sub-filter -->
+      <div class="filter-bar" style="margin-top:-6px;margin-bottom:10px">
+        <div class="area-filter-chip filter-chip active" data-area="ALL"
+          onclick="filterByAreaType('ALL')" style="font-size:11px;padding:4px 10px">
+          🏷 Semua Area
+        </div>
+        <div class="area-filter-chip filter-chip" data-area="ROOM"
+          onclick="filterByAreaType('ROOM')" style="font-size:11px;padding:4px 10px">
+          🏨 Kamar
+        </div>
+        <div class="area-filter-chip filter-chip" data-area="PUBLIC"
+          onclick="filterByAreaType('PUBLIC')" style="font-size:11px;padding:4px 10px">
+          🏢 Area Umum
+        </div>
       </div>
 
       <div class="defect-list" id="defect-list">
@@ -1529,14 +1676,72 @@ body::before {
       <div class="form-card">
         <div class="form-card-title">📋 Detail Kerusakan</div>
 
+        <!-- ── Area Type Toggle ── -->
         <div class="form-group">
+          <label class="form-label">Jenis Area</label>
+          <div class="area-type-toggle">
+            <button class="area-type-btn active-room" id="btn-area-room"
+              onclick="selectAreaType('ROOM')">🏨 Kamar / Room</button>
+            <button class="area-type-btn" id="btn-area-public"
+              onclick="selectAreaType('PUBLIC')">🏢 Area Umum</button>
+          </div>
+        </div>
+
+        <!-- ── Room Number (ROOM mode) ── -->
+        <div class="form-group" id="fg-room">
           <label class="form-label">Nomor Kamar</label>
-          <input class="form-input" id="f-room" type="text" placeholder="Contoh: 201, 315, Suite-A">
+          <input class="form-input" id="f-room" type="text"
+            placeholder="Contoh: 201, 315, Suite-A" inputmode="numeric">
+        </div>
+
+        <!-- ── Area Code (PUBLIC mode) — hidden by default ── -->
+        <div class="form-group" id="fg-area" style="display:none">
+          <label class="form-label">Lokasi Area Umum</label>
+          <select class="form-select" id="f-area-code" onchange="syncRoomFromArea()">
+            <option value="">Pilih lokasi...</option>
+            <optgroup label="Ground Floor">
+              <option value="LOBBY">🚪 Lobby Utama</option>
+              <option value="LOBBY-TOILET-P">🚻 Toilet Lobby (Pria)</option>
+              <option value="LOBBY-TOILET-W">🚻 Toilet Lobby (Wanita)</option>
+              <option value="FO-AREA">🛎 Front Office Area</option>
+              <option value="PARKING-B1">🚗 Parkir Basement</option>
+              <option value="PARKING-GF">🚗 Parkir Ground Floor</option>
+            </optgroup>
+            <optgroup label="Koridor & Sirkulasi">
+              <option value="KORIDOR-LT1">🚶 Koridor Lantai 1</option>
+              <option value="KORIDOR-LT2">🚶 Koridor Lantai 2</option>
+              <option value="KORIDOR-LT3">🚶 Koridor Lantai 3</option>
+              <option value="KORIDOR-LT4">🚶 Koridor Lantai 4</option>
+              <option value="KORIDOR-LT5">🚶 Koridor Lantai 5</option>
+              <option value="LIFT-01">🛗 Lift 01</option>
+              <option value="LIFT-02">🛗 Lift 02</option>
+              <option value="TANGGA-DARURAT">🔥 Tangga Darurat</option>
+            </optgroup>
+            <optgroup label="Fasilitas">
+              <option value="POOL">🏊 Kolam Renang</option>
+              <option value="GYM">🏋 Gym / Fitness</option>
+              <option value="MEETING-R1">📅 Meeting Room 1</option>
+              <option value="MEETING-R2">📅 Meeting Room 2</option>
+              <option value="BALLROOM">🎉 Ballroom</option>
+              <option value="MUSHOLLA">🕌 Musholla</option>
+            </optgroup>
+            <optgroup label="Back of House">
+              <option value="LAUNDRY">👕 Area Laundry</option>
+              <option value="PANTRY-LT1">🍽 Pantry Lt.1</option>
+              <option value="GUDANG-HK">📦 Gudang HK</option>
+              <option value="LOADING-DOCK">🚛 Loading Dock</option>
+            </optgroup>
+            <option value="OTHER-PUBLIC">📍 Lainnya (ketik manual)</option>
+          </select>
+          <!-- Input manual jika pilih "Lainnya" -->
+          <input class="form-input" id="f-area-custom" style="display:none;margin-top:8px"
+            placeholder="Tulis nama lokasi..." oninput="syncRoomFromArea()">
         </div>
 
         <div class="form-group">
           <label class="form-label">Deskripsi Kerusakan</label>
-          <textarea class="form-textarea" id="f-desc" placeholder="Jelaskan kerusakan yang Anda temukan..."></textarea>
+          <textarea class="form-textarea" id="f-desc"
+            placeholder="Jelaskan kerusakan yang Anda temukan..."></textarea>
         </div>
 
         <!-- AI Auto-Categorize -->
@@ -1552,15 +1757,31 @@ body::before {
           <label class="form-label">Kategori (AI Suggestion)</label>
           <select class="form-select" id="f-category">
             <option value="">Pilih kategori...</option>
-            <option value="Plumbing">🚿 Plumbing (Pipa/Air)</option>
-            <option value="Electrical">⚡ Electrical (Listrik)</option>
-            <option value="AC_HVAC">❄️ AC/HVAC</option>
-            <option value="Furniture">🪑 Furniture</option>
-            <option value="Door_Lock">🔐 Door & Lock</option>
-            <option value="TV_Remote">📺 TV & Remote</option>
-            <option value="Ceiling_Wall">🏠 Ceiling/Wall</option>
-            <option value="Bathroom">🛁 Bathroom</option>
-            <option value="Lighting">💡 Lighting</option>
+            <!-- ROOM categories -->
+            <optgroup label="Room" id="cat-group-room">
+              <option value="Plumbing">🚿 Plumbing (Pipa/Air)</option>
+              <option value="Electrical">⚡ Electrical (Listrik)</option>
+              <option value="AC_HVAC">❄️ AC/HVAC</option>
+              <option value="Furniture">🪑 Furniture</option>
+              <option value="Door_Lock">🔐 Door &amp; Lock</option>
+              <option value="TV_Remote">📺 TV &amp; Remote</option>
+              <option value="Ceiling_Wall">🏠 Ceiling/Wall</option>
+              <option value="Bathroom">🛁 Bathroom</option>
+              <option value="Lighting">💡 Lighting</option>
+            </optgroup>
+            <!-- PUBLIC AREA categories -->
+            <optgroup label="Area Umum" id="cat-group-public">
+              <option value="Lighting_Public">💡 Lighting Area Umum</option>
+              <option value="Flooring">🧱 Lantai / Flooring</option>
+              <option value="Signage">🪧 Signage / Rambu</option>
+              <option value="Lift_Escalator">🛗 Lift / Eskalator</option>
+              <option value="Toilet_Public">🚻 Toilet Umum</option>
+              <option value="Furniture_Public">🪑 Furniture Area Umum</option>
+              <option value="Electrical_Public">⚡ Listrik Area Umum</option>
+              <option value="Plumbing_Public">🚿 Plumbing Area Umum</option>
+              <option value="Ceiling_Wall_Public">🏠 Ceiling/Wall Area Umum</option>
+              <option value="Security_Equipment">🔒 Peralatan Keamanan</option>
+            </optgroup>
             <option value="Other">📦 Lainnya</option>
           </select>
         </div>
@@ -1568,9 +1789,9 @@ body::before {
         <div class="form-group">
           <label class="form-label">Tingkat Prioritas</label>
           <select class="form-select" id="f-priority">
-            <option value="LOW">🟢 Low — Tidak mengganggu tamu</option>
+            <option value="LOW">🟢 Low — Tidak mengganggu operasional</option>
             <option value="MEDIUM" selected>🟡 Medium — Perlu perbaikan segera</option>
-            <option value="HIGH">🔴 High — Kamar tidak bisa dijual (OO)</option>
+            <option value="HIGH">🔴 High — Tidak bisa digunakan / berbahaya</option>
           </select>
         </div>
 
@@ -1603,7 +1824,9 @@ body::before {
         <!-- ── CATATAN TEKNIS ── -->
         <div class="form-group">
           <label class="form-label">📝 Catatan Teknis (Opsional)</label>
-          <textarea class="form-textarea" id="f-notes" placeholder="Contoh: Kran sudah dicek, seal rusak. Butuh spare part valve 1/2 inch..." style="min-height:70px"></textarea>
+          <textarea class="form-textarea" id="f-notes"
+            placeholder="Contoh: Kran sudah dicek, seal rusak. Butuh spare part valve 1/2 inch..."
+            style="min-height:70px"></textarea>
         </div>
       </div>
 
@@ -1775,6 +1998,92 @@ body::before {
 
     <div class="timeline" id="modal-timeline"></div>
 
+    <!-- ── WAITING MATERIAL PANEL — ENG only ── -->
+    <div id="modal-wait-mat-panel" style="display:none;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Lapor Tunggu Material</div>
+      <div style="font-size:11px;color:var(--text-1);margin-bottom:8px">Tulis nama material yang dibutuhkan. SLA akan di-pause selama menunggu.</div>
+      <input id="wm-material-input" class="form-input" placeholder="Contoh: Cat tembok, Pipa PVC 1/2 inch..."
+        style="font-size:13px;margin-bottom:10px">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeWaitingMaterialPanel()">Batal</button>
+        <button class="btn w-full" style="flex:1;background:#a78bfa;color:#fff" onclick="submitWaitingMaterial()">⏸ Pause SLA</button>
+      </div>
+    </div>
+
+    <!-- ── ASSIGN PANEL — SPV/GM only ── -->
+    <div id="modal-assign-panel" style="display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#f59e0b;margin-bottom:10px">👤 Assign Engineer</div>
+      <select id="assign-eng-select" class="form-select" style="margin-bottom:10px;font-size:13px">
+        <option value="">Pilih engineer...</option>
+      </select>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeAssignPanel()">Batal</button>
+        <button class="btn btn-amber" style="flex:1" onclick="submitAssign()">✅ Assign</button>
+      </div>
+    </div>
+
+    <!-- ── INLINE EDIT PANEL — SPV/GM only ── -->
+    <div id="modal-edit-panel">
+      <div class="edit-panel-title">✏️ Edit Defect</div>
+
+      <div class="edit-row">
+        <div class="edit-label">Tingkat Prioritas</div>
+        <div class="edit-priority-grid">
+          <button class="edit-prio-btn HIGH"   onclick="selectEditPrio(this,'HIGH')">🔴 HIGH</button>
+          <button class="edit-prio-btn MEDIUM" onclick="selectEditPrio(this,'MEDIUM')">🟡 MEDIUM</button>
+          <button class="edit-prio-btn LOW"    onclick="selectEditPrio(this,'LOW')">🟢 LOW</button>
+        </div>
+      </div>
+
+      <div class="edit-row">
+        <div class="edit-label">Kategori</div>
+        <select class="edit-select" id="edit-category">
+          <optgroup label="Kamar">
+            <option value="AC_HVAC">AC / HVAC</option>
+            <option value="Plumbing">Plumbing</option>
+            <option value="Electrical">Electrical</option>
+            <option value="Ceiling_Wall">Ceiling / Wall</option>
+            <option value="Furniture">Furniture</option>
+            <option value="Door_Lock">Door &amp; Lock</option>
+            <option value="TV_Remote">TV &amp; Remote</option>
+            <option value="Bathroom">Bathroom</option>
+            <option value="Lighting">Lighting</option>
+          </optgroup>
+          <optgroup label="Area Umum">
+            <option value="Lighting_Public">Lighting Area Umum</option>
+            <option value="Flooring">Lantai / Flooring</option>
+            <option value="Signage">Signage / Rambu</option>
+            <option value="Lift_Escalator">Lift / Eskalator</option>
+            <option value="Toilet_Public">Toilet Umum</option>
+            <option value="Furniture_Public">Furniture Area Umum</option>
+            <option value="Electrical_Public">Listrik Area Umum</option>
+            <option value="Plumbing_Public">Plumbing Area Umum</option>
+            <option value="Ceiling_Wall_Public">Ceiling/Wall Area Umum</option>
+            <option value="Security_Equipment">Peralatan Keamanan</option>
+          </optgroup>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="edit-row">
+        <div class="edit-label">Deskripsi Kerusakan</div>
+        <textarea class="edit-textarea" id="edit-desc" maxlength="400"
+          placeholder="Deskripsi detail kerusakan..."></textarea>
+      </div>
+
+      <div class="edit-row">
+        <div class="edit-label">Catatan SPV (opsional)</div>
+        <textarea class="edit-textarea" id="edit-notes" maxlength="300"
+          placeholder="Catatan tambahan dari SPV/GM..."
+          style="min-height:56px"></textarea>
+      </div>
+
+      <div class="edit-actions">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeEditPanel()">Batal</button>
+        <button class="btn btn-primary"   style="flex:1" id="btn-save-edit" onclick="saveEditDefect()">💾 Simpan</button>
+      </div>
+    </div>
+
     <div class="modal-actions" id="modal-actions">
       <!-- filled by JS -->
     </div>
@@ -1825,7 +2134,7 @@ const CONFIG = {
 // ════════════════════════════════════════════════════
 let STATE = {
   user: null, role: 'HK',
-  defects: [], activeFilter: 'ALL',
+  defects: [], activeFilter: 'ALL', _areaFilter: 'ALL', _reportAreaType: 'ROOM',
   currentDefect: null,
   isLoading: false,
   photoBeforeData: null,
@@ -2047,13 +2356,23 @@ async function handlePhotoUpload(input, slot) {
     // ── Buat watermark lines untuk foto BEFORE ──
     let wmLines = null;
     if (slot === 'before') {
-      const room = ($id('f-room')?.value || '').trim();
+      const areaType = STATE._reportAreaType || 'ROOM';
+      let locationLabel = '';
+      if (areaType === 'PUBLIC') {
+        const sel    = $id('f-area-code')?.value;
+        const custom = $id('f-area-custom')?.value.trim();
+        const areaVal = (sel === 'OTHER-PUBLIC') ? custom : sel;
+        locationLabel = areaVal ? `Area: ${areaVal}` : 'Area Umum';
+      } else {
+        const room = ($id('f-room')?.value || '').trim();
+        locationLabel = room ? `Kamar ${room}` : 'Lotus Garden Hotel';
+      }
       const now  = new Date();
       const pad2 = n => String(n).padStart(2,'0');
       const dtStr = `${pad2(now.getDate())}/${pad2(now.getMonth()+1)}/${now.getFullYear()} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
       wmLines = [
         `${STATE.user} (${STATE.role})`,
-        room ? `Kamar ${room}` : 'Lotus Garden Hotel',
+        locationLabel,
         dtStr,
       ];
     }
@@ -2203,7 +2522,8 @@ async function gasCall(action, payload = {}) {
 
 const gasGetDefects = (f) => gasCall('getDefects', f || {});
 const gasGetMetrics = () => gasCall('getMetrics', {});
-const gasAddDefect = (d) => gasCall('addDefect', d);
+const gasAddDefect    = (d) => gasCall('addDefect', d);
+const gasAssignDefect = (d) => gasCall('assignDefect', d);
 const gasAiCat = (t) => gasCall('aiCategorize', { text: t });
 const gasAiPredict = () => gasCall('aiPredictive', {});
 const gasSavePhoto = (d) => gasCall('savePhoto', d);
@@ -2483,6 +2803,12 @@ function normalizeDefect(d) {
     totalDurationLabel:  d.TotalDurationLabel   || d.totalDurationLabel   || null,
     urgencyScore:        Number(d.UrgencyScore   || d.urgencyScore   || 0) || 0,
     slaClockIso:         d.SLA_Clock || d.slaClockIso || null,
+    // ── Fitur baru ──
+    assignedTo:          d.AssignedTo     || d.assignedTo     || null,
+    waitingMaterialAt:   _parseTs(d.WaitingMaterialAt || d.waitingMaterialAt),
+    materialNote:        d.MaterialNote   || d.materialNote   || '',
+    slaPausedMin:        Number(d.SLAPausedMin || d.slaPausedMin || 0) || 0,
+    areaType:            d.AreaType || d.areaType || 'ROOM',
   };
 }
 
@@ -2492,13 +2818,18 @@ function buildLogs(d) {
   const started  = _parseTs(d.StartedAt);
   const resolved = _parseTs(d.ResolvedAt);
   const closed   = _parseTs(d.ClosedAt);
+  const waiting  = _parseTs(d.WaitingMaterialAt);
   const rep = d.Reporter || d.reporter || '?';
   const eng = d.Engineer || d.engineer || 'Engineering';
-  if (created) logs.push({ action: `Dilaporkan oleh ${rep}`, time: created });
-  if (started) logs.push({ action: `Mulai dikerjakan oleh ${eng}`, time: started });
+  const assigned = d.AssignedTo || d.assignedTo || null;
+  const matNote  = d.MaterialNote || d.materialNote || '';
+  if (created)  logs.push({ action: `Dilaporkan oleh ${rep}`, time: created });
+  if (assigned) logs.push({ action: `👤 Di-assign ke ${assigned}`, time: created||Date.now() });
+  if (waiting)  logs.push({ action: `⏸ Menunggu material: ${matNote||'—'}`, time: waiting });
+  if (started)  logs.push({ action: `Mulai dikerjakan oleh ${eng}`, time: started });
   if (resolved) logs.push({ action: `Selesai diperbaiki oleh ${eng}`, time: resolved });
-  if (closed) logs.push({ action: `Diverifikasi & ditutup`, time: closed });
-  return logs;
+  if (closed)   logs.push({ action: `Diverifikasi & ditutup`, time: closed });
+  return logs.sort((a,b) => a.time - b.time);
 }
 
 // ════════════════════════════════════════════════════
@@ -2538,19 +2869,51 @@ function showPage(page) {
 // DASHBOARD
 // ════════════════════════════════════════════════════
 function renderDashboard() {
-  const counts = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0 };
+  const counts = { OPEN:0, IN_PROGRESS:0, WAITING_MATERIAL:0, RESOLVED:0, CLOSED:0 };
   STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
-  document.getElementById('m-open').textContent = counts.OPEN;
-  document.getElementById('m-inprog').textContent = counts.IN_PROGRESS;
-  document.getElementById('m-resolved').textContent = counts.RESOLVED;
-  document.getElementById('m-closed').textContent = counts.CLOSED;
+  document.getElementById('m-open').textContent    = counts.OPEN;
+  document.getElementById('m-inprog').textContent  = counts.IN_PROGRESS;
+  document.getElementById('m-resolved').textContent= counts.RESOLVED;
+  document.getElementById('m-closed').textContent  = counts.CLOSED;
+
+  // ── WAITING_MATERIAL card — tampil hanya jika ada ──
+  const wCard = document.getElementById('m-waiting-card');
+  const wEl   = document.getElementById('m-waiting');
+  const wMat  = document.getElementById('m-waiting-materials');
+  if (wCard && wEl) {
+    wEl.textContent = counts.WAITING_MATERIAL;
+    wCard.style.display = counts.WAITING_MATERIAL > 0 ? '' : 'none';
+    if (wMat) {
+      const mats = STATE.defects
+        .filter(d => d.status === 'WAITING_MATERIAL' && d.materialNote)
+        .map(d => `Kamar ${d.room}: ${d.materialNote}`);
+      wMat.innerHTML = mats.length
+        ? mats.slice(0,3).map(m => `<div>📦 ${m}</div>`).join('')
+        : '';
+    }
+  }
   const overdueCount = STATE.defects.filter(d => {
-    if (d.status==='CLOSED'||d.status==='RESOLVED') return false;
-    return (Date.now()-d.createdAt)/3600000 > (CONFIG.SLA_HOURS[d.priority]||8);
+    if (d.status==='CLOSED'||d.status==='RESOLVED'||d.status==='WAITING_MATERIAL') return false;
+    const effectiveMs = Math.max(0, (Date.now()-d.createdAt) - (d.slaPausedMin||0)*60000);
+    return effectiveMs/3600000 > (CONFIG.SLA_HOURS[d.priority]||8);
   }).length;
   document.getElementById('sla-count').textContent = `${overdueCount} defect`;
   document.getElementById('sla-alert-banner').style.display = overdueCount > 0 ? 'flex' : 'none';
-  // Bug #4 fix: loadAiPredictive TIDAK dipanggil di sini (dipindah ke showPage)
+  // ── PUBLIC AREA active banner ──
+  const publicActive = STATE.defects.filter(d =>
+    d.areaType === 'PUBLIC' && (d.status==='OPEN'||d.status==='IN_PROGRESS'||d.status==='WAITING_MATERIAL')
+  );
+  const pubBanner = $id('public-area-banner');
+  const pubCount  = $id('public-area-count');
+  const pubDetail = $id('public-area-detail');
+  if (pubBanner) {
+    pubBanner.style.display = publicActive.length > 0 ? '' : 'none';
+    if (pubCount)  pubCount.textContent  = publicActive.length;
+    if (pubDetail) {
+      const locs = [...new Set(publicActive.map(d=>d.room))].slice(0,3).join(', ');
+      pubDetail.textContent = locs + (publicActive.length > 3 ? ` +${publicActive.length-3} lainnya` : '');
+    }
+  }
   renderUrgentPanel();
   renderAvgDurStats();
   renderEngPersonalStats();
@@ -2566,12 +2929,15 @@ function _urgLabelJS(score) {
   if (score >= 40) return 'MEDIUM';
   return 'LOW';
 }
-function _urgScoreJS(createdAt, priority, slaClockIso, reopenedAt) {
+function _urgScoreJS(createdAt, priority, slaClockIso, reopenedAt, status, slaPausedMin) {
   try {
+    if (status === 'WAITING_MATERIAL') return 0; // SLA di-pause
     const now  = Date.now();
     const slaH = ({HIGH:2,MEDIUM:8,LOW:24})[priority] || 8;
     const dl   = slaClockIso ? new Date(slaClockIso).getTime() : createdAt + slaH*3600000;
-    const overMs = now - dl;
+    // Kurangi waktu yang sudah di-pause
+    const pausedMs = (slaPausedMin || 0) * 60000;
+    const overMs = (now - dl) - pausedMs;
     const slaMs  = slaH * 3600000;
     const A = overMs > 0 ? Math.min(50, Math.round((overMs/slaMs)*25)) : 0;
     const B = priority==='HIGH' ? 30 : priority==='MEDIUM' ? 20 : 10;
@@ -2588,8 +2954,8 @@ function renderUrgentPanel() {
   if (!panel || !list) return;
   if (!['SPV','GM'].includes(STATE.role)) { panel.style.display='none'; return; }
   const active = STATE.defects
-    .filter(d => d.status==='OPEN' || d.status==='IN_PROGRESS')
-    .map(d => ({...d, _score: d.urgencyScore > 0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt)}))
+    .filter(d => (d.status==='OPEN' || d.status==='IN_PROGRESS') && d.status!=='WAITING_MATERIAL')
+    .map(d => ({...d, _score: d.urgencyScore > 0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt, d.status, d.slaPausedMin)}))
     .filter(d => d._score >= 40)
     .sort((a,b) => b._score - a._score);
   if (!active.length) { panel.style.display='none'; return; }
@@ -2798,26 +3164,52 @@ function renderEngPersonalStats() {
 }
 
 function renderDefectList() {
-  const filter = STATE.activeFilter;
-  const list = STATE.defects.filter(d => filter==='ALL' || d.status===filter);
+  const filter     = STATE.activeFilter;
+  const areaFilter = STATE._areaFilter || 'ALL'; // 'ALL' | 'ROOM' | 'PUBLIC'
+  const list = STATE.defects.filter(d => {
+    if (filter !== 'ALL' && d.status !== filter) return false;
+    if (areaFilter !== 'ALL' && d.areaType !== areaFilter) return false;
+    return true;
+  });
   const el = document.getElementById('defect-list');
   if (!list.length) {
     el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:40px">Tidak ada defect.</div>`;
     return;
   }
-  const colorMap = { OPEN:'var(--accent-red)', IN_PROGRESS:'var(--accent-amber)', RESOLVED:'var(--accent-blue)', CLOSED:'var(--accent-green)' };
+  const colorMap = {
+    OPEN:'var(--accent-red)',
+    IN_PROGRESS:'var(--accent-amber)',
+    WAITING_MATERIAL:'var(--status-waiting)',
+    RESOLVED:'var(--accent-blue)',
+    CLOSED:'var(--accent-green)'
+  };
   el.innerHTML = list.map(d => {
-    const slaH = CONFIG.SLA_HOURS[d.priority]||8;
-    const elH = (Date.now()-d.createdAt)/3600000;
-    const overdue = (d.status==='OPEN'||d.status==='IN_PROGRESS') && elH>slaH;
-    const slaText = overdue ? `⚠️ SLA +${(elH-slaH).toFixed(1)}h` : `⏱ ${elH.toFixed(1)}h/${slaH}h`;
+    const slaH   = CONFIG.SLA_HOURS[d.priority]||8;
+    // SLA dihitung tanpa menit yang di-pause
+    const effectiveMs = Math.max(0, (Date.now()-d.createdAt) - (d.slaPausedMin||0)*60000);
+    const elH    = effectiveMs / 3600000;
+    const isActive = d.status==='OPEN' || d.status==='IN_PROGRESS';
+    const isPaused = d.status==='WAITING_MATERIAL';
+    const overdue = isActive && elH > slaH;
+    let slaText;
+    if (isPaused)       slaText = `⏸ SLA Paused`;
+    else if (overdue)   slaText = `⚠️ SLA +${(elH-slaH).toFixed(1)}h`;
+    else                slaText = `⏱ ${elH.toFixed(1)}h/${slaH}h`;
     // Hitung urgency score client-side (fallback jika server belum update)
-    const urg = d.urgencyScore > 0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt);
+    const urg = d.urgencyScore > 0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt, d.status, d.slaPausedMin);
     const urgLabel = _urgLabelJS(urg);
 
     // Badge durasi sesuai status
     let durHtml = '';
-    if (d.status === 'OPEN' || d.status === 'IN_PROGRESS') {
+    if (isPaused) {
+      // WAITING_MATERIAL — tampilkan nama material + siapa yang di-assign
+      const matNote = d.materialNote ? `📦 ${d.materialNote}` : '📦 Material';
+      const assignEl = d.assignedTo ? `<span style="font-size:10px;color:#a78bfa;margin-left:4px">→ ${d.assignedTo}</span>` : '';
+      durHtml = `<div class="dur-row">
+        <span class="dur-badge" style="color:#a78bfa;border-color:rgba(167,139,250,.35)">⏸ ${matNote}</span>
+        ${assignEl}
+      </div>`;
+    } else if (isActive) {
       const onMin = Math.round((Date.now() - d.createdAt) / 60000);
       const oh = Math.floor(onMin/60), om = onMin%60;
       const onLabel = oh > 0 ? `${oh}j ${om}m` : `${om}m`;
@@ -2837,7 +3229,15 @@ function renderDefectList() {
     return `
     <div class="defect-card stagger-child" style="--status-color:${colorMap[d.status]}" onclick="openDefect('${d.id}')">
       <div class="defect-header">
-        <div><div class="defect-room">${d.photoBefore?'📷 ':''}Kamar ${d.room}</div><div class="defect-id">${d.id}</div></div>
+        <div>
+          <div class="defect-room">
+            ${d.photoBefore?'📷 ':''}
+            ${d.areaType==='PUBLIC' ? '🏢' : ''}
+            ${d.areaType==='PUBLIC' ? d.room : 'Kamar '+d.room}
+            ${d.areaType==='PUBLIC' ? '<span class="area-badge-public">Area Umum</span>' : ''}
+          </div>
+          <div class="defect-id">${d.id}</div>
+        </div>
         <div class="${getStatusClass(d.status)}">${getStatusLabel(d.status)}</div>
       </div>
       <div class="defect-category">
@@ -2846,7 +3246,7 @@ function renderDefectList() {
       </div>
       <div class="text-sm text-muted" style="margin-bottom:4px">${(d.desc||'').substring(0,70)}</div>
       ${durHtml}
-      <div class="defect-meta" style="margin-top:4px"><span>${d.reporter}</span><span class="defect-sla ${overdue?'sla-overdue':'sla-timer'}">${slaText}</span></div>
+      <div class="defect-meta" style="margin-top:4px"><span>${d.reporter}</span><span class="defect-sla ${isPaused?'':''}${overdue?'sla-overdue':'sla-timer'}" style="${isPaused?'color:#a78bfa':''}">${slaText}</span></div>
     </div>`;
   }).join('');
 }
@@ -2855,11 +3255,21 @@ function filterDefects(el) {
   document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   STATE.activeFilter = el.dataset.filter;
-  // Sync metric-card active state
   document.querySelectorAll('.metric-card').forEach(c=>c.classList.remove('metric-active'));
   if (el.dataset.filter !== 'ALL') {
     document.querySelector(`.metric-card[data-filter="${el.dataset.filter}"]`)?.classList.add('metric-active');
   }
+  renderDefectList();
+}
+
+function filterByAreaType(areaType) {
+  // Toggle: klik lagi reset ke ALL
+  STATE._areaFilter = (STATE._areaFilter === areaType) ? 'ALL' : areaType;
+  // Update area filter chip visual
+  document.querySelectorAll('.area-filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.area === STATE._areaFilter);
+  });
+  showPage('defects');
   renderDefectList();
 }
 
@@ -2901,10 +3311,22 @@ function tapMetric(card, filter) {
 }
 
 function getStatusClass(s) {
-  return {OPEN:'status-badge status-open',IN_PROGRESS:'status-badge status-inprogress',RESOLVED:'status-badge status-resolved',CLOSED:'status-badge status-closed'}[s]||'status-badge';
+  return {
+    OPEN:'status-badge status-open',
+    IN_PROGRESS:'status-badge status-inprogress',
+    WAITING_MATERIAL:'status-badge status-waiting',
+    RESOLVED:'status-badge status-resolved',
+    CLOSED:'status-badge status-closed'
+  }[s]||'status-badge';
 }
 function getStatusLabel(s) {
-  return {OPEN:'🔴 Open',IN_PROGRESS:'🟡 In Progress',RESOLVED:'🔵 Resolved',CLOSED:'✅ Closed'}[s]||s;
+  return {
+    OPEN:'🔴 Open',
+    IN_PROGRESS:'🟡 In Progress',
+    WAITING_MATERIAL:'⏸ Waiting Material',
+    RESOLVED:'🔵 Resolved',
+    CLOSED:'✅ Closed'
+  }[s]||s;
 }
 
 // ════════════════════════════════════════════════════
@@ -3085,8 +3507,16 @@ function openDefect(id) {
   if (!d) return;
   STATE.currentDefect = d;
   STATE.photoAfterData = null;
-  document.getElementById('modal-room').textContent = `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
-  document.getElementById('modal-meta').textContent = `${d.id} · ${d.priority} · ${d.reporter}`;
+  const roomTitle = d.areaType === 'PUBLIC'
+    ? `🏢 ${d.room} — ${(d.category||'').replace('_','/')}`
+    : `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
+  document.getElementById('modal-room').textContent = roomTitle;
+  const assignBadge = d.assignedTo
+    ? ` <span style="color:#f59e0b;font-size:11px">→ ${d.assignedTo.split(' ')[0]}</span>` : '';
+  const matBadge = d.status === 'WAITING_MATERIAL' && d.materialNote
+    ? ` <span style="color:#a78bfa;font-size:11px">⏸ ${d.materialNote}</span>` : '';
+  document.getElementById('modal-meta').innerHTML =
+    `${d.id} · ${d.priority} · ${d.reporter}${assignBadge}${matBadge}`;
 
   // ── Tampilkan durasi di bawah meta
   const durMeta = document.getElementById('modal-dur-meta');
@@ -3095,7 +3525,7 @@ function openDefect(id) {
     let durHtml = '';
     if (d.status==='OPEN'||d.status==='IN_PROGRESS') {
       const onMin = Math.round((Date.now()-d.createdAt)/60000);
-      const score = d.urgencyScore>0 ? d.urgencyScore : _urgScoreJS(d.createdAt,d.priority,d.slaClockIso,d.reopenedAt);
+      const score = d.urgencyScore>0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt, d.status, d.slaPausedMin);
       const urg   = _urgLabelJS(score);
       durHtml = `<div class="dur-row">
         <span class="dur-badge ongoing">⏳ Menunggu ${fmtMin(onMin)}</span>
@@ -3165,40 +3595,352 @@ function openDefect(id) {
 function renderModalActions(d) {
   const el = $id('modal-actions');
   let html = `<button class="btn btn-secondary w-full" onclick="closeModal()">Tutup</button>`;
-  if (STATE.role==='ENG') {
-    if (d.status==='OPEN') {
-      html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
-    } else if (d.status==='IN_PROGRESS') {
-      // BUG B fix: dua tombol terpisah
-      // Tombol Upload: label="for" untuk persistent input → gesture langsung, tidak async
-      // Tombol Konfirmasi: hanya aktif setelah foto dipilih
+
+  // ── ENG actions ──
+  if (STATE.role === 'ENG') {
+    if (d.status === 'OPEN' || d.status === 'WAITING_MATERIAL') {
+      // Jika WAITING_MATERIAL: tombol "Material Tiba" → resume ke OPEN dulu lalu langsung start
+      if (d.status === 'WAITING_MATERIAL') {
+        html = `<button class="btn w-full" style="background:#a78bfa;color:#fff"
+          onclick="materialArrivedENG()">📦 Material Tiba — Mulai Repair</button>` + html;
+      } else {
+        html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
+        html = `<button class="btn btn-secondary w-full" onclick="openWaitingMaterialPanel()"
+          style="border-color:#a78bfa;color:#a78bfa">⏸ Tunggu Material</button>` + html;
+      }
+    } else if (d.status === 'IN_PROGRESS') {
       const hasPhoto = !!STATE.photoAfterData;
       html = `
-        <label for="f-photo-after-persistent" class="btn ${hasPhoto ? 'btn-secondary' : 'btn-amber'} w-full" style="cursor:pointer;text-align:center">
-          📷 ${hasPhoto ? 'Ganti Foto After' : 'Upload Foto After'}
+        <label for="f-photo-after-persistent" class="btn ${hasPhoto?'btn-secondary':'btn-amber'} w-full"
+          style="cursor:pointer;text-align:center">
+          📷 ${hasPhoto?'Ganti Foto After':'Upload Foto After'}
         </label>
         <button class="btn btn-success w-full" id="btn-konfirmasi-selesai"
           onclick="updateStatus('RESOLVED')"
-          ${hasPhoto ? '' : 'disabled style="opacity:0.4;cursor:not-allowed"'}>
+          ${hasPhoto?'':'disabled style="opacity:0.4;cursor:not-allowed"'}>
           ✅ Konfirmasi Selesai & Simpan
         </button>` + html;
     }
   }
-  if ((STATE.role==='SPV'||STATE.role==='GM') && d.status==='RESOLVED') {
-    html = `<button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
-            <button class="btn btn-danger" onclick="updateStatus('OPEN')" style="flex:1">↩️ Re-open</button>`;
+
+  // ── SPV / GM actions ──
+  if (STATE.role === 'SPV' || STATE.role === 'GM') {
+
+    // Approve & Close untuk RESOLVED
+    if (d.status === 'RESOLVED') {
+      html = `<button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
+              <button class="btn btn-danger"  onclick="updateStatus('OPEN')"   style="flex:1">↩️ Re-open</button>`;
+    }
+
+    // Material Tiba — resume ke OPEN
+    if (d.status === 'WAITING_MATERIAL') {
+      html = `<button class="btn w-full" style="background:#a78bfa;color:#fff;margin-bottom:0"
+        onclick="materialArrivedSPV()">📦 Material Tiba — Lanjutkan</button>` + html;
+    }
+
+    // Tombol Edit (semua status kecuali CLOSED)
+    if (d.status !== 'CLOSED') {
+      html = `<button class="btn btn-secondary w-full" onclick="openEditPanel()"
+        style="border-color:var(--accent-cyan);color:var(--accent-cyan)">
+        ✏️ Edit Prioritas / Kategori / Deskripsi
+      </button>` + html;
+    }
+
+    // Assign engineer — untuk OPEN / WAITING_MATERIAL
+    if (d.status === 'OPEN' || d.status === 'WAITING_MATERIAL') {
+      html = `<button class="btn btn-secondary w-full" onclick="openAssignPanel()"
+        style="border-color:#f59e0b;color:#f59e0b">
+        👤 Assign Engineer${d.assignedTo ? ' — ' + d.assignedTo.split(' ')[0] : ''}
+      </button>` + html;
+    }
   }
-  // Tombol hapus — hanya GM, semua status
+
+  // Hapus — GM only
   if (STATE.role === 'GM') {
     html += `<button class="btn btn-danger w-full" onclick="confirmDeleteDefect()"
       style="margin-top:8px;background:transparent;border:1px solid rgba(239,68,68,0.4);color:var(--accent-red)">
       🗑️ Hapus Defect Ini
     </button>`;
   }
+
   el.innerHTML = html;
 }
 
 // ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════
+// EDIT DEFECT — SPV / GM inline panel
+// ════════════════════════════════════════════════════
+function openEditPanel() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+
+  const panel = $id('modal-edit-panel');
+  if (!panel) return;
+
+  // Isi nilai saat ini ke form
+  const catEl   = $id('edit-category');
+  const descEl  = $id('edit-desc');
+  const notesEl = $id('edit-notes');
+  if (catEl)   catEl.value   = d.category || 'Other';
+  if (descEl)  descEl.value  = d.desc     || '';
+  if (notesEl) notesEl.value = d.notes    || '';
+
+  // Set active priority button
+  panel.querySelectorAll('.edit-prio-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.classList.contains(d.priority || 'MEDIUM'));
+  });
+  panel._selectedPrio = d.priority || 'MEDIUM';
+
+  // Tampilkan panel, scroll ke sana
+  panel.style.display = 'block';
+  $id('modal-actions').style.display = 'none';
+  setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+function closeEditPanel() {
+  const panel = $id('modal-edit-panel');
+  if (panel) panel.style.display = 'none';
+  const actEl = $id('modal-actions');
+  if (actEl) actEl.style.display = '';
+}
+
+function selectEditPrio(btn, prio) {
+  const panel = $id('modal-edit-panel');
+  if (!panel) return;
+  panel.querySelectorAll('.edit-prio-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  panel._selectedPrio = prio;
+}
+
+async function saveEditDefect() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+
+  const panel   = $id('modal-edit-panel');
+  const prio    = panel?._selectedPrio || d.priority;
+  const cat     = $id('edit-category')?.value  || d.category;
+  const desc    = $id('edit-desc')?.value.trim();
+  const notes   = $id('edit-notes')?.value.trim();
+
+  // Validasi minimal
+  if (!desc || desc.length < 5) {
+    showToast('warn', 'Deskripsi terlalu pendek', 'Minimal 5 karakter');
+    $id('edit-desc')?.focus();
+    return;
+  }
+
+  const saveBtn = $id('btn-save-edit');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Menyimpan...'; }
+
+  try {
+    const result = await gasCall('editDefect', {
+      id:          d.id,
+      priority:    prio,
+      category:    cat,
+      description: desc,
+      notes:       notes,
+      editedBy:    `${STATE.user} (${STATE.role})`,
+    });
+
+    if (result.error) throw new Error(result.error);
+
+    // Update STATE lokal agar tidak perlu refetch
+    d.priority = prio;
+    d.category = cat;
+    d.desc     = desc;
+    d.description = desc;
+    d.notes    = notes;
+
+    // Update tampilan modal header
+    const metaEl = $id('modal-meta');
+    if (metaEl) metaEl.textContent = `${d.id} · ${prio} · ${d.reporter}`;
+    // Update judul kamar (kategori bisa berubah)
+    const roomEl = $id('modal-room');
+    if (roomEl) roomEl.textContent = `Kamar ${d.room} — ${cat.replace('_','/')}`;
+
+    closeEditPanel();
+    renderDefectList();
+    renderDashboard();
+
+    // Tambah entry log ke timeline
+    const tl = $id('modal-timeline');
+    if (tl) {
+      const newEntry = document.createElement('div');
+      newEntry.className = 'timeline-item';
+      newEntry.innerHTML = `<div class="timeline-dot-wrap"><div class="timeline-dot"></div></div>
+        <div class="timeline-body">
+          <div class="timeline-action">✏️ Diedit oleh ${STATE.user} (${STATE.role})</div>
+          <div class="timeline-meta">Baru saja</div>
+        </div>`;
+      tl.prepend(newEntry);
+    }
+
+    showToast('success', '✅ Tersimpan', `${d.id} diperbarui`);
+  } catch (err) {
+    showToast('error', 'Gagal simpan', err.message);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Simpan'; }
+  }
+}
+
+// ════════════════════════════════════════════════════
+// WAITING MATERIAL — ENG pause SLA
+// ════════════════════════════════════════════════════
+function openWaitingMaterialPanel() {
+  const panel = $id('modal-wait-mat-panel');
+  if (!panel) return;
+  $id('wm-material-input').value = STATE.currentDefect?.materialNote || '';
+  panel.style.display = 'block';
+  $id('modal-actions').style.display = 'none';
+  setTimeout(() => panel.scrollIntoView({ behavior:'smooth', block:'nearest' }), 80);
+}
+
+function closeWaitingMaterialPanel() {
+  const p = $id('modal-wait-mat-panel');
+  if (p) p.style.display = 'none';
+  $id('modal-actions').style.display = '';
+}
+
+async function submitWaitingMaterial() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+  const mat = ($id('wm-material-input')?.value || '').trim();
+  if (!mat) { showToast('warn','Tulis nama material','Contoh: Cat tembok'); return; }
+
+  const btn = document.querySelector('#modal-wait-mat-panel .btn[style*="a78bfa"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const res = await gasCall('updateDefect', {
+      id: d.id, status: 'WAITING_MATERIAL',
+      materialNote: mat,
+      updatedBy: `${STATE.user} (${STATE.role})`,
+    });
+    if (res.error) throw new Error(res.error);
+    d.status = 'WAITING_MATERIAL';
+    d.materialNote = mat;
+    d.waitingMaterialAt = Date.now();
+    closeWaitingMaterialPanel();
+    renderModalActions(d);
+    renderDefectList(); renderDashboard();
+    showToast('success','⏸ SLA di-pause',`Menunggu: ${mat}`);
+  } catch(e) {
+    showToast('error','Gagal',e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⏸ Pause SLA'; }
+  }
+}
+
+async function materialArrivedENG() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+  try {
+    // Resume ke IN_PROGRESS langsung (skip OPEN)
+    const res = await gasCall('updateDefect', {
+      id: d.id, status: 'IN_PROGRESS',
+      engineer: `${STATE.user} (${STATE.role})`,
+      updatedBy: `${STATE.user} (${STATE.role})`,
+    });
+    if (res.error) throw new Error(res.error);
+    d.status = 'IN_PROGRESS'; d.startedAt = Date.now();
+    renderModalActions(d); renderDefectList(); renderDashboard();
+    showToast('success','▶️ Repair dimulai','SLA dilanjutkan');
+  } catch(e) { showToast('error','Gagal',e.message); }
+}
+
+async function materialArrivedSPV() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+  try {
+    const res = await gasCall('updateDefect', {
+      id: d.id, status: 'OPEN',
+      updatedBy: `${STATE.user} (${STATE.role})`,
+    });
+    if (res.error) throw new Error(res.error);
+    d.status = 'OPEN'; d.waitingMaterialAt = null;
+    renderModalActions(d); renderDefectList(); renderDashboard();
+    showToast('success','📦 Material tiba','SLA dilanjutkan');
+  } catch(e) { showToast('error','Gagal',e.message); }
+}
+
+// ════════════════════════════════════════════════════
+// ASSIGN ENGINEER — SPV/GM
+// ════════════════════════════════════════════════════
+function openAssignPanel() {
+  const panel = $id('modal-assign-panel');
+  if (!panel) return;
+
+  // Isi dropdown dari Sheet_Users / user list yang unik dari defect engineer field
+  const select = $id('assign-eng-select');
+  // Kumpulkan nama engineer unik dari STATE.defects
+  const engSet = new Set();
+  STATE.defects.forEach(d => { if (d.engineer) engSet.add(d.engineer); });
+  // Tambahkan assignedTo yang sudah ada jika belum masuk
+  if (STATE.currentDefect?.assignedTo) engSet.add(STATE.currentDefect.assignedTo);
+
+  const opts = Array.from(engSet).sort().map(e =>
+    `<option value="${e}" ${e===STATE.currentDefect?.assignedTo?'selected':''}>${e}</option>`
+  ).join('');
+  select.innerHTML = `<option value="">Pilih engineer...</option>` + opts;
+
+  panel.style.display = 'block';
+  $id('modal-actions').style.display = 'none';
+  setTimeout(() => panel.scrollIntoView({ behavior:'smooth', block:'nearest' }), 80);
+}
+
+function closeAssignPanel() {
+  const p = $id('modal-assign-panel');
+  if (p) p.style.display = 'none';
+  $id('modal-actions').style.display = '';
+}
+
+async function submitAssign() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+  const eng = $id('assign-eng-select')?.value;
+  if (!eng) { showToast('warn','Pilih engineer dulu',''); return; }
+
+  const btn = document.querySelector('#modal-assign-panel .btn-amber');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const res = await gasCall('assignDefect', {
+      id: d.id,
+      assignedTo: eng,
+      assignedBy: `${STATE.user} (${STATE.role})`,
+    });
+    if (res.error) throw new Error(res.error);
+    d.assignedTo = eng;
+
+    // Update assigned badge di modal meta
+    const metaEl = $id('modal-meta');
+    if (metaEl) {
+      const base = `${d.id} · ${d.priority} · ${d.reporter}`;
+      metaEl.innerHTML = `${base} <span style="color:#f59e0b;font-size:11px">→ ${eng.split(' ')[0]}</span>`;
+    }
+
+    // Update timeline
+    const tl = $id('modal-timeline');
+    if (tl) {
+      const entry = document.createElement('div');
+      entry.className = 'timeline-item';
+      entry.innerHTML = `<div class="timeline-dot-wrap"><div class="timeline-dot"></div></div>
+        <div class="timeline-body">
+          <div class="timeline-action">👤 Di-assign ke ${eng}</div>
+          <div class="timeline-meta">oleh ${STATE.user} · Baru saja</div>
+        </div>`;
+      tl.prepend(entry);
+    }
+
+    closeAssignPanel();
+    renderModalActions(d);
+    renderDefectList();
+    showToast('success','👤 Assigned',`${eng.split(' ')[0]} ditugaskan`);
+  } catch(e) {
+    showToast('error','Gagal assign',e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Assign'; }
+  }
+}
+
 // DELETE DEFECT — GM only
 // ════════════════════════════════════════════════════
 function confirmDeleteDefect() {
@@ -3457,25 +4199,27 @@ async function updateStatus(newStatus) {
 // SUBMIT DEFECT (PERBAIKAN LENGKAP)
 // ════════════════════════════════════════════════════
 async function submitDefect() {
-  const room = $id('f-room').value.trim();
-  const desc = $id('f-desc').value.trim();
-  const cat  = $id('f-category').value;
-  const prio = $id('f-priority').value;
+  const areaType = STATE._reportAreaType || 'ROOM';
+  let room = '';
+  if (areaType === 'PUBLIC') {
+    const sel = $id('f-area-code')?.value;
+    const custom = $id('f-area-custom')?.value.trim();
+    room = (sel === 'OTHER-PUBLIC') ? custom : sel;
+  } else {
+    room = $id('f-room').value.trim();
+  }
+  const desc  = $id('f-desc').value.trim();
+  const cat   = $id('f-category').value;
+  const prio  = $id('f-priority').value;
   const notes = $id('f-notes')?.value.trim() || '';
-  if (!room||!desc||!cat) { showToast('error', 'Form belum lengkap', ''); return; }
-  // Fix 1: Foto Before WAJIB — HK harus foto kondisi sebelum perbaikan
+  if (!room || !desc || !cat) { showToast('error', 'Form belum lengkap', ''); return; }
   if (!STATE.photoBeforeData) {
     showToast('warn', '📷 Foto Before wajib diupload', 'Tap area foto untuk ambil foto kerusakan');
     const area = $id('upload-area-before');
     if (area) {
-      area.style.borderColor = 'var(--accent-red)';
-      area.style.borderStyle = 'solid';
-      const hint = document.getElementById('foto-required-hint');
-      if (hint) hint.style.display = 'block';
-      setTimeout(() => {
-        area.style.borderColor = '';
-        area.style.borderStyle = '';
-      }, 3000);
+      area.style.borderColor = 'var(--accent-red)'; area.style.borderStyle = 'solid';
+      const hint = $id('foto-required-hint'); if (hint) hint.style.display = 'block';
+      setTimeout(() => { area.style.borderColor=''; area.style.borderStyle=''; }, 3000);
     }
     return;
   }
@@ -3483,11 +4227,9 @@ async function submitDefect() {
   btn.disabled = true; btn.textContent = '⏳ Menyimpan...';
   try {
     let realId = `DEF-${String(STATE.defects.length+1).padStart(4,'0')}`;
-    let photoBeforeRef = STATE.photoBeforeData?.compressed || null; // lokal fallback
+    let photoBeforeRef = STATE.photoBeforeData?.compressed || null;
 
     if (STATE.gasAvailable) {
-      // Bug #9 fix: upload foto DULU agar gasAddDefect langsung dapat URL yang benar
-      // (menghindari double-write: addDefect dengan '' lalu updateDef dengan URL)
       if (STATE.photoBeforeData) {
         showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
         try {
@@ -3508,27 +4250,83 @@ async function submitDefect() {
           }
         } catch(e) { photoBeforeRef = STATE.photoBeforeData.compressed; }
       }
-
-      // Sekarang addDefect sudah dapat photoBeforeRef yang benar — tidak perlu update lagi
       const result = await gasAddDefect({
         room, desc, description: desc, category: cat, priority: prio, notes,
         reporter: `${STATE.user} (${STATE.role})`,
         photoBefore: photoBeforeRef || '',
+        areaType,
       });
       realId = result?.id || realId;
     } else {
       showToast('warn', '📴 Mode offline', 'Data tersimpan lokal');
     }
-    STATE.defects.unshift(normalizeDefect({ ID: realId, RoomNumber: room, Description: desc, Category: cat, Priority: prio, Status: 'OPEN', Reporter: `${STATE.user} (${STATE.role})`, Notes: notes, PhotoBefore: photoBeforeRef, CreatedAt: new Date().toISOString() }));
+    STATE.defects.unshift(normalizeDefect({
+      ID: realId, RoomNumber: room, Description: desc, Category: cat,
+      Priority: prio, Status: 'OPEN',
+      Reporter: `${STATE.user} (${STATE.role})`,
+      Notes: notes, PhotoBefore: photoBeforeRef,
+      CreatedAt: new Date().toISOString(),
+      AreaType: areaType,
+    }));
     resetReportForm(); renderDefectList(); renderDashboard(); showPage('defects');
-    showToast('success', `✅ ${realId} tersimpan!`, photoBeforeRef ? (photoBeforeRef.startsWith('data:') ? '📱 lokal' : '☁️ Drive') : '❌ tanpa foto');
+    showToast('success', `✅ ${realId} tersimpan!`,
+      photoBeforeRef ? (photoBeforeRef.startsWith('data:') ? '📱 lokal' : '☁️ Drive') : '❌ tanpa foto');
   } catch (err) { showToast('error', 'Gagal simpan', err.message); }
   finally { btn.disabled = false; btn.textContent = '🚀 Kirim Laporan'; }
 }
 
+// ════════════════════════════════════════════════════
+// AREA TYPE TOGGLE — Form laporan
+// ════════════════════════════════════════════════════
+function selectAreaType(type) {
+  STATE._reportAreaType = type;
+  const btnRoom   = $id('btn-area-room');
+  const btnPublic = $id('btn-area-public');
+  const fgRoom    = $id('fg-room');
+  const fgArea    = $id('fg-area');
+  const catRoom   = $id('cat-group-room');
+  const catPublic = $id('cat-group-public');
+
+  if (type === 'PUBLIC') {
+    btnRoom?.classList.remove('active-room');
+    btnPublic?.classList.add('active-public');
+    if (fgRoom)    fgRoom.style.display    = 'none';
+    if (fgArea)    fgArea.style.display    = '';
+    if (catRoom)   catRoom.style.display   = 'none';
+    if (catPublic) catPublic.style.display = '';
+    // Reset category
+    const cat = $id('f-category'); if (cat) cat.value = '';
+  } else {
+    btnPublic?.classList.remove('active-public');
+    btnRoom?.classList.add('active-room');
+    if (fgRoom)    fgRoom.style.display    = '';
+    if (fgArea)    fgArea.style.display    = 'none';
+    if (catRoom)   catRoom.style.display   = '';
+    if (catPublic) catPublic.style.display = 'none';
+    const cat = $id('f-category'); if (cat) cat.value = '';
+  }
+}
+
+function syncRoomFromArea() {
+  const sel    = $id('f-area-code')?.value;
+  const custom = $id('f-area-custom');
+  // Tampilkan input manual hanya jika pilih "Lainnya"
+  if (custom) custom.style.display = (sel === 'OTHER-PUBLIC') ? '' : 'none';
+  // Sync ke f-room (hidden) agar watermark bisa baca area name
+  const room = $id('f-room');
+  if (room) {
+    if (sel === 'OTHER-PUBLIC') room.value = custom?.value.trim() || '';
+    else room.value = sel || '';
+  }
+}
+
 function resetReportForm() {
-  ['f-room','f-desc','f-notes','f-category'].forEach(id => document.getElementById(id).value = '');
+  ['f-room','f-desc','f-notes','f-category'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
   $id('f-priority').value = 'MEDIUM';
+  // Reset area type toggle to ROOM
+  selectAreaType('ROOM');
   const preview = $id('photo-preview-before');
   if (preview) { preview.classList.remove('visible'); preview.src=''; }
   $id('upload-placeholder-before').style.display='block';
@@ -3630,7 +4428,7 @@ function renderAnalytics() {
   if (urgEl) {
     const active = STATE.defects
       .filter(d => d.status==='OPEN' || d.status==='IN_PROGRESS')
-      .map(d => ({...d, _score: d.urgencyScore>0 ? d.urgencyScore : _urgScoreJS(d.createdAt,d.priority,d.slaClockIso,d.reopenedAt)}))
+      .map(d => ({...d, _score: d.urgencyScore>0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt, d.status, d.slaPausedMin)}))
       .sort((a,b) => b._score-a._score);
     urgEl.innerHTML = active.length ? active.map(d => {
       const urg = _urgLabelJS(d._score);
@@ -4359,7 +5157,7 @@ function startLiveTick() {
   _liveTickTimer = setInterval(() => {
     // Hanya jalan jika ada defect aktif
     const hasActive = STATE.defects.some(
-      d => d.status === 'OPEN' || d.status === 'IN_PROGRESS'
+      d => d.status === 'OPEN' || d.status === 'IN_PROGRESS' || d.status === 'WAITING_MATERIAL'
     );
     if (!hasActive) return;
 
@@ -4378,7 +5176,7 @@ function startLiveTick() {
           const onMin = Math.round((Date.now() - d.createdAt) / 60000);
           const score = d.urgencyScore > 0
             ? d.urgencyScore
-            : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt);
+            : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt, d.status, d.slaPausedMin);
           const urg = _urgLabelJS(score);
           durMeta.innerHTML = `<div class="dur-row">
             <span class="dur-badge ongoing">⏳ Menunggu ${fmtMin(onMin)}</span>
