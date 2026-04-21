@@ -1611,7 +1611,7 @@ body::before {
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div>
               <div class="metric-value" id="m-waiting" style="font-size:26px">0</div>
-              <div class="metric-label">⏸ Menunggu Material</div>
+              <div class="metric-label">📋 Daftar Tunggu Defect</div>
             </div>
             <div id="m-waiting-materials" style="font-size:11px;color:#a78bfa;text-align:right;max-width:55%;line-height:1.5"></div>
           </div>
@@ -2080,7 +2080,7 @@ body::before {
         <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Pause SLA — Alasan Penundaan</div>
         <div style="font-size:11px;color:var(--text-1);margin-bottom:10px">
           SLA akan di-pause. Pilih alasan lalu tambahkan keterangan jika perlu.
-          <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting List.</span>
+          <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting Material.</span>
         </div>
         <div style="margin-bottom:10px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px">Alasan Utama</div>
@@ -2913,8 +2913,41 @@ function normalizeDefect(d) {
     waitingMaterialAt:   _parseTs(d.WaitingMaterialAt || d.waitingMaterialAt),
     materialNote:        d.MaterialNote   || d.materialNote   || '',
     slaPausedMin:        Number(d.SLAPausedMin || d.slaPausedMin || 0) || 0,
-    areaType:            d.AreaType || d.areaType || 'ROOM',
+    areaType:            _detectAreaType(d.AreaType || d.areaType, d.RoomNumber || d.room),
   };
+}
+
+// ── Deteksi AreaType: jika kolom AreaType kosong, cek RoomNumber apakah termasuk
+//    kode area umum yang dikenal. Ini untuk migrasi data lama sebelum kolom AreaType ada.
+const _PUBLIC_AREA_CODES = new Set([
+  'LOBBY','LOBBY-TOILET-P','LOBBY-TOILET-W','FO-AREA',
+  'PARKING-B1','PARKING-GF',
+  'KORIDOR-LT1','KORIDOR-LT2','KORIDOR-LT3','KORIDOR-LT4','KORIDOR-LT5',
+  'LIFT-01','LIFT-02','TANGGA-DARURAT',
+  'POOL','GYM','MEETING-R1','MEETING-R2','BALLROOM','MUSHOLLA',
+  'LAUNDRY','PANTRY-LT1','GUDANG-HK','LOADING-DOCK',
+]);
+function _detectAreaType(explicitType, roomNumber) {
+  if (explicitType && explicitType !== 'ROOM') return explicitType; // kolom sudah diisi
+  if (!explicitType || explicitType === 'ROOM') {
+    // Cek apakah RoomNumber cocok dengan kode public area
+    const rn = (roomNumber || '').toUpperCase().trim();
+    if (_PUBLIC_AREA_CODES.has(rn)) return 'PUBLIC';
+    // Pattern: mengandung kata non-numerik yang bukan format kamar (angka 3 digit)
+    // Kamar: '101', '205', 'Suite-A' — Public: 'FO-AREA', 'KORIDOR-LT1'
+    if (rn && !/^\d{1,4}$/.test(rn) && !/^SUITE/i.test(rn) && /[A-Z]/.test(rn) && rn.includes('-')) {
+      return 'PUBLIC';
+    }
+  }
+  return 'ROOM';
+}
+
+/** Helper: label lokasi yang konsisten di seluruh UI */
+function _roomLabel(d, prefix = true) {
+  if (d.areaType === 'PUBLIC') {
+    return d.room; // FO-AREA, LOBBY, LIFT-01, dll — tampil apa adanya
+  }
+  return prefix ? `${_roomLabel(d)}` : d.room;
 }
 
 function buildLogs(d) {
@@ -2991,7 +3024,7 @@ function renderDashboard() {
     if (wMat) {
       const mats = STATE.defects
         .filter(d => d.status === 'WAITING_MATERIAL' && d.materialNote)
-        .map(d => `Kamar ${d.room}: ${d.materialNote}`);
+        .map(d => `${_roomLabel(d)}: ${d.materialNote}`);
       wMat.innerHTML = mats.length
         ? mats.slice(0,3).map(m => `<div>📦 ${m}</div>`).join('')
         : '';
@@ -3078,7 +3111,7 @@ function renderUrgentPanel() {
     return `<div class="urgent-item" onclick="openDefect('${d.id}')">
       <div class="urgent-score-box ${urg}">${d._score}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--text-0);margin-bottom:2px">Kamar ${d.room} — ${(d.category||'').replace('_','/')} <span class="urg-chip ${urg}" style="margin-left:5px">${urg}</span></div>
+        <div style="font-size:13px;font-weight:700;color:var(--text-0);margin-bottom:2px">${_roomLabel(d)} — ${(d.category||'').replace('_','/')} <span class="urg-chip ${urg}" style="margin-left:5px">${urg}</span></div>
         <div style="font-size:11px;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(d.desc||'').substring(0,55)}</div>
         <div class="dur-row" style="margin-top:4px">
           <span class="dur-badge ongoing">⏳ ${onLabel}</span>
@@ -3174,7 +3207,7 @@ function renderEngPersonalStats() {
       const durLabel = oh > 0 ? `${oh}j ${om}m` : `${om}m`;
       return `<div onclick="openDefect('${d.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text-0)">Kamar ${d.room}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text-0)">${_roomLabel(d)}</div>
           <div style="font-size:11px;color:var(--text-1)">${(d.category||'').replace('_','/')} · ${d.desc.substring(0,40)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:8px">
@@ -3220,7 +3253,7 @@ function renderEngPersonalStats() {
         const statusLabel = d.status === 'CLOSED' ? '✅ Closed' : '🔵 Resolved';
         return `<div onclick="openDefect('${d.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
           <div style="min-width:0;flex:1">
-            <div style="font-size:12px;font-weight:700;color:var(--text-0)">Kamar ${d.room} <span style="font-size:10px;color:var(--text-2);font-weight:400">${d.id}</span></div>
+            <div style="font-size:12px;font-weight:700;color:var(--text-0)">${_roomLabel(d)} <span style="font-size:10px;color:var(--text-2);font-weight:400">${d.id}</span></div>
             <div style="font-size:11px;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(d.category||'').replace('_','/')} · ${(d.desc||'').substring(0,35)}</div>
           </div>
           <div style="flex-shrink:0;text-align:right;margin-left:8px">
@@ -3428,7 +3461,7 @@ function getStatusLabel(s) {
   return {
     OPEN:'🔴 Open',
     IN_PROGRESS:'🟡 In Progress',
-    WAITING_MATERIAL:'⏸ Waiting List',
+    WAITING_MATERIAL:'⏸ Waiting Material',
     RESOLVED:'🔵 Resolved',
     CLOSED:'✅ Closed'
   }[s]||s;
@@ -3614,7 +3647,7 @@ function openDefect(id) {
   STATE.photoAfterData = null;
   const roomTitle = d.areaType === 'PUBLIC'
     ? `🏢 ${d.room} — ${(d.category||'').replace('_','/')}`
-    : `Kamar ${d.room} — ${(d.category||'').replace('_','/')}`;
+    : `${_roomLabel(d)} — ${(d.category||'').replace('_','/')}`;
   document.getElementById('modal-room').textContent = roomTitle;
   const assignBadge = d.assignedTo
     ? ` <span style="color:#f59e0b;font-size:11px">→ ${d.assignedTo.split(' ')[0]}</span>` : '';
@@ -3707,7 +3740,7 @@ function renderModalActions(d) {
       // Jika WAITING_MATERIAL: tombol "Material Tiba" → resume ke OPEN dulu lalu langsung start
       if (d.status === 'WAITING_MATERIAL') {
         html = `<button class="btn w-full" style="background:#a78bfa;color:#fff"
-          onclick="materialArrivedENG()">📦 Material Tiba — Mulai Repair</button>` + html;
+          onclick="materialArrivedENG()">▶️ Lanjutkan Progress</button>` + html;
       } else {
         html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
         html = `<button class="btn btn-secondary w-full" onclick="openWaitingMaterialPanel()"
@@ -3740,7 +3773,7 @@ function renderModalActions(d) {
     // Material Tiba — resume ke OPEN (saat defect WAITING_MATERIAL)
     if (d.status === 'WAITING_MATERIAL') {
       html = `<button class="btn w-full" style="background:#a78bfa;color:#fff;margin-bottom:0"
-        onclick="materialArrivedSPV()">📦 Material Tiba — Lanjutkan</button>` + html;
+        onclick="materialArrivedSPV()">▶️ Lanjutkan Progress</button>` + html;
     }
 
     // ── Tunggu Material — SPV/GM bisa set dari OPEN atau IN_PROGRESS ──
@@ -3869,7 +3902,7 @@ async function saveEditDefect() {
     if (metaEl) metaEl.textContent = `${d.id} · ${prio} · ${d.reporter}`;
     // Update judul kamar (kategori bisa berubah)
     const roomEl = $id('modal-room');
-    if (roomEl) roomEl.textContent = `Kamar ${d.room} — ${cat.replace('_','/')}`;
+    if (roomEl) roomEl.textContent = `${_roomLabel(d)} — ${cat.replace('_','/')}`;
 
     closeEditPanel();
     renderDefectList();
@@ -4066,7 +4099,7 @@ async function materialArrivedENG() {
     if (res.error) throw new Error(res.error);
     d.status = 'IN_PROGRESS'; d.startedAt = Date.now();
     renderModalActions(d); renderDefectList(); renderDashboard();
-    showToast('success','▶️ Repair dimulai','SLA dilanjutkan');
+    showToast('success','▶️ Progress dilanjutkan','SLA kembali berjalan');
   } catch(e) { showToast('error','Gagal',e.message); }
 }
 
@@ -4081,7 +4114,7 @@ async function materialArrivedSPV() {
     if (res.error) throw new Error(res.error);
     d.status = 'OPEN'; d.waitingMaterialAt = null;
     renderModalActions(d); renderDefectList(); renderDashboard();
-    showToast('success','📦 Material tiba','SLA dilanjutkan');
+    showToast('success','▶️ Progress dilanjutkan','SLA kembali berjalan');
   } catch(e) { showToast('error','Gagal',e.message); }
 }
 
@@ -4179,7 +4212,7 @@ function confirmDeleteDefect() {
         ⚠️ Hapus permanen?
       </div>
       <div style="font-size:12px;color:var(--text-1);margin-bottom:14px">
-        ${d.id} · Kamar ${d.room} · ${d.category}<br>
+        ${d.id} · ${_roomLabel(d)} · ${d.category}<br>
         <span style="color:var(--accent-red);font-weight:500">Tindakan ini tidak bisa dibatalkan.</span>
       </div>
       <div style="display:flex;gap:10px">
@@ -4662,7 +4695,7 @@ function renderAnalytics() {
         <div class="urgent-score-box ${urg}" style="font-size:12px">${d._score}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:700">Kamar ${d.room}</span>
+            <span style="font-size:12px;font-weight:700">${_roomLabel(d)}</span>
             <span class="urg-chip ${urg}">${urg}</span>
             <span style="font-size:10px;color:var(--text-1)">${d.id}</span>
             <span class="${getStatusClass(d.status)}" style="font-size:9px;padding:1px 5px">${getStatusLabel(d.status)}</span>
@@ -5026,9 +5059,9 @@ function detectAndNotifyChanges(oldDefects, newDefects) {
   changes.slice(0, 3).forEach(change => {
     if (change.type === 'new') {
       const d = change.defect;
-      showToast('info', `🆕 Defect Baru — Kamar ${d.room}`, `${d.category} · ${d.priority}`);
+      showToast('info', `🆕 Defect Baru — ${_roomLabel(d)}`, `${d.category} · ${d.priority}`);
       sendBrowserNotification(
-        `🆕 Defect Baru — Kamar ${d.room}`,
+        `🆕 Defect Baru — ${_roomLabel(d)}`,
         `${d.category} · ${d.priority}
 ${(d.desc||'').substring(0,60)}`
       );
@@ -5041,11 +5074,11 @@ ${(d.desc||'').substring(0,60)}`
       );
       if (!isRelevantToMe) return;
       showToast('info',
-        `📋 ${d.id} — Kamar ${d.room}`,
+        `📋 ${d.id} — ${_roomLabel(d)}`,
         `${statusLabel[change.from] || change.from} → ${statusLabel[change.to] || change.to}`
       );
       sendBrowserNotification(
-        `Status berubah — Kamar ${d.room}`,
+        `Status berubah — ${_roomLabel(d)}`,
         `${d.id}: ${statusLabel[change.from]||change.from} → ${statusLabel[change.to]||change.to}`
       );
     }
