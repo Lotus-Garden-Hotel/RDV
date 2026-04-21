@@ -2939,7 +2939,21 @@ async function fetchAndRender(toast = false) {
   STATE.isLoading = true;
   try {
     const rawDefects = await gasGetDefects();
-    const newDefects = (rawDefects || []).map(normalizeDefect);
+    let newDefects;
+    try {
+      // FIX: normalizeDefect error (misal TypeError RoomNumber bukan string)
+      // ditangkap terpisah — bukan error koneksi GAS
+      newDefects = (rawDefects || []).map(normalizeDefect);
+    } catch (normalizeErr) {
+      console.error('[normalizeDefect] Error saat parsing data:', normalizeErr);
+      // Coba lagi dengan filter baris yang bermasalah
+      newDefects = (rawDefects || []).reduce((acc, d) => {
+        try { acc.push(normalizeDefect(d)); } catch(e) {
+          console.warn('[normalizeDefect] Skip baris bermasalah:', d?.ID, e.message);
+        }
+        return acc;
+      }, []);
+    }
 
     // ── DIFF DETECTION: cek perubahan sejak poll terakhir ──
     const newSnapshot = newDefects.map(d => `${d.id}:${d.status}`).sort().join('|');
@@ -3007,7 +3021,7 @@ function normalizeDefect(d) {
   } catch(e) {}
 
   return {
-    id: defectId, room: d.RoomNumber || d.room || '',
+    id: defectId, room: String(d.RoomNumber || d.room || ''),
     category: d.Category || d.category || '',
     desc,
     description: desc,   // Bug #10: alias untuk GAS aiAnalyzeDefect yang expect 'description'
@@ -3036,7 +3050,7 @@ function normalizeDefect(d) {
     waitingMaterialAt:   _parseTs(d.WaitingMaterialAt || d.waitingMaterialAt),
     materialNote:        d.MaterialNote   || d.materialNote   || '',
     slaPausedMin:        Number(d.SLAPausedMin || d.slaPausedMin || 0) || 0,
-    areaType:            _detectAreaType(d.AreaType || d.areaType, d.RoomNumber || d.room),
+    areaType:            _detectAreaType(d.AreaType || d.areaType, String(d.RoomNumber || d.room || '')),
   };
 }
 
@@ -3054,7 +3068,8 @@ function _detectAreaType(explicitType, roomNumber) {
   if (explicitType && explicitType !== 'ROOM') return explicitType; // kolom sudah diisi
   if (!explicitType || explicitType === 'ROOM') {
     // Cek apakah RoomNumber cocok dengan kode public area
-    const rn = (roomNumber || '').toUpperCase().trim();
+    // Guard: paksa String() agar tidak crash jika roomNumber adalah angka dari Sheets
+    const rn = String(roomNumber || '').toUpperCase().trim();
     if (_PUBLIC_AREA_CODES.has(rn)) return 'PUBLIC';
     // Pattern: mengandung kata non-numerik yang bukan format kamar (angka 3 digit)
     // Kamar: '101', '205', 'Suite-A' — Public: 'FO-AREA', 'KORIDOR-LT1'
