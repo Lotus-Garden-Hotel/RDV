@@ -649,6 +649,22 @@ body::before {
 .status-inprogress { background: rgba(245,158,11,0.15); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.3); }
 .status-waiting    { background: rgba(139,92,246,0.15); color: #a78bfa;              border: 1px solid rgba(139,92,246,0.35); }
 
+/* ── PAUSE REASON CHIPS ── */
+.wm-chip {
+  padding: 5px 10px;
+  border-radius: 100px;
+  border: 1px solid rgba(139,92,246,0.3);
+  background: rgba(139,92,246,0.08);
+  color: #a78bfa;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.wm-chip:hover   { background: rgba(139,92,246,0.18); }
+.wm-chip.selected { background: #a78bfa; color: #fff; border-color: #a78bfa; }
+
 /* ── AREA TYPE TOGGLE ── */
 .area-type-toggle {
   display: grid;
@@ -1699,22 +1715,29 @@ body::before {
           <label class="form-label">Lokasi Area Umum</label>
           <select class="form-select" id="f-area-code" onchange="syncRoomFromArea()">
             <option value="">Pilih lokasi...</option>
-            <optgroup label="All Public Area">
+            <optgroup label="Ground Floor">
               <option value="LOBBY">🚪 Lobby Utama</option>
-              <option value="LOBBY-TOILET-P">🚻 Toilet (Pria)</option>
-              <option value="LOBBY-TOILET-W">🚻 Toilet (Wanita)</option>
+              <option value="LOBBY-TOILET-P">🚻 Toilet Lobby (Pria)</option>
+              <option value="LOBBY-TOILET-W">🚻 Toilet Lobby (Wanita)</option>
               <option value="FO-AREA">🛎 Front Office Area</option>
-              <option value="PARKING-1">🚗 Parkir Lotus</option>
-              <option value="PARKING-2">🚗 Parkir Loji</option>
+              <option value="PARKING-B1">🚗 Parkir Basement</option>
+              <option value="PARKING-GF">🚗 Parkir Ground Floor</option>
             </optgroup>
             <optgroup label="Koridor & Sirkulasi">
               <option value="KORIDOR-LT1">🚶 Koridor Lantai 1</option>
               <option value="KORIDOR-LT2">🚶 Koridor Lantai 2</option>
+              <option value="KORIDOR-LT3">🚶 Koridor Lantai 3</option>
+              <option value="KORIDOR-LT4">🚶 Koridor Lantai 4</option>
+              <option value="KORIDOR-LT5">🚶 Koridor Lantai 5</option>
+              <option value="LIFT-01">🛗 Lift 01</option>
+              <option value="LIFT-02">🛗 Lift 02</option>
               <option value="TANGGA-DARURAT">🔥 Tangga Darurat</option>
             </optgroup>
             <optgroup label="Fasilitas">
-              <option value="MEETING-R1">📅 Meeting Room VIP</option>
-              <option value="MEETING-R2">📅 Meeting Room TERATAI</option>
+              <option value="POOL">🏊 Kolam Renang</option>
+              <option value="GYM">🏋 Gym / Fitness</option>
+              <option value="MEETING-R1">📅 Meeting Room 1</option>
+              <option value="MEETING-R2">📅 Meeting Room 2</option>
               <option value="BALLROOM">🎉 Ballroom</option>
               <option value="MUSHOLLA">🕌 Musholla</option>
             </optgroup>
@@ -1993,13 +2016,45 @@ body::before {
 
     <!-- ── WAITING MATERIAL PANEL — ENG only ── -->
     <div id="modal-wait-mat-panel" style="display:none;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Lapor Tunggu Material</div>
-      <div style="font-size:11px;color:var(--text-1);margin-bottom:8px">Tulis nama material yang dibutuhkan. SLA akan di-pause selama menunggu.</div>
-      <input id="wm-material-input" class="form-input" placeholder="Contoh: Cat tembok, Pipa PVC 1/2 inch..."
-        style="font-size:13px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Pause SLA — Alasan Penundaan</div>
+      <div style="font-size:11px;color:var(--text-1);margin-bottom:10px">
+        SLA akan di-pause. Pilih alasan lalu tambahkan keterangan jika perlu.
+        <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting Material.</span>
+      </div>
+
+      <!-- Reason chips — tap to select -->
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px">Alasan Utama</div>
+        <div id="wm-reason-chips" style="display:flex;flex-wrap:wrap;gap:6px">
+          <button class="wm-chip" data-reason="Menunggu material" onclick="selectPauseReason(this)">📦 Tunggu Material</button>
+          <button class="wm-chip" data-reason="Overload Engineering" onclick="selectPauseReason(this)">👷 Overload ENG</button>
+          <button class="wm-chip" data-reason="Menunggu vendor" onclick="selectPauseReason(this)">🔧 Tunggu Vendor</button>
+          <button class="wm-chip" data-reason="Menunggu spare part" onclick="selectPauseReason(this)">⚙️ Tunggu Spare Part</button>
+          <button class="wm-chip" data-reason="Menunggu keputusan manajemen" onclick="selectPauseReason(this)">📋 Keputusan Mgmt</button>
+          <button class="wm-chip" data-reason="Tamu masih di kamar" onclick="selectPauseReason(this)">🚪 Tamu di Kamar</button>
+          <button class="wm-chip" data-reason="Lainnya" onclick="selectPauseReason(this)">✏️ Lainnya</button>
+        </div>
+      </div>
+
+      <!-- Detail / keterangan tambahan -->
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:5px">
+          Keterangan <span id="wm-detail-req" style="color:var(--accent-red);display:none">★ Wajib diisi</span>
+        </div>
+        <input id="wm-material-input" class="form-input"
+          placeholder="Tulis keterangan lengkap..."
+          oninput="_updatePausePreview();_updatePauseSubmitBtn();"
+          style="font-size:13px">
+      </div>
+
+      <!-- Preview alasan yang dipilih -->
+      <div id="wm-preview" style="display:none;font-size:11px;color:#a78bfa;background:rgba(139,92,246,.1);border-radius:6px;padding:7px 10px;margin-bottom:10px">
+        ⏸ <span id="wm-preview-text"></span>
+      </div>
+
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" style="flex:1" onclick="closeWaitingMaterialPanel()">Batal</button>
-        <button class="btn w-full" style="flex:1;background:#a78bfa;color:#fff" onclick="submitWaitingMaterial()">⏸ Pause SLA</button>
+        <button class="btn w-full" id="wm-submit-btn" style="flex:1;background:#a78bfa;color:#fff;opacity:.5;cursor:not-allowed" disabled onclick="submitWaitingMaterial()">⏸ Pause SLA</button>
       </div>
     </div>
 
@@ -3599,7 +3654,7 @@ function renderModalActions(d) {
       } else {
         html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
         html = `<button class="btn btn-secondary w-full" onclick="openWaitingMaterialPanel()"
-          style="border-color:#a78bfa;color:#a78bfa">⏸ Tunggu Material</button>` + html;
+          style="border-color:#a78bfa;color:#a78bfa">⏸ Pause SLA</button>` + html;
       }
     } else if (d.status === 'IN_PROGRESS') {
       const hasPhoto = !!STATE.photoAfterData;
@@ -3625,10 +3680,18 @@ function renderModalActions(d) {
               <button class="btn btn-danger"  onclick="updateStatus('OPEN')"   style="flex:1">↩️ Re-open</button>`;
     }
 
-    // Material Tiba — resume ke OPEN
+    // Material Tiba — resume ke OPEN (saat defect WAITING_MATERIAL)
     if (d.status === 'WAITING_MATERIAL') {
       html = `<button class="btn w-full" style="background:#a78bfa;color:#fff;margin-bottom:0"
         onclick="materialArrivedSPV()">📦 Material Tiba — Lanjutkan</button>` + html;
+    }
+
+    // ── Tunggu Material — SPV/GM bisa set dari OPEN atau IN_PROGRESS ──
+    if (d.status === 'OPEN' || d.status === 'IN_PROGRESS') {
+      html = `<button class="btn btn-secondary w-full" onclick="openWaitingMaterialPanel()"
+        style="border-color:#a78bfa;color:#a78bfa">
+        ⏸ Pause SLA — Alasan Penundaan
+      </button>` + html;
     }
 
     // Tombol Edit (semua status kecuali CLOSED)
@@ -3780,12 +3843,104 @@ async function saveEditDefect() {
 // WAITING MATERIAL — ENG pause SLA
 // ════════════════════════════════════════════════════
 function openWaitingMaterialPanel() {
+  const d = STATE.currentDefect;
+  if (!d) return;
   const panel = $id('modal-wait-mat-panel');
   if (!panel) return;
-  $id('wm-material-input').value = STATE.currentDefect?.materialNote || '';
+
+  // Reset semua chip
+  panel.querySelectorAll('.wm-chip').forEach(c => c.classList.remove('selected'));
+  panel._selectedReason = '';
+
+  // Restore alasan sebelumnya jika ada
+  const prevNote = d.materialNote || '';
+  const input = $id('wm-material-input');
+  if (input) input.value = '';
+
+  // Coba match ke chip yang ada
+  if (prevNote) {
+    const matched = [...panel.querySelectorAll('.wm-chip')]
+      .find(c => prevNote.startsWith(c.dataset.reason));
+    if (matched) {
+      matched.classList.add('selected');
+      panel._selectedReason = matched.dataset.reason;
+      // Isi keterangan sisa (setelah prefix)
+      const suffix = prevNote.slice(matched.dataset.reason.length).replace(/^:\s*/,'').trim();
+      if (input) input.value = suffix;
+    } else {
+      // Tidak match → pilih "Lainnya"
+      const otherChip = [...panel.querySelectorAll('.wm-chip')].find(c=>c.dataset.reason==='Lainnya');
+      if (otherChip) { otherChip.classList.add('selected'); panel._selectedReason = 'Lainnya'; }
+      if (input) input.value = prevNote;
+    }
+    _updatePausePreview();
+  }
+
+  // Update tombol submit state
+  _updatePauseSubmitBtn();
+
+  // Hint SPV/GM
+  const hint = $id('wm-role-hint');
+  if (hint) hint.style.display = (STATE.role==='SPV'||STATE.role==='GM') ? '' : 'none';
+
   panel.style.display = 'block';
   $id('modal-actions').style.display = 'none';
   setTimeout(() => panel.scrollIntoView({ behavior:'smooth', block:'nearest' }), 80);
+}
+
+function selectPauseReason(chip) {
+  const panel = $id('modal-wait-mat-panel');
+  panel.querySelectorAll('.wm-chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+  panel._selectedReason = chip.dataset.reason;
+
+  // "Lainnya" → wajib isi keterangan, fokus ke input
+  const req = $id('wm-detail-req');
+  if (req) req.style.display = chip.dataset.reason === 'Lainnya' ? '' : 'none';
+
+  const input = $id('wm-material-input');
+  if (chip.dataset.reason !== 'Lainnya' && input && !input.value) {
+    // placeholder sesuai reason
+    const ph = {
+      'Menunggu material': 'Contoh: Cat tembok, Pipa PVC 1/2 inch...',
+      'Overload Engineering': 'Contoh: 3 ENG sedang handle OO room lantai 4...',
+      'Menunggu vendor': 'Nama vendor / kontrak yang ditunggu...',
+      'Menunggu spare part': 'Nama spare part yang dibutuhkan...',
+      'Menunggu keputusan manajemen': 'Keputusan yang ditunggu...',
+      'Tamu masih di kamar': 'Estimasi tamu check-out / waktu akses...',
+    };
+    input.placeholder = ph[chip.dataset.reason] || 'Keterangan tambahan (opsional)...';
+  }
+  if (chip.dataset.reason === 'Lainnya') {
+    if (input) { input.placeholder = 'Tulis alasan lengkap...'; input.focus(); }
+  }
+  _updatePausePreview();
+  _updatePauseSubmitBtn();
+}
+
+function _updatePausePreview() {
+  const panel   = $id('modal-wait-mat-panel');
+  const reason  = panel?._selectedReason || '';
+  const detail  = ($id('wm-material-input')?.value || '').trim();
+  const preview = $id('wm-preview');
+  const pvText  = $id('wm-preview-text');
+  if (!reason) { if (preview) preview.style.display = 'none'; return; }
+  const full = detail ? `${reason}: ${detail}` : reason;
+  if (pvText)  pvText.textContent  = full;
+  if (preview) preview.style.display = '';
+}
+
+function _updatePauseSubmitBtn() {
+  const panel  = $id('modal-wait-mat-panel');
+  const reason = panel?._selectedReason || '';
+  const detail = ($id('wm-material-input')?.value || '').trim();
+  const btn    = $id('wm-submit-btn');
+  if (!btn) return;
+  // Wajib pilih reason. "Lainnya" wajib ada keterangan.
+  const valid  = reason && (reason !== 'Lainnya' || detail.length >= 3);
+  btn.disabled = !valid;
+  btn.style.opacity = valid ? '1' : '0.5';
+  btn.style.cursor  = valid ? 'pointer' : 'not-allowed';
 }
 
 function closeWaitingMaterialPanel() {
@@ -3797,27 +3952,45 @@ function closeWaitingMaterialPanel() {
 async function submitWaitingMaterial() {
   const d = STATE.currentDefect;
   if (!d) return;
-  const mat = ($id('wm-material-input')?.value || '').trim();
-  if (!mat) { showToast('warn','Tulis nama material','Contoh: Cat tembok'); return; }
+  const panel  = $id('modal-wait-mat-panel');
+  const reason = panel?._selectedReason || '';
+  const detail = ($id('wm-material-input')?.value || '').trim();
 
-  const btn = document.querySelector('#modal-wait-mat-panel .btn[style*="a78bfa"]');
+  if (!reason) { showToast('warn','Pilih alasan dulu','Tap salah satu chip alasan di atas'); return; }
+  if (reason === 'Lainnya' && detail.length < 3) {
+    showToast('warn','Tulis keterangan','Minimal 3 karakter untuk alasan "Lainnya"');
+    $id('wm-material-input')?.focus(); return;
+  }
+
+  // Gabung reason + detail menjadi satu string untuk kolom MaterialNote
+  const fullNote = detail ? `${reason}: ${detail}` : reason;
+
+  const btn = $id('wm-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
   try {
     const res = await gasCall('updateDefect', {
-      id: d.id, status: 'WAITING_MATERIAL',
-      materialNote: mat,
+      id: d.id,
+      status: 'WAITING_MATERIAL',
+      materialNote: fullNote,
       updatedBy: `${STATE.user} (${STATE.role})`,
     });
     if (res.error) throw new Error(res.error);
     d.status = 'WAITING_MATERIAL';
-    d.materialNote = mat;
+    d.materialNote = fullNote;
     d.waitingMaterialAt = Date.now();
     closeWaitingMaterialPanel();
     renderModalActions(d);
     renderDefectList(); renderDashboard();
-    showToast('success','⏸ SLA di-pause',`Menunggu: ${mat}`);
+
+    // Update modal meta badge
+    const metaEl = $id('modal-meta');
+    if (metaEl) {
+      const assignBadge = d.assignedTo ? ` <span style="color:#f59e0b;font-size:11px">→ ${d.assignedTo.split(' ')[0]}</span>` : '';
+      metaEl.innerHTML = `${d.id} · ${d.priority} · ${d.reporter}${assignBadge} <span style="color:#a78bfa;font-size:11px">⏸ ${reason}</span>`;
+    }
+    showToast('success', '⏸ SLA di-pause', fullNote.substring(0, 50));
   } catch(e) {
-    showToast('error','Gagal',e.message);
+    showToast('error', 'Gagal', e.message);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⏸ Pause SLA'; }
   }
