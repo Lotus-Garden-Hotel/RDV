@@ -124,8 +124,30 @@ body {
   background: var(--bg-0);
   color: var(--text-0);
   min-height: 100vh;
+  min-height: 100dvh; /* dynamic viewport height — presisi di mobile */
   overflow-x: hidden;
+  /* Cegah zoom saat tap input di iOS */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
+
+/* ── Cegah zoom otomatis pada input di iOS (font minimal 16px) ── */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+/* ── Minimum touch target 44px sesuai Apple HIG & Material ── */
+.btn, .filter-chip, .nav-item, .icon-btn, .modal-close-btn,
+.wm-chip, .area-type-btn, .area-filter-chip {
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* Override untuk chip yang memang kecil — kurangi min-height */
+.wm-chip, .filter-chip, .area-filter-chip { min-height: 36px; }
+
+/* ── Hilangkan 300ms tap delay di seluruh app ── */
+a, button, [onclick] { touch-action: manipulation; }
 
 /* ── NOISE TEXTURE OVERLAY ── */
 body::before {
@@ -376,14 +398,17 @@ body::before {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 64px;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
   background: rgba(13,21,41,0.97);
   backdrop-filter: blur(16px);
   border-top: 1px solid var(--border);
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* items dari atas agar safe-area di bawah */
+  padding-top: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 100;
-  padding: 0 8px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .nav-item {
@@ -407,7 +432,9 @@ body::before {
 /* MAIN CONTENT */
 .main-content {
   flex: 1;
-  padding: 20px 16px 84px;
+  padding: 20px 16px;
+  /* Bottom: nav (64px) + safe-area + buffer (20px) */
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 20px);
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
@@ -832,28 +859,56 @@ body::before {
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   width: 100%;
   max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
+  /* ── Presisi tinggi modal: viewport dikurangi topbar + safe-area ── */
+  max-height: calc(100dvh - 60px - env(safe-area-inset-top, 0px));
+  /* Fallback untuk browser lama yang tidak support dvh */
+  max-height: calc(100vh - 60px - env(safe-area-inset-top, 0px));
+  display: flex;
+  flex-direction: column;
   animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
-  padding: 24px 20px;
-  padding-bottom: 40px;
+  overflow: hidden; /* scroll dihandle oleh modal-body, bukan modal */
 }
+
+/* ── Modal body (scrollable area) ── */
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 20px;
+  /* Momentum scroll iOS */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ── Sticky action bar di bawah modal ── */
+.modal-footer {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--bg-1);
+}
+
 .modal-handle {
   width: 36px;
   height: 4px;
   background: var(--bg-3);
   border-radius: 2px;
-  margin: 0 auto 20px;
+  margin: 14px auto 16px;
+  flex-shrink: 0;
 }
 /* ── MODAL CLOSE BUTTON ── */
 .modal-header {
   position: relative;
   margin-bottom: 4px;
+  padding: 0 20px;
+  padding-top: 4px;
+  flex-shrink: 0;
 }
 .modal-close-btn {
   position: absolute;
   top: 0;
-  right: 0;
+  right: 20px;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -877,8 +932,12 @@ body::before {
   color: var(--accent-red);
 }
 .modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin-bottom: 4px; padding-right: 40px; }
-.modal-sub { font-size: 13px; color: var(--text-1); margin-bottom: 24px; }
-.modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+.modal-sub { font-size: 13px; color: var(--text-1); margin-bottom: 16px; }
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;  /* Tombol wrap jika tidak muat dalam 1 baris */
+  gap: 8px;
+}
 
 /* ── INLINE EDIT PANEL (SPV/GM) ── */
 #modal-edit-panel {
@@ -1970,171 +2029,169 @@ body::before {
       <div class="modal-title" id="modal-room">Kamar 201</div>
       <button class="modal-close-btn" onclick="closeModal()" aria-label="Tutup">✕</button>
     </div>
-    <div class="modal-sub" id="modal-meta">ID: DEF-001 · 2 jam lalu</div>
-    <div id="modal-dur-meta" style="margin:-8px 0 10px"></div>
 
-    <div id="modal-rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <span style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">PANDUAN</span>
-        <span style="font-size:13px;font-weight:600" id="modal-rec-title">Rekomendasi Perbaikan</span>
-      </div>
-      <div id="modal-rec-content" class="ai-result" style="font-size:13px;line-height:1.7;color:var(--text-1)">
-        Memuat panduan...
-      </div>
-    </div>
+    <!-- ── SCROLLABLE BODY ── -->
+    <div class="modal-body">
+      <div class="modal-sub" id="modal-meta">ID: DEF-001 · 2 jam lalu</div>
+      <div id="modal-dur-meta" style="margin:-8px 0 10px"></div>
 
-    <!-- ── CHECKLIST PERBAIKAN ── -->
-    <div id="modal-checklist-box" class="checklist-box" style="display:none">
-      <div class="checklist-header">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">CHECKLIST</span>
-          <span style="font-size:13px;font-weight:600">Langkah Perbaikan</span>
+      <div id="modal-rec-box" style="background:var(--bg-2);border:1px solid rgba(99,179,237,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">PANDUAN</span>
+          <span style="font-size:13px;font-weight:600" id="modal-rec-title">Rekomendasi Perbaikan</span>
         </div>
-        <span class="checklist-count" id="checklist-count">0/0</span>
-      </div>
-      <div class="checklist-progress-wrap">
-        <div class="checklist-progress-bar" id="checklist-progress-bar" style="width:0%"></div>
-      </div>
-      <div id="checklist-items"></div>
-    </div>
-
-    <div class="photo-compare" id="modal-photos">
-      <div class="photo-slot" id="photo-before" style="cursor:default">
-        <div class="photo-slot-upload-prompt"><div style="font-size:20px;opacity:0.4">📷</div></div>
-        <div class="photo-slot-label before-badge">BEFORE</div>
-      </div>
-      <div class="photo-slot" id="photo-after" style="cursor:pointer;position:relative">
-        <div class="photo-slot-upload-prompt"><div style="font-size:20px;opacity:0.4">📷</div></div>
-        <div class="photo-slot-label after-badge">AFTER</div>
-      </div>
-    </div>
-    <!-- Input file persisten — tidak pernah dihapus oleh JS, selalu siap dipanggil -->
-    <input type="file" id="f-photo-after-persistent" accept="image/*" style="display:none">
-    <div id="photo-after-info" class="text-xs text-muted" style="text-align:center;margin:-8px 0 12px;display:none"></div>
-
-    <div class="timeline" id="modal-timeline"></div>
-
-    <!-- ── WAITING MATERIAL PANEL — ENG only ── -->
-    <div id="modal-wait-mat-panel" style="display:none;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Pause SLA — Alasan Penundaan</div>
-      <div style="font-size:11px;color:var(--text-1);margin-bottom:10px">
-        SLA akan di-pause. Pilih alasan lalu tambahkan keterangan jika perlu.
-        <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting Material.</span>
-      </div>
-
-      <!-- Reason chips — tap to select -->
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px">Alasan Utama</div>
-        <div id="wm-reason-chips" style="display:flex;flex-wrap:wrap;gap:6px">
-          <button class="wm-chip" data-reason="Menunggu material" onclick="selectPauseReason(this)">📦 Tunggu Material</button>
-          <button class="wm-chip" data-reason="Overload Engineering" onclick="selectPauseReason(this)">👷 Overload ENG</button>
-          <button class="wm-chip" data-reason="Menunggu vendor" onclick="selectPauseReason(this)">🔧 Tunggu Vendor</button>
-          <button class="wm-chip" data-reason="Menunggu spare part" onclick="selectPauseReason(this)">⚙️ Tunggu Spare Part</button>
-          <button class="wm-chip" data-reason="Menunggu keputusan manajemen" onclick="selectPauseReason(this)">📋 Keputusan Mgmt</button>
-          <button class="wm-chip" data-reason="Tamu masih di kamar" onclick="selectPauseReason(this)">🚪 Tamu di Kamar</button>
-          <button class="wm-chip" data-reason="Lainnya" onclick="selectPauseReason(this)">✏️ Lainnya</button>
+        <div id="modal-rec-content" class="ai-result" style="font-size:13px;line-height:1.7;color:var(--text-1)">
+          Memuat panduan...
         </div>
       </div>
 
-      <!-- Detail / keterangan tambahan -->
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:5px">
-          Keterangan <span id="wm-detail-req" style="color:var(--accent-red);display:none">★ Wajib diisi</span>
+      <!-- ── CHECKLIST PERBAIKAN ── -->
+      <div id="modal-checklist-box" class="checklist-box" style="display:none">
+        <div class="checklist-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="background:linear-gradient(135deg,#10b981,#059669);color:white;font-size:9px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;padding:3px 8px;border-radius:100px">CHECKLIST</span>
+            <span style="font-size:13px;font-weight:600">Langkah Perbaikan</span>
+          </div>
+          <span class="checklist-count" id="checklist-count">0/0</span>
         </div>
-        <input id="wm-material-input" class="form-input"
-          placeholder="Tulis keterangan lengkap..."
-          oninput="_updatePausePreview();_updatePauseSubmitBtn();"
-          style="font-size:13px">
+        <div class="checklist-progress-wrap">
+          <div class="checklist-progress-bar" id="checklist-progress-bar" style="width:0%"></div>
+        </div>
+        <div id="checklist-items"></div>
       </div>
 
-      <!-- Preview alasan yang dipilih -->
-      <div id="wm-preview" style="display:none;font-size:11px;color:#a78bfa;background:rgba(139,92,246,.1);border-radius:6px;padding:7px 10px;margin-bottom:10px">
-        ⏸ <span id="wm-preview-text"></span>
-      </div>
-
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-secondary" style="flex:1" onclick="closeWaitingMaterialPanel()">Batal</button>
-        <button class="btn w-full" id="wm-submit-btn" style="flex:1;background:#a78bfa;color:#fff;opacity:.5;cursor:not-allowed" disabled onclick="submitWaitingMaterial()">⏸ Pause SLA</button>
-      </div>
-    </div>
-
-    <!-- ── ASSIGN PANEL — SPV/GM only ── -->
-    <div id="modal-assign-panel" style="display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#f59e0b;margin-bottom:10px">👤 Assign Engineer</div>
-      <select id="assign-eng-select" class="form-select" style="margin-bottom:10px;font-size:13px">
-        <option value="">Pilih engineer...</option>
-      </select>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-secondary" style="flex:1" onclick="closeAssignPanel()">Batal</button>
-        <button class="btn btn-amber" style="flex:1" onclick="submitAssign()">✅ Assign</button>
-      </div>
-    </div>
-
-    <!-- ── INLINE EDIT PANEL — SPV/GM only ── -->
-    <div id="modal-edit-panel">
-      <div class="edit-panel-title">✏️ Edit Defect</div>
-
-      <div class="edit-row">
-        <div class="edit-label">Tingkat Prioritas</div>
-        <div class="edit-priority-grid">
-          <button class="edit-prio-btn HIGH"   onclick="selectEditPrio(this,'HIGH')">🔴 HIGH</button>
-          <button class="edit-prio-btn MEDIUM" onclick="selectEditPrio(this,'MEDIUM')">🟡 MEDIUM</button>
-          <button class="edit-prio-btn LOW"    onclick="selectEditPrio(this,'LOW')">🟢 LOW</button>
+      <div class="photo-compare" id="modal-photos">
+        <div class="photo-slot" id="photo-before" style="cursor:default">
+          <div class="photo-slot-upload-prompt"><div style="font-size:20px;opacity:0.4">📷</div></div>
+          <div class="photo-slot-label before-badge">BEFORE</div>
+        </div>
+        <div class="photo-slot" id="photo-after" style="cursor:pointer;position:relative">
+          <div class="photo-slot-upload-prompt"><div style="font-size:20px;opacity:0.4">📷</div></div>
+          <div class="photo-slot-label after-badge">AFTER</div>
         </div>
       </div>
+      <input type="file" id="f-photo-after-persistent" accept="image/*" style="display:none">
+      <div id="photo-after-info" class="text-xs text-muted" style="text-align:center;margin:-8px 0 12px;display:none"></div>
 
-      <div class="edit-row">
-        <div class="edit-label">Kategori</div>
-        <select class="edit-select" id="edit-category">
-          <optgroup label="Kamar">
-            <option value="AC_HVAC">AC / HVAC</option>
-            <option value="Plumbing">Plumbing</option>
-            <option value="Electrical">Electrical</option>
-            <option value="Ceiling_Wall">Ceiling / Wall</option>
-            <option value="Furniture">Furniture</option>
-            <option value="Door_Lock">Door &amp; Lock</option>
-            <option value="TV_Remote">TV &amp; Remote</option>
-            <option value="Bathroom">Bathroom</option>
-            <option value="Lighting">Lighting</option>
-          </optgroup>
-          <optgroup label="Area Umum">
-            <option value="Lighting_Public">Lighting Area Umum</option>
-            <option value="Flooring">Lantai / Flooring</option>
-            <option value="Signage">Signage / Rambu</option>
-            <option value="Lift_Escalator">Lift / Eskalator</option>
-            <option value="Toilet_Public">Toilet Umum</option>
-            <option value="Furniture_Public">Furniture Area Umum</option>
-            <option value="Electrical_Public">Listrik Area Umum</option>
-            <option value="Plumbing_Public">Plumbing Area Umum</option>
-            <option value="Ceiling_Wall_Public">Ceiling/Wall Area Umum</option>
-            <option value="Security_Equipment">Peralatan Keamanan</option>
-          </optgroup>
-          <option value="Other">Other</option>
+      <div class="timeline" id="modal-timeline"></div>
+
+      <!-- ── WAITING MATERIAL PANEL ── -->
+      <div id="modal-wait-mat-panel" style="display:none;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Pause SLA — Alasan Penundaan</div>
+        <div style="font-size:11px;color:var(--text-1);margin-bottom:10px">
+          SLA akan di-pause. Pilih alasan lalu tambahkan keterangan jika perlu.
+          <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting Material.</span>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px">Alasan Utama</div>
+          <div id="wm-reason-chips" style="display:flex;flex-wrap:wrap;gap:6px">
+            <button class="wm-chip" data-reason="Menunggu material" onclick="selectPauseReason(this)">📦 Tunggu Material</button>
+            <button class="wm-chip" data-reason="Overload Engineering" onclick="selectPauseReason(this)">👷 Overload ENG</button>
+            <button class="wm-chip" data-reason="Menunggu vendor" onclick="selectPauseReason(this)">🔧 Tunggu Vendor</button>
+            <button class="wm-chip" data-reason="Menunggu spare part" onclick="selectPauseReason(this)">⚙️ Tunggu Spare Part</button>
+            <button class="wm-chip" data-reason="Menunggu keputusan manajemen" onclick="selectPauseReason(this)">📋 Keputusan Mgmt</button>
+            <button class="wm-chip" data-reason="Tamu masih di kamar" onclick="selectPauseReason(this)">🚪 Tamu di Kamar</button>
+            <button class="wm-chip" data-reason="Lainnya" onclick="selectPauseReason(this)">✏️ Lainnya</button>
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:5px">
+            Keterangan <span id="wm-detail-req" style="color:var(--accent-red);display:none">★ Wajib diisi</span>
+          </div>
+          <input id="wm-material-input" class="form-input"
+            placeholder="Tulis keterangan lengkap..."
+            oninput="_updatePausePreview();_updatePauseSubmitBtn();"
+            style="font-size:13px">
+        </div>
+        <div id="wm-preview" style="display:none;font-size:11px;color:#a78bfa;background:rgba(139,92,246,.1);border-radius:6px;padding:7px 10px;margin-bottom:10px">
+          ⏸ <span id="wm-preview-text"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" style="flex:1" onclick="closeWaitingMaterialPanel()">Batal</button>
+          <button class="btn w-full" id="wm-submit-btn" style="flex:1;background:#a78bfa;color:#fff;opacity:.5;cursor:not-allowed" disabled onclick="submitWaitingMaterial()">⏸ Pause SLA</button>
+        </div>
+      </div>
+
+      <!-- ── ASSIGN PANEL — SPV/GM only ── -->
+      <div id="modal-assign-panel" style="display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#f59e0b;margin-bottom:10px">👤 Assign Engineer</div>
+        <select id="assign-eng-select" class="form-select" style="margin-bottom:10px;font-size:13px">
+          <option value="">Pilih engineer...</option>
         </select>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" style="flex:1" onclick="closeAssignPanel()">Batal</button>
+          <button class="btn btn-amber" style="flex:1" onclick="submitAssign()">✅ Assign</button>
+        </div>
       </div>
 
-      <div class="edit-row">
-        <div class="edit-label">Deskripsi Kerusakan</div>
-        <textarea class="edit-textarea" id="edit-desc" maxlength="400"
-          placeholder="Deskripsi detail kerusakan..."></textarea>
+      <!-- ── INLINE EDIT PANEL — SPV/GM only ── -->
+      <div id="modal-edit-panel">
+        <div class="edit-panel-title">✏️ Edit Defect</div>
+        <div class="edit-row">
+          <div class="edit-label">Tingkat Prioritas</div>
+          <div class="edit-priority-grid">
+            <button class="edit-prio-btn HIGH"   onclick="selectEditPrio(this,'HIGH')">🔴 HIGH</button>
+            <button class="edit-prio-btn MEDIUM" onclick="selectEditPrio(this,'MEDIUM')">🟡 MEDIUM</button>
+            <button class="edit-prio-btn LOW"    onclick="selectEditPrio(this,'LOW')">🟢 LOW</button>
+          </div>
+        </div>
+        <div class="edit-row">
+          <div class="edit-label">Kategori</div>
+          <select class="edit-select" id="edit-category">
+            <optgroup label="Kamar">
+              <option value="AC_HVAC">AC / HVAC</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Ceiling_Wall">Ceiling / Wall</option>
+              <option value="Furniture">Furniture</option>
+              <option value="Door_Lock">Door &amp; Lock</option>
+              <option value="TV_Remote">TV &amp; Remote</option>
+              <option value="Bathroom">Bathroom</option>
+              <option value="Lighting">Lighting</option>
+            </optgroup>
+            <optgroup label="Area Umum">
+              <option value="Lighting_Public">Lighting Area Umum</option>
+              <option value="Flooring">Lantai / Flooring</option>
+              <option value="Signage">Signage / Rambu</option>
+              <option value="Lift_Escalator">Lift / Eskalator</option>
+              <option value="Toilet_Public">Toilet Umum</option>
+              <option value="Furniture_Public">Furniture Area Umum</option>
+              <option value="Electrical_Public">Listrik Area Umum</option>
+              <option value="Plumbing_Public">Plumbing Area Umum</option>
+              <option value="Ceiling_Wall_Public">Ceiling/Wall Area Umum</option>
+              <option value="Security_Equipment">Peralatan Keamanan</option>
+            </optgroup>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="edit-row">
+          <div class="edit-label">Deskripsi Kerusakan</div>
+          <textarea class="edit-textarea" id="edit-desc" maxlength="400"
+            placeholder="Deskripsi detail kerusakan..."></textarea>
+        </div>
+        <div class="edit-row">
+          <div class="edit-label">Catatan SPV (opsional)</div>
+          <textarea class="edit-textarea" id="edit-notes" maxlength="300"
+            placeholder="Catatan tambahan dari SPV/GM..."
+            style="min-height:56px"></textarea>
+        </div>
+        <div class="edit-actions">
+          <button class="btn btn-secondary" style="flex:1" onclick="closeEditPanel()">Batal</button>
+          <button class="btn btn-primary"   style="flex:1" id="btn-save-edit" onclick="saveEditDefect()">💾 Simpan</button>
+        </div>
       </div>
 
-      <div class="edit-row">
-        <div class="edit-label">Catatan SPV (opsional)</div>
-        <textarea class="edit-textarea" id="edit-notes" maxlength="300"
-          placeholder="Catatan tambahan dari SPV/GM..."
-          style="min-height:56px"></textarea>
-      </div>
+      <!-- spacer agar konten tidak tertutup footer -->
+      <div style="height:8px"></div>
+    </div><!-- /modal-body -->
 
-      <div class="edit-actions">
-        <button class="btn btn-secondary" style="flex:1" onclick="closeEditPanel()">Batal</button>
-        <button class="btn btn-primary"   style="flex:1" id="btn-save-edit" onclick="saveEditDefect()">💾 Simpan</button>
+    <!-- ── STICKY FOOTER — tombol aksi selalu terlihat ── -->
+    <div class="modal-footer">
+      <div class="modal-actions" id="modal-actions">
+        <!-- filled by JS -->
       </div>
     </div>
 
-    <div class="modal-actions" id="modal-actions">
-      <!-- filled by JS -->
-    </div>
   </div>
 </div>
 
@@ -3750,7 +3807,7 @@ function openEditPanel() {
   // Tampilkan panel, scroll ke sana
   panel.style.display = 'block';
   $id('modal-actions').style.display = 'none';
-  setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+  setTimeout(() => { const mb = document.querySelector('.modal-body'); if(mb) mb.scrollTop = mb.scrollHeight; else panel.scrollIntoView({ behavior:'smooth', block:'nearest' }); }, 80);
 }
 
 function closeEditPanel() {
@@ -3885,7 +3942,7 @@ function openWaitingMaterialPanel() {
 
   panel.style.display = 'block';
   $id('modal-actions').style.display = 'none';
-  setTimeout(() => panel.scrollIntoView({ behavior:'smooth', block:'nearest' }), 80);
+  setTimeout(() => { const mb = document.querySelector('.modal-body'); if(mb) mb.scrollTop = mb.scrollHeight; else panel.scrollIntoView({ behavior:'smooth', block:'nearest' }); }, 80);
 }
 
 function selectPauseReason(chip) {
@@ -4050,7 +4107,7 @@ function openAssignPanel() {
 
   panel.style.display = 'block';
   $id('modal-actions').style.display = 'none';
-  setTimeout(() => panel.scrollIntoView({ behavior:'smooth', block:'nearest' }), 80);
+  setTimeout(() => { const mb = document.querySelector('.modal-body'); if(mb) mb.scrollTop = mb.scrollHeight; else panel.scrollIntoView({ behavior:'smooth', block:'nearest' }); }, 80);
 }
 
 function closeAssignPanel() {
