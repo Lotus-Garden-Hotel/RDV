@@ -3085,7 +3085,7 @@ function _roomLabel(d, prefix = true) {
   if (d.areaType === 'PUBLIC') {
     return d.room; // FO-AREA, LOBBY, LIFT-01, dll — tampil apa adanya
   }
-  return prefix ? `${_roomLabel(d)}` : d.room;
+  return prefix ? `Kamar ${d.room}` : d.room;
 }
 
 function buildLogs(d) {
