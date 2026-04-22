@@ -2083,7 +2083,7 @@ body::before {
         <div style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px">⏸ Pause SLA — Alasan Penundaan</div>
         <div style="font-size:11px;color:var(--text-1);margin-bottom:10px">
           SLA akan di-pause. Pilih alasan lalu tambahkan keterangan jika perlu.
-          <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting Material.</span>
+          <span id="wm-role-hint" style="display:none;color:#f59e0b;font-weight:600"><br>⚠️ Status berubah ke Waiting Defect.</span>
         </div>
         <div style="margin-bottom:10px">
           <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px">Alasan Utama</div>
@@ -3478,11 +3478,25 @@ function renderDefectList() {
     // Badge durasi sesuai status
     let durHtml = '';
     if (isPaused) {
-      // WAITING_MATERIAL — tampilkan nama material + siapa yang di-assign
-      const matNote = d.materialNote ? `📦 ${d.materialNote}` : '📦 Material';
-      const assignEl = d.assignedTo ? `<span style="font-size:10px;color:#a78bfa;margin-left:4px">→ ${d.assignedTo}</span>` : '';
+      // Parse reason untuk dapat icon yang sesuai
+      const reasonIconMap = {
+        'Menunggu material':           '📦',
+        'Overload Engineering':        '👷',
+        'Menunggu vendor':             '🔧',
+        'Menunggu spare part':         '⚙️',
+        'Menunggu keputusan':          '📋',
+        'Tamu masih di kamar':         '🚪',
+        'Lainnya':                     '✏️',
+      };
+      const note = d.materialNote || '';
+      // Cari icon sesuai reason (key yang cocok sebagai prefix)
+      const matchedKey = Object.keys(reasonIconMap).find(k => note.startsWith(k));
+      const icon = matchedKey ? reasonIconMap[matchedKey] : '⏸';
+      // Tampilkan reason: hilangkan prefix key jika ada, sisakan keterangan
+      const displayNote = note || 'Penundaan';
+      const assignEl = d.assignedTo ? `<span style="font-size:10px;color:#a78bfa;margin-left:4px">→ ${d.assignedTo.split(' ')[0]}</span>` : '';
       durHtml = `<div class="dur-row">
-        <span class="dur-badge" style="color:#a78bfa;border-color:rgba(167,139,250,.35)">⏸ ${matNote}</span>
+        <span class="dur-badge" style="color:#a78bfa;border-color:rgba(167,139,250,.35)">${icon} ${displayNote}</span>
         ${assignEl}
       </div>`;
     } else if (isActive) {
@@ -3599,7 +3613,7 @@ function getStatusLabel(s) {
   return {
     OPEN:'🔴 Open',
     IN_PROGRESS:'🟡 In Progress',
-    WAITING_MATERIAL:'⏸ Waiting Material',
+    WAITING_MATERIAL:'⏸ Waiting Defect',
     RESOLVED:'🔵 Resolved',
     CLOSED:'✅ Closed'
   }[s]||s;
