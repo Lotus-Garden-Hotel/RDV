@@ -1,0 +1,52 @@
+{
+  "name": "H.O.M.T — Lotus Garden Hotel",
+  "short_name": "H.O.M.T",
+  "description": "Hotel Operations Monitoring Tracker — Lotus Garden Hotel by Waringinhospitality, Kediri",
+  "start_url": "/Room_Defect.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060b18",
+  "theme_color": "#060b18",
+  "lang": "id",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lapor Kerusakan",
+      "short_name": "Lapor",
+      "description": "Buat laporan defect baru",
+      "url": "/Room_Defect.html?page=report",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Daftar Defect",
+      "short_name": "Defects",
+      "description": "Lihat semua defect aktif",
+      "url": "/Room_Defect.html?page=defects",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Projects",
+      "short_name": "Projects",
+      "description": "Monitor semua project",
+      "url": "/Room_Defect.html?page=projects",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

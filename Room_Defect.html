@@ -7,13 +7,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Room Defects">
-<meta name="application-name" content="Room Defects">
-<meta name="description" content="Room Defect Management System — Lotus Garden Hotel">
-<title>Room Defects — Lotus Garden Hotel</title>
-<link rel="manifest" id="pwa-manifest-link">
-<link rel="icon" type="image/x-icon" id="favicon-link">
-<link rel="apple-touch-icon" id="apple-touch-icon-link">
+<meta name="apple-mobile-web-app-title" content="H.O.M.T System">
+<meta name="application-name" content="H.O.M.T System">
+<meta name="description" content="Hotel Operations Monitoring Tracker — Lotus Garden Hotel">
+<title>H.O.M.T — Lotus Garden Hotel</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/icon-192.png" id="favicon-link">
+<link rel="apple-touch-icon" href="/icon-192.png" id="apple-touch-icon-link">
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -694,6 +694,10 @@ body::before {
 
 /* ── GAS CONNECTION BANNER ── */
 #gas-conn-banner { position:fixed; top:60px; left:0; right:0; z-index:9990; }
+
+/* ── PROJECT PAGE ── */
+#page-create-project .form-card { margin-bottom: 16px; }
+.pf-task-item input:focus { border-color: var(--accent-blue); outline: none; }
 
 /* ── AREA TYPE TOGGLE ── */
 .area-type-toggle {
@@ -1504,11 +1508,12 @@ body::before {
       <div class="auth-logo-icon"><img id="auth-logo-img" src="" alt="Lotus Garden Hotel"></div>
       <div>
         <div class="auth-logo-text">Lotus Garden Hotel</div>
+        <div class="auth-logo-sub">Hotel Operations Monitoring Tracker</div>
         <div class="auth-logo-sub">Waringinhospitality · Kediri</div>
       </div>
     </div>
 
-    <div class="auth-title">Room Defects<br>System</div>
+    <div class="auth-title">H.O.M.T<br>System</div>
     <div class="auth-subtitle">Pilih peran Anda untuk melanjutkan</div>
 
     <div class="role-grid" id="role-grid">
@@ -1551,7 +1556,7 @@ body::before {
 <div id="app-shell">
   <!-- TOPBAR -->
   <div class="topbar">
-    <div class="topbar-brand">Room<span>Defects</span></div>
+    <div class="topbar-brand">H.O.M.T<span> System</span></div>
     <div class="topbar-badge" id="topbar-role">HK</div>
     <div class="topbar-actions">
       <div class="icon-btn" onclick="doLogout()" title="Keluar">
@@ -1587,24 +1592,28 @@ body::before {
           <div class="metric-value" id="m-open">0</div>
           <div class="metric-label">Open</div>
           <div class="metric-icon">🔴</div>
+          <div id="m-open-dept" style="font-size:10px;color:var(--accent-red);margin-top:3px;opacity:.8"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
         <div class="metric-card stagger-child" style="--metric-color: var(--accent-amber)" onclick="tapMetric(this,'IN_PROGRESS')" data-filter="IN_PROGRESS">
           <div class="metric-value" id="m-inprog">0</div>
           <div class="metric-label">In Progress</div>
           <div class="metric-icon">🟡</div>
+          <div id="m-inprog-dept" style="font-size:10px;color:var(--accent-amber);margin-top:3px;opacity:.8"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
         <div class="metric-card stagger-child" style="--metric-color: var(--accent-blue)" onclick="tapMetric(this,'RESOLVED')" data-filter="RESOLVED">
           <div class="metric-value" id="m-resolved">0</div>
           <div class="metric-label">Resolved</div>
           <div class="metric-icon">🔵</div>
+          <div id="m-resolved-dept" style="font-size:10px;color:var(--accent-blue);margin-top:3px;opacity:.8"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
         <div class="metric-card stagger-child" style="--metric-color: var(--accent-green)" onclick="tapMetric(this,'CLOSED')" data-filter="CLOSED">
           <div class="metric-value" id="m-closed">0</div>
           <div class="metric-label">Closed Today</div>
           <div class="metric-icon">✅</div>
+          <div id="m-closed-dept" style="font-size:10px;color:var(--accent-green);margin-top:3px;opacity:.8"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
         <!-- WAITING_MATERIAL metric — full width, purple -->
@@ -1619,6 +1628,55 @@ body::before {
             <div id="m-waiting-materials" style="font-size:11px;color:#a78bfa;text-align:right;max-width:55%;line-height:1.5"></div>
           </div>
           <div class="metric-tap-hint">Lihat ↗</div>
+        </div>
+      </div>
+
+      <!-- ═══ PROJECT METRICS — semua role yang punya akses projects ═══ -->
+      <div id="project-metrics-section" style="display:none">
+        <div class="section-header mt-3" style="margin-bottom:8px">
+          <div>
+            <div class="section-title" style="font-size:14px" id="prj-section-title">📋 Projects</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="showPage('projects')">Lihat semua ↗</button>
+        </div>
+        <div class="metrics-grid" id="project-metrics-grid">
+          <div class="metric-card stagger-child" style="--metric-color:#8b5cf6" onclick="showPage('projects')" data-pfilter="PLANNING">
+            <div class="metric-value" id="m-prj-planning">0</div>
+            <div class="metric-label">🗓 Planning</div>
+            <div class="metric-icon" style="color:#8b5cf6">📋</div>
+            <div id="m-prj-planning-dept" style="font-size:10px;color:#8b5cf6;margin-top:4px;line-height:1.4"></div>
+          </div>
+          <div class="metric-card stagger-child" style="--metric-color:var(--accent-amber)" onclick="showPage('projects')" data-pfilter="ACTIVE">
+            <div class="metric-value" id="m-prj-active">0</div>
+            <div class="metric-label">🟢 Active</div>
+            <div class="metric-icon" style="color:var(--accent-amber)">⚙️</div>
+            <div id="m-prj-active-dept" style="font-size:10px;color:var(--accent-amber);margin-top:4px;line-height:1.4"></div>
+          </div>
+          <div class="metric-card stagger-child" style="--metric-color:var(--status-waiting)" onclick="showPage('projects')" data-pfilter="ON_HOLD">
+            <div class="metric-value" id="m-prj-onhold">0</div>
+            <div class="metric-label">⏸ On Hold</div>
+            <div class="metric-icon" style="color:var(--status-waiting)">⏸</div>
+            <div id="m-prj-onhold-dept" style="font-size:10px;color:var(--status-waiting);margin-top:4px;line-height:1.4"></div>
+          </div>
+          <div class="metric-card stagger-child" style="--metric-color:var(--accent-green)" onclick="showPage('projects')" data-pfilter="COMPLETED">
+            <div class="metric-value" id="m-prj-completed">0</div>
+            <div class="metric-label">✅ Completed</div>
+            <div class="metric-icon" style="color:var(--accent-green)">✅</div>
+            <div id="m-prj-completed-dept" style="font-size:10px;color:var(--accent-green);margin-top:4px;line-height:1.4"></div>
+          </div>
+        </div>
+        <!-- Project overdue mini alert -->
+        <div id="prj-overdue-banner" style="display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:16px">⚠️</span>
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--accent-red)">Project Overdue</div>
+                <div id="prj-overdue-detail" style="font-size:11px;color:var(--text-1)"></div>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="showPage('analytics')" style="font-size:11px;white-space:nowrap">Detail ↗</button>
+          </div>
         </div>
       </div>
 
@@ -1710,7 +1768,7 @@ body::before {
     <!-- ═══ PAGE: DEFECT LIST ═══ -->
     <div class="page" id="page-defects">
       <div class="section-header">
-        <div class="section-title">Defect Tracker</div>
+        <div class="section-title">Defect Tracker — H.O.M.T</div>
         <button class="btn btn-primary btn-sm" onclick="showPage('report')">+ Lapor</button>
       </div>
 
@@ -1995,6 +2053,234 @@ body::before {
         <div class="chart-title">🔴 Semua Defect Aktif — Ranking Urgensi</div>
         <div id="urgency-full-list"></div>
       </div>
+
+      <!-- ═══ PROJECT ANALYTICS — SPV/GM only ═══ -->
+      <div id="prj-analytics-section">
+        <div class="section-header mt-3" style="margin-bottom:8px">
+          <div class="section-title" style="font-size:15px">📋 Analisa Project</div>
+        </div>
+
+        <!-- Project Status Distribution -->
+        <div class="chart-card stagger-child">
+          <div class="chart-title">📊 Status Project per Departemen</div>
+          <div id="prj-status-chart"></div>
+        </div>
+
+        <!-- Project Overdue List -->
+        <div class="chart-card stagger-child">
+          <div class="chart-title">⚠️ Project Overdue / Mendekati Deadline</div>
+          <div id="prj-overdue-list"></div>
+        </div>
+
+        <!-- Task Completion Leaderboard per Engineer -->
+        <div class="chart-card stagger-child">
+          <div class="chart-title">🏆 Task Completion per Assignee</div>
+          <div id="prj-task-leaderboard"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: PROJECTS ═══ -->
+    <div class="page" id="page-projects">
+      <div class="section-header">
+        <div>
+          <div class="section-title">📋 Projects</div>
+          <div class="section-sub" id="proj-count-label">Memuat...</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showPage('create-project')" 
+          id="btn-create-project"
+          style="white-space:nowrap;display:none">
+          + Buat Project
+        </button>
+      </div>
+
+      <!-- ═══ DEPARTMENT DASHBOARD CARDS ═══ -->
+      <div id="proj-dept-dashboard" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+
+        <!-- ENG Card -->
+        <div class="metric-card stagger-child"
+          style="--metric-color:#3b82f6;cursor:pointer;padding:12px 10px;position:relative;overflow:hidden"
+          onclick="selectDeptFilter('ENG')" id="dept-card-ENG">
+          <div style="font-size:20px;margin-bottom:4px">⚙️</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-1);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Engineering</div>
+          <div id="dept-eng-count" style="font-size:28px;font-weight:800;color:#3b82f6;line-height:1">—</div>
+          <div id="dept-eng-active" style="font-size:10px;color:var(--accent-amber);margin-top:3px">— Active</div>
+          <div id="dept-eng-done"   style="font-size:10px;color:var(--accent-green);margin-top:1px">— Selesai</div>
+        </div>
+
+        <!-- HK Card -->
+        <div class="metric-card stagger-child"
+          style="--metric-color:#10b981;cursor:pointer;padding:12px 10px;position:relative;overflow:hidden"
+          onclick="selectDeptFilter('HK')" id="dept-card-HK">
+          <div style="font-size:20px;margin-bottom:4px">🧹</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-1);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Housekeeping</div>
+          <div id="dept-hk-count"  style="font-size:28px;font-weight:800;color:#10b981;line-height:1">—</div>
+          <div id="dept-hk-active" style="font-size:10px;color:var(--accent-amber);margin-top:3px">— Active</div>
+          <div id="dept-hk-done"   style="font-size:10px;color:var(--accent-green);margin-top:1px">— Selesai</div>
+        </div>
+
+        <!-- BOTH Card -->
+        <div class="metric-card stagger-child"
+          style="--metric-color:#8b5cf6;cursor:pointer;padding:12px 10px;position:relative;overflow:hidden"
+          onclick="selectDeptFilter('BOTH')" id="dept-card-BOTH">
+          <div style="font-size:20px;margin-bottom:4px">🤝</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-1);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Kolaborasi</div>
+          <div id="dept-both-count"  style="font-size:28px;font-weight:800;color:#8b5cf6;line-height:1">—</div>
+          <div id="dept-both-active" style="font-size:10px;color:var(--accent-amber);margin-top:3px">— Active</div>
+          <div id="dept-both-done"   style="font-size:10px;color:var(--accent-green);margin-top:1px">— Selesai</div>
+        </div>
+
+        <!-- VENDOR Card -->
+        <div class="metric-card stagger-child"
+          style="--metric-color:#f59e0b;cursor:pointer;padding:12px 10px;position:relative;overflow:hidden;grid-column:1/-1"
+          onclick="selectDeptFilter('VENDOR')" id="dept-card-VENDOR">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:20px;margin-bottom:4px">🏢</div>
+              <div style="font-size:11px;font-weight:700;color:var(--text-1);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Vendor / Kontraktor</div>
+              <div id="dept-vendor-count" style="font-size:28px;font-weight:800;color:#f59e0b;line-height:1">—</div>
+            </div>
+            <div style="text-align:right">
+              <div id="dept-vendor-active" style="font-size:10px;color:var(--accent-amber);margin-top:3px">— Active</div>
+              <div id="dept-vendor-done"   style="font-size:10px;color:var(--accent-green);margin-top:1px">— Selesai</div>
+              <div id="dept-vendor-names"  style="font-size:10px;color:var(--text-2);margin-top:4px;max-width:180px;text-align:right;line-height:1.4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ FILTER: STATUS + DEPT ═══ -->
+      <!-- Filter Departemen -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px;padding-left:2px">Departemen</div>
+      <div class="filter-bar" id="proj-dept-filter" style="margin-bottom:10px">
+        <div class="filter-chip active" data-dfilter="ALL"        onclick="filterProjDept(this)">Semua Dept</div>
+        <div class="filter-chip"        data-dfilter="ENG"        onclick="filterProjDept(this)">⚙️ Engineering</div>
+        <div class="filter-chip"        data-dfilter="HK"         onclick="filterProjDept(this)">🧹 Housekeeping</div>
+        <div class="filter-chip"        data-dfilter="BOTH"       onclick="filterProjDept(this)">🤝 Kolaborasi</div>
+        <div class="filter-chip"        data-dfilter="VENDOR"     onclick="filterProjDept(this)">🏢 Vendor</div>
+        <div class="filter-chip"        data-dfilter="VENDOR_ENG" onclick="filterProjDept(this)">🔧 Vendor+ENG</div>
+      </div>
+
+      <!-- Filter Status -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px;padding-left:2px">Status</div>
+      <div class="filter-bar" id="proj-status-filter" style="margin-bottom:16px">
+        <div class="filter-chip active" data-pfilter="ALL"       onclick="filterProjects(this)">Semua</div>
+        <div class="filter-chip"        data-pfilter="PLANNING"  onclick="filterProjects(this)">🗓 Planning</div>
+        <div class="filter-chip"        data-pfilter="ACTIVE"    onclick="filterProjects(this)">🟢 Active</div>
+        <div class="filter-chip"        data-pfilter="ON_HOLD"   onclick="filterProjects(this)">⏸ On Hold</div>
+        <div class="filter-chip"        data-pfilter="COMPLETED" onclick="filterProjects(this)">✅ Completed</div>
+      </div>
+
+      <div id="project-list">
+        <!-- diisi oleh renderProjectList() -->
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: CREATE PROJECT ═══ -->
+    <div class="page" id="page-create-project">
+      <div class="section-header">
+        <button class="btn btn-secondary btn-sm" onclick="showPage('projects')">← Kembali</button>
+        <div class="section-title">Buat Project</div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-card-title">📋 Detail Project</div>
+
+        <div class="form-group">
+          <label class="form-label">Judul Project <span style="color:var(--accent-red)">★</span></label>
+          <input class="form-input" id="pf-title" type="text"
+            placeholder="Contoh: Deep Cleaning Lantai 2, Ganti Karpet Kamar 301-310">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Deskripsi</label>
+          <textarea class="form-textarea" id="pf-desc"
+            placeholder="Jelaskan scope dan tujuan project..." style="min-height:80px"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Departemen Pelaksana</label>
+          <select class="form-select" id="pf-department" onchange="onDeptChange(this.value)">
+            <option value="ENG">⚙️ Engineering</option>
+            <option value="HK">🧹 Housekeeping</option>
+            <option value="BOTH">🤝 ENG + HK</option>
+            <option value="VENDOR">🏢 Vendor (Pihak Luar)</option>
+            <option value="VENDOR_ENG">🔧 Vendor + ENG Supervisi</option>
+          </select>
+        </div>
+
+        <!-- Vendor fields — muncul hanya jika dept = VENDOR / VENDOR_ENG -->
+        <div id="pf-vendor-section" style="display:none;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:2px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:12px">🏢 Informasi Vendor</div>
+
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label" style="font-size:11px">Nama Vendor / Kontraktor <span style="color:var(--accent-red)">*</span></label>
+            <input class="form-input" id="pf-vendor-name" type="text"
+              placeholder="Contoh: CV Maju Jaya, PT Daikin Service Center">
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label" style="font-size:11px">PIC / Kontak Vendor</label>
+            <input class="form-input" id="pf-vendor-pic" type="text"
+              placeholder="Nama & nomor HP vendor">
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label" style="font-size:11px">No. SPK / Kontrak (Opsional)</label>
+            <input class="form-input" id="pf-vendor-spk" type="text"
+              placeholder="Nomor surat perintah kerja atau kontrak">
+          </div>
+
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="font-size:11px">Estimasi Biaya (Rp) — Hanya SPV/GM</label>
+            <input class="form-input" id="pf-vendor-cost" type="number"
+              placeholder="0" min="0" step="1000"
+              style="display:none" id="pf-vendor-cost">
+            <div id="pf-vendor-cost-wrap">
+              <input class="form-input" id="pf-vendor-cost" type="number"
+                placeholder="Contoh: 2500000" min="0" step="1000">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Lokasi / Area Terdampak</label>
+          <input class="form-input" id="pf-location" type="text"
+            placeholder="Contoh: Kamar 301-310, Koridor Lantai 2, Lobby">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Prioritas</label>
+          <select class="form-select" id="pf-priority">
+            <option value="LOW">🟢 Low</option>
+            <option value="MEDIUM" selected>🟡 Medium</option>
+            <option value="HIGH">🔴 High</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Target Selesai</label>
+          <input class="form-input" id="pf-target-date" type="date">
+        </div>
+
+        <!-- Milestone / Tasks -->
+        <div class="form-group">
+          <label class="form-label" style="margin-bottom:8px">📌 Milestone / Tahapan Kerja</label>
+          <div id="pf-task-list" style="margin-bottom:8px"></div>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="addProjectTaskInput()"
+            style="width:100%">+ Tambah Milestone</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Catatan (Opsional)</label>
+          <textarea class="form-textarea" id="pf-notes"
+            placeholder="Catatan tambahan..." style="min-height:60px"></textarea>
+        </div>
+      </div>
+
+      <button class="btn btn-primary w-full" id="pf-submit-btn" onclick="submitProject()">
+        🚀 Simpan Project
+      </button>
     </div>
 
   </div><!-- /main-content -->
@@ -2005,15 +2291,18 @@ body::before {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       <span class="nav-label">Dashboard</span>
     </div>
-    <div class="nav-item" id="nav-defects" onclick="showPage('defects')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span class="nav-label">Defects</span>
-    </div>
     <div class="nav-item" id="nav-report" onclick="showPage('report')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span class="nav-label">Lapor</span>
     </div>
-
+    <div class="nav-item" id="nav-defects" onclick="showPage('defects')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span class="nav-label">Defects</span>
+    </div>
+    <div class="nav-item" id="nav-projects" onclick="showPage('projects')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="16" y2="18"/></svg>
+      <span class="nav-label">Projects</span>
+    </div>
     <div class="nav-item" id="nav-analytics" onclick="showPage('analytics')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span class="nav-label">Analytics</span>
@@ -2198,6 +2487,155 @@ body::before {
   </div>
 </div>
 
+<!-- ═══ PROJECT DETAIL MODAL ═══ -->
+<div class="modal-backdrop" id="project-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div>
+        <div id="pm-dept-badge" style="font-size:11px;font-weight:700;margin-bottom:4px;opacity:.9"></div>
+        <div class="modal-title" id="pm-title">Project</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <!-- Edit & Hapus — hanya SPV/GM -->
+        <button id="pm-edit-btn" onclick="toggleProjectEdit()" style="display:none;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:var(--text-1);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">✏️ Edit</button>
+        <button id="pm-delete-btn" onclick="confirmDeleteProject()" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:var(--accent-red);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">🗑️</button>
+        <button class="modal-close-btn" onclick="closeProjectModal()" aria-label="Tutup">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-sub" id="pm-meta"></div>
+
+      <!-- Info row -->
+      <div id="pm-info" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+
+      <!-- Vendor info strip — muncul jika project adalah VENDOR/VENDOR_ENG -->
+      <div id="pm-vendor-strip" style="display:none;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:6px">🏢 Informasi Vendor</div>
+        <div id="pm-vendor-name" style="font-size:13px;font-weight:700;color:var(--text-0);margin-bottom:3px"></div>
+        <div id="pm-vendor-pic"  style="font-size:12px;color:var(--text-1);margin-bottom:2px"></div>
+        <div id="pm-vendor-spk"  style="font-size:11px;color:var(--text-2)"></div>
+        <div id="pm-vendor-cost" style="font-size:12px;color:#fbbf24;margin-top:4px;font-weight:700"></div>
+      </div>
+
+      <!-- EDIT PANEL — inline, collapse/expand -->
+      <div id="pm-edit-panel" style="display:none;background:var(--bg-2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-blue);margin-bottom:12px">✏️ Edit Project</div>
+
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" style="font-size:11px">Judul</label>
+          <input class="form-input" id="pe-title" type="text">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" style="font-size:11px">Deskripsi</label>
+          <textarea class="form-textarea" id="pe-desc" style="min-height:60px"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label" style="font-size:11px">Departemen</label>
+          <select class="form-select" id="pe-department" onchange="onEditDeptChange(this.value)">
+            <option value="ENG">⚙️ Engineering</option>
+            <option value="HK">🧹 Housekeeping</option>
+            <option value="BOTH">🤝 ENG + HK</option>
+            <option value="VENDOR">🏢 Vendor</option>
+            <option value="VENDOR_ENG">🔧 Vendor + ENG</option>
+          </select>
+        </div>
+
+        <!-- Vendor edit fields -->
+        <div id="pe-vendor-section" style="display:none;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15);border-radius:8px;padding:10px;margin-bottom:10px">
+          <div class="form-group" style="margin-bottom:8px">
+            <label class="form-label" style="font-size:11px">Nama Vendor</label>
+            <input class="form-input" id="pe-vendor-name" type="text" placeholder="Nama vendor/kontraktor">
+          </div>
+          <div class="form-group" style="margin-bottom:8px">
+            <label class="form-label" style="font-size:11px">PIC Vendor</label>
+            <input class="form-input" id="pe-vendor-pic" type="text" placeholder="Nama & HP vendor">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="font-size:11px">No. SPK</label>
+            <input class="form-input" id="pe-vendor-spk" type="text" placeholder="Nomor kontrak/SPK">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="font-size:11px">Lokasi</label>
+            <input class="form-input" id="pe-location" type="text">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="font-size:11px">Prioritas</label>
+            <select class="form-select" id="pe-priority">
+              <option value="LOW">🟢 Low</option>
+              <option value="MEDIUM">🟡 Medium</option>
+              <option value="HIGH">🔴 High</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label" style="font-size:11px">Target Selesai</label>
+          <input class="form-input" id="pe-target-date" type="date">
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label" style="font-size:11px">Catatan</label>
+          <textarea class="form-textarea" id="pe-notes" style="min-height:50px"></textarea>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" style="flex:1" onclick="saveProjectEdit()">💾 Simpan</button>
+          <button class="btn btn-secondary" style="flex:1" onclick="toggleProjectEdit()">Batal</button>
+        </div>
+      </div>
+
+      <!-- Deskripsi -->
+      <div id="pm-desc" style="font-size:13px;color:var(--text-1);line-height:1.6;margin-bottom:14px"></div>
+
+      <!-- Progress bar -->
+      <div id="pm-progress-wrap" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-1);margin-bottom:5px">
+          <span>Progress Milestone</span>
+          <span id="pm-pct" style="font-weight:700">0/0</span>
+        </div>
+        <div style="height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden">
+          <div id="pm-progress-bar" style="height:100%;width:0%;background:var(--accent-blue);transition:width .4s;border-radius:3px"></div>
+        </div>
+      </div>
+
+      <!-- Milestone checklist -->
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px">Milestone</div>
+      <div id="pm-tasks" style="margin-bottom:16px"></div>
+
+      <!-- Notes -->
+      <div id="pm-notes-wrap" style="display:none;background:var(--bg-2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text-1)"></div>
+
+      <!-- Linked defects -->
+      <div id="pm-linked-wrap" style="display:none;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px">Defect Terhubung</div>
+        <div id="pm-linked-list"></div>
+      </div>
+
+      <!-- Delete confirm -->
+      <div id="pm-delete-confirm" style="display:none;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-radius:var(--radius-md);padding:14px;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent-red);margin-bottom:6px">🗑️ Hapus Project ini?</div>
+        <div style="font-size:12px;color:var(--text-1);margin-bottom:12px">Tindakan ini <strong>tidak bisa dibatalkan</strong>. Semua milestone dan link defect akan ikut terhapus.</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn w-full" style="background:var(--accent-red);color:#fff;font-weight:700" onclick="executeDeleteProject()">Ya, Hapus</button>
+          <button class="btn btn-secondary w-full" onclick="cancelDeleteProject()">Batal</button>
+        </div>
+      </div>
+
+      <div style="height:8px"></div>
+    </div>
+
+    <!-- Sticky footer actions -->
+    <div class="modal-footer">
+      <div class="modal-actions" id="pm-actions"></div>
+    </div>
+  </div>
+</div>
+<!-- Hidden input untuk task photo — dipakai oleh uploadTaskPhoto() -->
+<input type="file" id="f-task-photo" accept="image/*" style="display:none"
+  onchange="handleTaskPhotoUpload(this)">
+
 <!-- LIGHTBOX NATIVE -->
 <div id="lightbox" role="dialog" aria-modal="true" aria-label="Preview Foto">
   <div class="lb-topbar">
@@ -2243,6 +2681,7 @@ const CONFIG = {
 let STATE = {
   user: null, role: 'HK',
   defects: [], activeFilter: 'ALL', _areaFilter: 'ALL', _reportAreaType: 'ROOM',
+  projects: [], projFilter: 'ALL', projDeptFilter: 'ALL', currentProject: null,
   currentDefect: null,
   isLoading: false,
   photoBeforeData: null,
@@ -2262,10 +2701,10 @@ let STATE = {
 // ROLE ACCESS CONTROL
 // ════════════════════════════════════════════════════
 const ROLE_ACCESS = {
-  HK:  ['dashboard', 'defects', 'report'],
-  ENG: ['dashboard', 'defects', 'report'],
-  SPV: ['dashboard', 'defects', 'report', 'analytics'],
-  GM:  ['dashboard', 'defects', 'report', 'analytics'],
+  HK:  ['dashboard', 'defects', 'report', 'projects'],
+  ENG: ['dashboard', 'defects', 'report', 'projects'],
+  SPV: ['dashboard', 'defects', 'report', 'analytics', 'projects', 'create-project'],
+  GM:  ['dashboard', 'defects', 'report', 'analytics', 'projects', 'create-project'],
 };
 
 // ════════════════════════════════════════════════════
@@ -2938,21 +3377,30 @@ async function fetchAndRender(toast = false) {
   if (STATE.isLoading) return;
   STATE.isLoading = true;
   try {
-    const rawDefects = await gasGetDefects();
+    // ── FIX v7: Load defects + projects secara paralel untuk dashboard lengkap ──
+    const [rawDefects, rawProjects] = await Promise.allSettled([
+      gasGetDefects(),
+      gasGetProjects(),
+    ]);
+
+    // Process defects
     let newDefects;
+    const defectsData = rawDefects.status === 'fulfilled' ? rawDefects.value : getMockDefects();
     try {
-      // FIX: normalizeDefect error (misal TypeError RoomNumber bukan string)
-      // ditangkap terpisah — bukan error koneksi GAS
-      newDefects = (rawDefects || []).map(normalizeDefect);
+      newDefects = (defectsData || []).map(normalizeDefect);
     } catch (normalizeErr) {
       console.error('[normalizeDefect] Error saat parsing data:', normalizeErr);
-      // Coba lagi dengan filter baris yang bermasalah
-      newDefects = (rawDefects || []).reduce((acc, d) => {
+      newDefects = (defectsData || []).reduce((acc, d) => {
         try { acc.push(normalizeDefect(d)); } catch(e) {
           console.warn('[normalizeDefect] Skip baris bermasalah:', d?.ID, e.message);
         }
         return acc;
       }, []);
+    }
+
+    // Process projects (non-fatal jika gagal)
+    if (rawProjects.status === 'fulfilled' && Array.isArray(rawProjects.value)) {
+      STATE.projects = rawProjects.value;
     }
 
     // ── DIFF DETECTION: cek perubahan sejak poll terakhir ──
@@ -2963,13 +3411,11 @@ async function fetchAndRender(toast = false) {
     STATE.lastDefectSnapshot = newSnapshot;
     STATE.defects = newDefects;
 
-    if (toast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect`);
+    if (toast) showToast('success', 'Data diperbarui', `${STATE.defects.length} defect · ${STATE.projects.length} project`);
     renderDashboard(); renderDefectList();
     updateAppBadge();
   } catch (err) {
     console.error('[fetchAndRender]', err);
-    // Banner koneksi sudah ditampilkan oleh gasCall
-    // Gunakan data yang sudah ada jika memungkinkan, atau mock
     if (!STATE.defects.length) {
       STATE.defects = getMockDefects().map(normalizeDefect);
     }
@@ -2999,7 +3445,8 @@ function _parseTs(val) {
 }
 
 function normalizeDefect(d) {
-  const desc = d.Description || d.desc || d.description || '';
+  // FIX v7: paksa semua field teks ke String untuk mencegah TypeError
+  const desc = String(d.Description || d.desc || d.description || '');
   const defectId = d.ID || d.id || '';
 
   // ── FIX: Merge localStorage cache agar photoAfter & status tidak rollback saat polling
@@ -3021,7 +3468,7 @@ function normalizeDefect(d) {
   } catch(e) {}
 
   return {
-    id: defectId, room: String(d.RoomNumber || d.room || ''),
+    id: defectId, room: String(d.RoomNumber ?? d.room ?? ''),
     category: d.Category || d.category || '',
     desc,
     description: desc,   // Bug #10: alias untuk GAS aiAnalyzeDefect yang expect 'description'
@@ -3051,6 +3498,10 @@ function normalizeDefect(d) {
     materialNote:        d.MaterialNote   || d.materialNote   || '',
     slaPausedMin:        Number(d.SLAPausedMin || d.slaPausedMin || 0) || 0,
     areaType:            _detectAreaType(d.AreaType || d.areaType, String(d.RoomNumber || d.room || '')),
+    linkedProject:       d.LinkedProject || d.linkedProject || '',
+    startedBy:           d.StartedBy     || d.startedBy     || '',
+    resolvedBy:          d.ResolvedBy    || d.resolvedBy    || '',
+    closedBy:            d.ClosedBy      || d.closedBy      || '',
   };
 }
 
@@ -3094,18 +3545,29 @@ function buildLogs(d) {
   const started  = _parseTs(d.StartedAt);
   const resolved = _parseTs(d.ResolvedAt);
   const closed   = _parseTs(d.ClosedAt);
+  const reopened = _parseTs(d.ReopenedAt);
   const waiting  = _parseTs(d.WaitingMaterialAt);
-  const rep = d.Reporter || d.reporter || '?';
-  const eng = d.Engineer || d.engineer || 'Engineering';
-  const assigned = d.AssignedTo || d.assignedTo || null;
-  const matNote  = d.MaterialNote || d.materialNote || '';
-  if (created)  logs.push({ action: `Dilaporkan oleh ${rep}`, time: created });
-  if (assigned) logs.push({ action: `👤 Di-assign ke ${assigned}`, time: created||Date.now() });
-  if (waiting)  logs.push({ action: `⏸ Menunggu material: ${matNote||'—'}`, time: waiting });
-  if (started)  logs.push({ action: `Mulai dikerjakan oleh ${eng}`, time: started });
-  if (resolved) logs.push({ action: `Selesai diperbaiki oleh ${eng}`, time: resolved });
-  if (closed)   logs.push({ action: `Diverifikasi & ditutup`, time: closed });
-  return logs.sort((a,b) => a.time - b.time);
+
+  const rep        = d.Reporter    || d.reporter    || '?';
+  const eng        = d.Engineer    || d.engineer    || 'Engineering';
+  const assigned   = d.AssignedTo  || d.assignedTo  || null;
+  const matNote    = d.MaterialNote|| d.materialNote|| '';
+
+  // ── Gunakan field spesifik per event ──
+  // Fallback ke `eng` untuk data lama yang belum punya StartedBy/ResolvedBy/ClosedBy
+  const startedBy  = d.StartedBy   || d.startedBy   || eng;
+  const resolvedBy = d.ResolvedBy  || d.resolvedBy  || eng;
+  const closedBy   = d.ClosedBy    || d.closedBy    || 'SPV/GM';
+
+  if (created)  logs.push({ action: `📋 Dilaporkan oleh ${rep}`,                      time: created });
+  if (assigned) logs.push({ action: `👤 Di-assign ke ${assigned}`,                    time: created || Date.now() });
+  if (waiting)  logs.push({ action: `⏸ Menunggu material${matNote ? ': ' + matNote : ''}`, time: waiting });
+  if (started)  logs.push({ action: `🔧 Mulai dikerjakan oleh ${startedBy}`,           time: started });
+  if (resolved) logs.push({ action: `✅ Selesai diperbaiki oleh ${resolvedBy}`,        time: resolved });
+  if (reopened) logs.push({ action: `🔄 Dibuka kembali`,                               time: reopened });
+  if (closed)   logs.push({ action: `🔒 Diverifikasi & ditutup oleh ${closedBy}`,     time: closed });
+
+  return logs.sort((a, b) => a.time - b.time);
 }
 
 // ════════════════════════════════════════════════════
@@ -3130,7 +3592,13 @@ function showPage(page) {
   document.getElementById(`page-${page}`).classList.add('active');
   const nav = document.getElementById(`nav-${page}`);
   if (nav) nav.classList.add('active');
-  if (page === 'analytics') { renderAnalytics(); loadAiPredictive(); }
+  if (page === 'analytics') {
+    // FIX v7: sembunyikan/tampilkan project analytics sesuai role
+    const prjAnalytics = document.getElementById('prj-analytics-section');
+    if (prjAnalytics) prjAnalytics.style.display = ['SPV','GM'].includes(STATE.role) ? '' : 'none';
+    renderAnalytics(); loadAiPredictive();
+  }
+  if (page === 'projects')  { renderProjectList(); }
   if (page === 'dashboard') {
     loadAiPredictive();
     // Sync metric-card highlight with current active filter
@@ -3144,6 +3612,55 @@ function showPage(page) {
 // ════════════════════════════════════════════════════
 // DASHBOARD
 // ════════════════════════════════════════════════════
+// ── Helper: hitung distribusi department untuk defect per status
+// Menggunakan field 'engineer' (siapa yang mengerjakan) bukan 'reporter'
+// untuk status IN_PROGRESS, RESOLVED, CLOSED.
+// Untuk OPEN (belum ada engineer), fallback ke deteksi reporter.
+function _deptBreakdown(defects, status) {
+  const map = { ENG: 0, HK: 0 };
+
+  defects.filter(d => d.status === status).forEach(d => {
+    let isEng = false;
+
+    if (status === 'OPEN') {
+      // OPEN: belum tentu ada engineer — deteksi dari reporter
+      isEng = d.reporter && (
+        d.reporter.includes('(ENG)') ||
+        d.reporter.toUpperCase().includes('ENG')
+      );
+    } else {
+      // IN_PROGRESS / RESOLVED / CLOSED:
+      // Gunakan engineer (siapa yang aktif mengerjakan)
+      // Cek StartedBy → ResolvedBy → ClosedBy → Engineer sebagai fallback
+      const actor = d.startedBy || d.resolvedBy || d.closedBy || d.engineer || '';
+      isEng = actor.includes('(ENG)') || actor.toUpperCase().includes('ENG');
+    }
+
+    if (isEng) map.ENG++; else map.HK++;
+  });
+
+  const parts = [];
+  if (map.ENG > 0) parts.push(`ENG: ${map.ENG}`);
+  if (map.HK > 0)  parts.push(`HK: ${map.HK}`);
+  return parts.join(' · ');
+}
+
+// ── Helper: hitung distribusi department untuk project per status
+function _projDeptBreakdown(projects, status) {
+  const map = { ENG: 0, HK: 0, BOTH: 0, VENDOR: 0, VENDOR_ENG: 0 };
+  projects.filter(p => p['Status'] === status).forEach(p => {
+    const d = p['Department'] || 'ENG';
+    map[d] = (map[d] || 0) + 1;
+  });
+  const parts = [];
+  if (map.ENG        > 0) parts.push(`ENG: ${map.ENG}`);
+  if (map.HK         > 0) parts.push(`HK: ${map.HK}`);
+  if (map.BOTH       > 0) parts.push(`ENG+HK: ${map.BOTH}`);
+  if (map.VENDOR     > 0) parts.push(`Vendor: ${map.VENDOR}`);
+  if (map.VENDOR_ENG > 0) parts.push(`V+ENG: ${map.VENDOR_ENG}`);
+  return parts.join(' · ');
+}
+
 function renderDashboard() {
   const counts = { OPEN:0, IN_PROGRESS:0, WAITING_MATERIAL:0, RESOLVED:0, CLOSED:0 };
   STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
@@ -3151,6 +3668,18 @@ function renderDashboard() {
   document.getElementById('m-inprog').textContent  = counts.IN_PROGRESS;
   document.getElementById('m-resolved').textContent= counts.RESOLVED;
   document.getElementById('m-closed').textContent  = counts.CLOSED;
+
+  // ── FIX v7: Department breakdown di setiap metric card defect ──
+  const deptCards = [
+    ['m-open-dept',     'OPEN'],
+    ['m-inprog-dept',   'IN_PROGRESS'],
+    ['m-resolved-dept', 'RESOLVED'],
+    ['m-closed-dept',   'CLOSED'],
+  ];
+  deptCards.forEach(([elId, status]) => {
+    const el = document.getElementById(elId);
+    if (el) el.textContent = _deptBreakdown(STATE.defects, status);
+  });
 
   // ── WAITING_MATERIAL card — tampil hanya jika ada ──
   const wCard = document.getElementById('m-waiting-card');
@@ -3193,6 +3722,86 @@ function renderDashboard() {
   renderUrgentPanel();
   renderAvgDurStats();
   renderEngPersonalStats();
+
+  // ── FIX v7: Project Metrics di Dashboard (SPV/GM only) ──
+  _renderDashboardProjectMetrics();
+}
+
+function _renderDashboardProjectMetrics() {
+  const section = document.getElementById('project-metrics-section');
+  if (!section) return;
+
+  // Tampilkan untuk semua role yang punya akses projects
+  const canSeeProjects = (ROLE_ACCESS[STATE.role] || []).includes('projects');
+  section.style.display = canSeeProjects ? '' : 'none';
+  if (!canSeeProjects) return;
+
+  const projects = STATE.projects || [];
+
+  // Untuk HK/ENG: hanya tampilkan project yang relevan dengan dept mereka
+  // SPV/GM: tampilkan semua
+  const canCreate = ['SPV','GM'].includes(STATE.role);
+  const visibleProjects = canCreate
+    ? projects
+    : projects.filter(p => {
+        const dept = p['Department'] || 'ENG';
+        if (STATE.role === 'ENG') return dept === 'ENG' || dept === 'BOTH';
+        if (STATE.role === 'HK')  return dept === 'HK'  || dept === 'BOTH';
+        return true;
+      });
+
+  // Update judul section sesuai role
+  const titleEl = document.getElementById('prj-section-title');
+  if (titleEl) {
+    if (STATE.role === 'ENG') titleEl.textContent = '📋 Projects — Engineering';
+    else if (STATE.role === 'HK') titleEl.textContent = '📋 Projects — Housekeeping';
+    else titleEl.textContent = '📋 Projects';
+  }
+
+  const prjCounts = { PLANNING:0, ACTIVE:0, ON_HOLD:0, COMPLETED:0 };
+  visibleProjects.forEach(p => { if (prjCounts[p['Status']] !== undefined) prjCounts[p['Status']]++; });
+
+  const setEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  setEl('m-prj-planning',  prjCounts.PLANNING);
+  setEl('m-prj-active',    prjCounts.ACTIVE);
+  setEl('m-prj-onhold',    prjCounts.ON_HOLD);
+  setEl('m-prj-completed', prjCounts.COMPLETED);
+
+  // Department breakdown per status — hanya tampil jika SPV/GM (multi-dept context)
+  const deptMap = [
+    ['m-prj-planning-dept',  'PLANNING'],
+    ['m-prj-active-dept',    'ACTIVE'],
+    ['m-prj-onhold-dept',    'ON_HOLD'],
+    ['m-prj-completed-dept', 'COMPLETED'],
+  ];
+  deptMap.forEach(([elId, status]) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    // HK/ENG tidak perlu dept breakdown (mereka sudah difilter per dept)
+    el.textContent = canCreate ? _projDeptBreakdown(visibleProjects, status) : '';
+  });
+
+  // Project overdue banner
+  const now = Date.now();
+  const overdueProjects = visibleProjects.filter(p => {
+    if (p['Status'] === 'COMPLETED') return false;
+    const target = p['TargetDate'] ? new Date(p['TargetDate']).getTime() : 0;
+    return target && now > target;
+  });
+  const overdueBanner = document.getElementById('prj-overdue-banner');
+  const overdueDetail = document.getElementById('prj-overdue-detail');
+  if (overdueBanner) {
+    if (overdueProjects.length > 0) {
+      overdueBanner.style.display = '';
+      if (overdueDetail) {
+        const topOverdue = overdueProjects[0];
+        const days = Math.floor((now - new Date(topOverdue['TargetDate']).getTime()) / 86400000);
+        overdueDetail.textContent = `${overdueProjects.length} project melewati target · Terlama: ${topOverdue['Title']} (+${days}h)`;
+      }
+    } else {
+      overdueBanner.style.display = 'none';
+    }
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -3346,7 +3955,7 @@ function renderEngPersonalStats() {
       return `<div onclick="openDefect('${d.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--text-0)">${_roomLabel(d)}</div>
-          <div style="font-size:11px;color:var(--text-1)">${(d.category||'').replace('_','/')} · ${d.desc.substring(0,40)}</div>
+          <div style="font-size:11px;color:var(--text-1)">${(d.category||'').replace('_','/')} · ${(d.desc||'').substring(0,40)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:8px">
           <div class="dur-badge ongoing" style="font-size:10px">⚙️ ${durLabel}</div>
@@ -3533,6 +4142,7 @@ function renderDefectList() {
       <div class="defect-category">
         <span class="defect-cat-tag">${(d.category||'').replace('_','/')}</span>
         <span class="defect-cat-tag" style="color:${d.priority==='HIGH'?'var(--accent-red)':d.priority==='MEDIUM'?'var(--accent-amber)':'var(--accent-green)'}">${d.priority}</span>
+        ${d.linkedProject ? `<span class="defect-cat-tag" style="color:#a78bfa;border-color:rgba(139,92,246,0.3)">🚀 ${d.linkedProject}</span>` : ''}
       </div>
       <div class="text-sm text-muted" style="margin-bottom:4px">${(d.desc||'').substring(0,70)}</div>
       ${durHtml}
@@ -3961,13 +4571,156 @@ function renderModalActions(d) {
     </button>`;
   }
 
+  // Eskalasi ke Project — ENG, SPV, GM (status bukan CLOSED)
+  if ((STATE.role === 'ENG' || STATE.role === 'SPV' || STATE.role === 'GM') && d.status !== 'CLOSED') {
+    // Cek apakah sudah ada linkedProject
+    const alreadyLinked = d.linkedProject && d.linkedProject.trim() !== '';
+    if (alreadyLinked) {
+      html += `<div style="margin-top:8px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;margin-bottom:2px">Bagian dari Project</div>
+          <div style="font-size:12px;color:var(--text-0);font-weight:600">${d.linkedProject}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal();showPage('projects')" style="border-color:#a78bfa;color:#a78bfa;white-space:nowrap">Lihat →</button>
+      </div>`;
+    } else {
+      html += `<button class="btn w-full" onclick="escalateToProject()"
+        style="margin-top:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);color:#a78bfa;font-weight:700">
+        🚀 Eskalasi → Jadikan Project
+      </button>`;
+    }
+  }
+
   el.innerHTML = html;
 }
 
 // ════════════════════════════════════════════════════
+// ESKALASI DEFECT → PROJECT
 // ════════════════════════════════════════════════════
-// EDIT DEFECT — SPV / GM inline panel
-// ════════════════════════════════════════════════════
+
+/**
+ * Buka form Create Project dengan data Defect yang sedang aktif sudah ter-isi.
+ * Dipanggil dari tombol "Eskalasi → Jadikan Project" di modal defect.
+ */
+function escalateToProject() {
+  const d = STATE.currentDefect;
+  if (!d) return;
+
+  // Tutup modal defect
+  closeModal();
+
+  // Pindah ke halaman create-project
+  showPage('create-project');
+
+  // Beri jeda kecil agar DOM halaman create-project sudah render
+  setTimeout(() => {
+
+    // ── Auto-fill form dari data Defect ──
+    const titleEl  = document.getElementById('pf-title');
+    const descEl   = document.getElementById('pf-desc');
+    const locEl    = document.getElementById('pf-location');
+    const prioEl   = document.getElementById('pf-priority');
+    const deptEl   = document.getElementById('pf-department');
+    const notesEl  = document.getElementById('pf-notes');
+
+    // Judul: "Perbaikan [Kategori] — [Lokasi]"
+    const catLabel = (d.category || '').replace('_', '/');
+    const roomLabel = d.areaType === 'PUBLIC'
+      ? d.room
+      : `Kamar ${d.room || ''}`;
+    if (titleEl) titleEl.value = `Perbaikan ${catLabel} — ${roomLabel}`;
+
+    // Deskripsi dari defect
+    const descText = [
+      `Eskalasi dari Defect ${d.id}.`,
+      d.desc    ? `Masalah: ${d.desc}` : '',
+      d.notes   ? `Catatan lapangan: ${d.notes}` : '',
+    ].filter(Boolean).join('\n');
+    if (descEl) descEl.value = descText;
+
+    // Lokasi
+    if (locEl) locEl.value = roomLabel;
+
+    // Prioritas — mapping dari defect priority
+    if (prioEl) prioEl.value = d.priority || 'MEDIUM';
+
+    // Departemen — default ENG untuk semua defect teknis
+    if (deptEl) deptEl.value = 'ENG';
+
+    // Notes — simpan referensi ke defect ID
+    if (notesEl) notesEl.value = `Diturunkan dari Defect ID: ${d.id}\nReporter awal: ${d.reporter || '—'}`;
+
+    // ── Simpan referensi defect di STATE supaya submitProject() bisa link balik ──
+    STATE._escalatedFromDefect = d.id;
+
+    // ── Tampilkan banner eskalasi di form ──
+    _showEscalateBanner(d);
+
+    showToast('info', 'Form sudah diisi otomatis', `Dari Defect ${d.id}`);
+  }, 120);
+}
+
+/** Tampil/sembunyikan vendor section di form create-project */
+function onDeptChange(val) {
+  const sec  = document.getElementById('pf-vendor-section');
+  const cost = document.getElementById('pf-vendor-cost-wrap');
+  if (!sec) return;
+  const isVendor = val === 'VENDOR' || val === 'VENDOR_ENG';
+  sec.style.display = isVendor ? '' : 'none';
+  // Estimasi biaya hanya untuk SPV/GM
+  if (cost) cost.style.display = isVendor && ['SPV','GM'].includes(STATE.role) ? '' : 'none';
+}
+
+
+function _showEscalateBanner(d) {
+  const existing = document.getElementById('escalate-banner');
+  if (existing) existing.remove();
+
+  const formCard = document.querySelector('#page-create-project .form-card');
+  if (!formCard) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'escalate-banner';
+  banner.style.cssText = `
+    background:rgba(139,92,246,0.10);
+    border:1px solid rgba(139,92,246,0.35);
+    border-radius:var(--radius-md);
+    padding:10px 14px;
+    margin-bottom:14px;
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+  `;
+  banner.innerHTML = `
+    <div style="font-size:18px;flex-shrink:0">🚀</div>
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;margin-bottom:3px">Eskalasi dari Defect</div>
+      <div style="font-size:12px;color:var(--text-0)">
+        <strong>${d.id}</strong> · ${(d.category||'').replace('_','/')} · ${d.room || ''}
+      </div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:2px">
+        Defect ini akan otomatis ter-link ke project yang dibuat.
+      </div>
+    </div>
+    <button onclick="cancelEscalation()" style="margin-left:auto;background:none;border:none;color:var(--text-2);font-size:16px;cursor:pointer;flex-shrink:0;padding:0">✕</button>
+  `;
+  formCard.insertBefore(banner, formCard.firstChild);
+}
+
+/** Batal eskalasi — reset STATE dan hapus banner */
+function cancelEscalation() {
+  STATE._escalatedFromDefect = null;
+  const banner = document.getElementById('escalate-banner');
+  if (banner) banner.remove();
+  showToast('info', 'Eskalasi dibatalkan', 'Form dikosongkan');
+  // Reset form
+  ['pf-title','pf-desc','pf-location','pf-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+
 function openEditPanel() {
   const d = STATE.currentDefect;
   if (!d) return;
@@ -4862,6 +5615,140 @@ function renderAnalytics() {
       </div>`;
     }).join('') : '<div class="text-muted text-sm" style="padding:12px 0">Tidak ada defect aktif.</div>';
   }
+
+  // ── FIX v7: PROJECT ANALYTICS ──────────────────────────────
+  _renderProjectAnalytics();
+}
+
+function _renderProjectAnalytics() {
+  const projects = STATE.projects || [];
+  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+  const now = Date.now();
+
+  // ── 1. Status distribution per department ──
+  const statusEl = document.getElementById('prj-status-chart');
+  if (statusEl) {
+    const statuses = ['PLANNING','ACTIVE','ON_HOLD','COMPLETED'];
+    const statusColors = { PLANNING:'#8b5cf6', ACTIVE:'#f59e0b', ON_HOLD:'#a78bfa', COMPLETED:'#10b981' };
+    const statusLabels = { PLANNING:'🗓 Planning', ACTIVE:'🟢 Active', ON_HOLD:'⏸ On Hold', COMPLETED:'✅ Completed' };
+    const depts = ['ENG','HK','BOTH'];
+    const deptLabels = { ENG:'⚙️ ENG', HK:'🧹 HK', BOTH:'🤝 BOTH' };
+
+    if (!projects.length) {
+      statusEl.innerHTML = '<div class="text-muted text-sm">Belum ada project.</div>';
+    } else {
+      statusEl.innerHTML = statuses.map(st => {
+        const stProjects = projects.filter(p => p['Status'] === st);
+        if (!stProjects.length) return '';
+        const total = stProjects.length;
+        const color = statusColors[st] || 'var(--accent-blue)';
+        const deptBreakdown = depts.map(dep => {
+          const cnt = stProjects.filter(p => p['Department'] === dep).length;
+          return cnt > 0 ? `<span style="font-size:10px;color:var(--text-1);margin-right:8px">${deptLabels[dep]}: <strong>${cnt}</strong></span>` : '';
+        }).join('');
+        return `<div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:13px;font-weight:700;color:${color}">${statusLabels[st]}</span>
+            <span style="font-size:13px;font-weight:700">${total}</span>
+          </div>
+          <div style="height:6px;background:var(--bg-3);border-radius:3px;margin-bottom:5px">
+            <div style="height:100%;width:${Math.min(100,Math.round(total/Math.max(projects.length,1)*100))}%;background:${color};border-radius:3px;transition:width .4s"></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap">${deptBreakdown}</div>
+        </div>`;
+      }).join('') || '<div class="text-muted text-sm">Belum ada data.</div>';
+    }
+  }
+
+  // ── 2. Overdue list ──
+  const overdueEl = document.getElementById('prj-overdue-list');
+  if (overdueEl) {
+    const upcoming = projects.filter(p => {
+      if (p['Status'] === 'COMPLETED') return false;
+      if (!p['TargetDate']) return false;
+      const target = new Date(p['TargetDate']).getTime();
+      return !isNaN(target); // semua yang punya TargetDate
+    }).map(p => {
+      const target = new Date(p['TargetDate']).getTime();
+      const diffDays = Math.round((target - now) / 86400000);
+      return { ...p, _diffDays: diffDays };
+    }).sort((a,b) => a._diffDays - b._diffDays); // paling overdue di atas
+
+    const overdue  = upcoming.filter(p => p._diffDays < 0);
+    const warning  = upcoming.filter(p => p._diffDays >= 0 && p._diffDays <= 7);
+    const ontrack  = upcoming.filter(p => p._diffDays > 7);
+
+    if (!upcoming.length) {
+      overdueEl.innerHTML = '<div class="text-muted text-sm">Belum ada project dengan target tanggal.</div>';
+    } else {
+      const renderRow = (p) => {
+        const isOver = p._diffDays < 0;
+        const isWarn = !isOver && p._diffDays <= 7;
+        const color  = isOver ? 'var(--accent-red)' : isWarn ? 'var(--accent-amber)' : 'var(--accent-green)';
+        const icon   = isOver ? '🔴' : isWarn ? '🟡' : '🟢';
+        const label  = isOver
+          ? `Terlambat ${Math.abs(p._diffDays)}h`
+          : p._diffDays === 0 ? 'Hari ini!'
+          : `${p._diffDays}h lagi`;
+        const pid = p['ProjectID'] || '';
+        return `<div class="ana-row" onclick="showPage('projects')" style="cursor:pointer">
+          <div style="flex:1;min-width:0">
+            <div class="ana-name" style="font-size:12px">${icon} ${p['Title'] || '—'}</div>
+            <div class="ana-sub">${pid} · ${p['Department']||''} · Target: ${fmtDate(p['TargetDate'])}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">
+            <div style="font-size:11px;font-weight:700;color:${color}">${label}</div>
+            <div style="font-size:10px;color:var(--text-1)">${p['Status']||''}</div>
+          </div>
+        </div>`;
+      };
+
+      let html = '';
+      if (overdue.length)  html += `<div style="font-size:10px;color:var(--accent-red);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Overdue (${overdue.length})</div>` + overdue.map(renderRow).join('');
+      if (warning.length)  html += `<div style="font-size:10px;color:var(--accent-amber);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 6px">Mendekati deadline — ≤7 hari (${warning.length})</div>` + warning.map(renderRow).join('');
+      if (ontrack.length)  html += `<div style="font-size:10px;color:var(--accent-green);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 6px">On track (${ontrack.length})</div>` + ontrack.slice(0,5).map(renderRow).join('');
+      overdueEl.innerHTML = html;
+    }
+  }
+
+  // ── 3. Task completion leaderboard per assignee ──
+  const lbEl = document.getElementById('prj-task-leaderboard');
+  if (lbEl) {
+    const taskStats = {};
+    projects.forEach(p => {
+      (p['_tasks'] || []).forEach(t => {
+        const key = String(t['AssignedTo'] || '—').trim() || '—';
+        if (!taskStats[key]) taskStats[key] = { done:0, total:0, projects: new Set() };
+        taskStats[key].total++;
+        if (t['Status'] === 'DONE') taskStats[key].done++;
+        taskStats[key].projects.add(p['ProjectID'] || '');
+      });
+    });
+
+    const rows = Object.entries(taskStats)
+      .map(([name, v]) => ({ name, done: v.done, total: v.total, pct: v.total ? Math.round(v.done/v.total*100) : 0, projCount: v.projects.size }))
+      .sort((a,b) => b.pct - a.pct || b.done - a.done);
+
+    if (!rows.length) {
+      lbEl.innerHTML = '<div class="text-muted text-sm">Belum ada task yang terdaftar.</div>';
+    } else {
+      const medals = ['🥇','🥈','🥉'];
+      lbEl.innerHTML = rows.map((r,i) => {
+        const barColor = r.pct >= 80 ? 'var(--accent-green)' : r.pct >= 50 ? 'var(--accent-amber)' : 'var(--accent-red)';
+        return `<div class="ana-row">
+          <div class="ana-rank">${medals[i] || '#'+(i+1)}</div>
+          <div style="flex:1;min-width:0">
+            <div class="ana-name">${r.name}</div>
+            <div class="ana-sub">${r.done}/${r.total} task · ${r.projCount} project</div>
+            <div style="height:4px;background:var(--bg-3);border-radius:2px;margin-top:5px">
+              <div style="height:100%;width:${r.pct}%;background:${barColor};border-radius:2px;transition:width .4s"></div>
+            </div>
+          </div>
+          <div class="ana-val" style="color:${barColor};font-size:15px;margin-left:12px">${r.pct}%</div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -5006,15 +5893,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Keyboard
   document.addEventListener('keydown', (e) => {
-    if (!$id('lightbox').classList.contains('open')) return;
-    if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowRight') lbNavigate(1);
-    if (e.key === 'ArrowLeft') lbNavigate(-1);
+    if (e.key === 'Escape') {
+      if ($id('lightbox')?.classList.contains('open'))        closeLightbox();
+      else if ($id('project-modal')?.classList.contains('open')) closeProjectModal();
+      else if ($id('detail-modal')?.classList.contains('open'))  closeModal();
+    }
+    if ($id('lightbox')?.classList.contains('open')) {
+      if (e.key === 'ArrowRight') lbNavigate(1);
+      if (e.key === 'ArrowLeft')  lbNavigate(-1);
+    }
   });
 
   // Click backdrop untuk tutup lightbox
   $id('lightbox')?.addEventListener('click', (e) => {
     if (e.target === $id('lightbox')) closeLightbox();
+  });
+
+  // Click backdrop untuk tutup project modal
+  $id('project-modal')?.addEventListener('click', (e) => {
+    if (e.target === $id('project-modal')) closeProjectModal();
   });
 
   // ── FIX: visibilitychange — saat app kembali ke foreground (dari kamera/galeri/switch app)
@@ -5146,7 +6043,14 @@ function renderPredictiveFallback(el) {
   }).join('');
 }
 
-async function refreshData() { await fetchAndRender(true); }
+async function refreshData() {
+  await fetchAndRender(true);
+  // Re-render analytics jika sedang di halaman itu
+  const analyticsPage = document.getElementById('page-analytics');
+  if (analyticsPage && analyticsPage.classList.contains('active')) {
+    renderAnalytics();
+  }
+}
 
 // ════════════════════════════════════════════════════
 // APP BADGE — Ikon home screen menampilkan angka urgent
@@ -5363,6 +6267,933 @@ function toggleChecklistItem(defectId, idx) {
 // FEATURE 7 — EXPORT PDF & CSV
 // ════════════════════════════════════════════════════
 
+// ════════════════════════════════════════════════════
+// PROJECT MODULE — HOMT v2.1
+// ════════════════════════════════════════════════════
+
+// ── GAS call aliases ──
+const gasGetProjects    = (f) => gasCall('getProjects',   f || {});
+const gasAddProject     = (d) => gasCall('addProject',    d);
+const gasUpdateProject  = (d) => gasCall('updateProject', d);
+
+/**
+ * Update satu atau beberapa field defect di Sheet_Defects.
+ * Dipakai untuk: link linkedProject, edit notes, dan field non-status lainnya.
+ *
+ * Payload minimal: { id: 'DEF-xxx', updatedBy: '...', linkedProject: 'PRJ-xxx' }
+ * Bisa juga update status sekaligus jika data.status diisi.
+ */
+const gasUpdateDefect = (d) => gasCall('updateDefect', d);
+
+// ── Project state ──
+STATE.projects       = [];
+STATE.projFilter     = 'ALL';
+
+// ── Status helpers ──
+function getProjStatusClass(s) {
+  return {
+    PLANNING:  'status-badge' ,
+    ACTIVE:    'status-badge status-inprogress',
+    ON_HOLD:   'status-badge status-waiting',
+    COMPLETED: 'status-badge status-closed',
+  }[s] || 'status-badge';
+}
+function getProjStatusLabel(s) {
+  return {
+    PLANNING:  '🗓 Planning',
+    ACTIVE:    '🟢 Active',
+    ON_HOLD:   '⏸ On Hold',
+    COMPLETED: '✅ Completed',
+  }[s] || s;
+}
+function getProjDeptLabel(d) {
+  return {
+    ENG:        '⚙️ Engineering',
+    HK:         '🧹 Housekeeping',
+    BOTH:       '🤝 ENG + HK',
+    VENDOR:     '🏢 Vendor',
+    VENDOR_ENG: '🔧 Vendor + ENG',
+  }[d] || d;
+}
+
+// ── Fetch & render project list ──────────────────────────────
+async function renderProjectList() {
+  const el = document.getElementById('project-list');
+  if (!el) return;
+
+  // ── Tampilkan/sembunyikan kontrol berdasarkan role ──
+  const canCreate = ['SPV','GM'].includes(STATE.role);
+  const createBtn = document.getElementById('btn-create-project');
+  if (createBtn) createBtn.style.display = canCreate ? '' : 'none';
+
+  el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:30px">⏳ Memuat projects...</div>`;
+
+  try {
+    const raw = await gasGetProjects();
+    STATE.projects = (raw || []);
+  } catch(e) {
+    if (!STATE.projects.length) {
+      el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:30px">Gagal memuat projects. Cek koneksi.</div>`;
+      return;
+    }
+  }
+  _updateDeptDashboard();
+  _renderProjectCards();
+}
+
+// ── Update dept dashboard cards ──────────────────────────────
+function _updateDeptDashboard() {
+  const all = STATE.projects;
+
+  const depts = {
+    ENG:        { total: 0, active: 0, done: 0 },
+    HK:         { total: 0, active: 0, done: 0 },
+    BOTH:       { total: 0, active: 0, done: 0 },
+    VENDOR:     { total: 0, active: 0, done: 0, names: [] },
+    VENDOR_ENG: { total: 0, active: 0, done: 0 },
+  };
+  all.forEach(p => {
+    const d = p['Department'] || 'ENG';
+    const s = p['Status']     || 'PLANNING';
+    if (!depts[d]) return;
+    depts[d].total++;
+    if (s === 'ACTIVE')    depts[d].active++;
+    if (s === 'COMPLETED') depts[d].done++;
+    // Kumpulkan nama vendor aktif
+    if ((d === 'VENDOR' || d === 'VENDOR_ENG') && s !== 'COMPLETED' && p['VendorName']) {
+      depts.VENDOR.names.push(p['VendorName']);
+    }
+  });
+
+  const _setDept = (prefix, color, data) => {
+    const cnt = document.getElementById(`dept-${prefix}-count`);
+    if (cnt) cnt.textContent = data.total;
+    const act = document.getElementById(`dept-${prefix}-active`);
+    if (act) act.textContent = `${data.active} Active`;
+    const done = document.getElementById(`dept-${prefix}-done`);
+    if (done) done.textContent = `${data.done} Selesai`;
+  };
+
+  _setDept('eng',  '#3b82f6', depts.ENG);
+  _setDept('hk',   '#10b981', depts.HK);
+  _setDept('both', '#8b5cf6', depts.BOTH);
+
+  // VENDOR — gabungkan VENDOR + VENDOR_ENG
+  const vendorTotal = depts.VENDOR.total + depts.VENDOR_ENG.total;
+  const vendorActive = depts.VENDOR.active + depts.VENDOR_ENG.active;
+  const vendorDone   = depts.VENDOR.done   + depts.VENDOR_ENG.done;
+  const vcnt = document.getElementById('dept-vendor-count');
+  if (vcnt) vcnt.textContent = vendorTotal;
+  const vact = document.getElementById('dept-vendor-active');
+  if (vact) vact.textContent = `${vendorActive} Active`;
+  const vdone = document.getElementById('dept-vendor-done');
+  if (vdone) vdone.textContent = `${vendorDone} Selesai`;
+  const vnames = document.getElementById('dept-vendor-names');
+  if (vnames) {
+    const uniqueNames = [...new Set(depts.VENDOR.names)].slice(0, 3);
+    vnames.textContent = uniqueNames.length ? uniqueNames.join(', ') : '';
+  }
+
+  // Highlight card aktif
+  ['ENG','HK','BOTH','VENDOR'].forEach(d => {
+    const card = document.getElementById(`dept-card-${d}`);
+    if (!card) return;
+    const isActive = STATE.projDeptFilter === d ||
+      (d === 'VENDOR' && STATE.projDeptFilter === 'VENDOR_ENG');
+    card.style.outline   = isActive ? '2px solid var(--border-active)' : '2px solid transparent';
+    card.style.transform = isActive ? 'scale(1.02)' : 'scale(1)';
+  });
+}
+
+// ── Render cards dengan filter status + dept ─────────────────
+function _renderProjectCards() {
+  const el         = document.getElementById('project-list');
+  const lbl        = document.getElementById('proj-count-label');
+  const statusF    = STATE.projFilter     || 'ALL';
+  const deptF      = STATE.projDeptFilter || 'ALL';
+
+  const list = STATE.projects.filter(p => {
+    const matchStatus = statusF === 'ALL' || p['Status']     === statusF;
+    const matchDept   = deptF   === 'ALL' || p['Department'] === deptF;
+    return matchStatus && matchDept;
+  });
+
+  if (lbl) lbl.textContent = `${list.length} project`;
+
+  if (!list.length) {
+    el.innerHTML = `<div class="text-muted text-sm" style="text-align:center;padding:40px">
+      ${statusF === 'ALL' && deptF === 'ALL'
+        ? 'Belum ada project. Tap "+ Buat Project" untuk memulai.'
+        : 'Tidak ada project dengan filter ini.'}
+    </div>`;
+    return;
+  }
+
+  const colorMap = {
+    PLANNING:'var(--accent-blue)', ACTIVE:'var(--accent-amber)',
+    ON_HOLD:'var(--status-waiting)', COMPLETED:'var(--accent-green)',
+  };
+  const deptColorMap = { ENG:'#3b82f6', HK:'#10b981', BOTH:'#8b5cf6', VENDOR:'#f59e0b', VENDOR_ENG:'#f97316' };
+  const deptBgMap    = { ENG:'rgba(59,130,246,0.10)', HK:'rgba(16,185,129,0.10)', BOTH:'rgba(139,92,246,0.10)', VENDOR:'rgba(245,158,11,0.10)', VENDOR_ENG:'rgba(249,115,22,0.10)' };
+
+  el.innerHTML = list.map(p => {
+    const pid        = p['ProjectID'] || '';
+    const title      = p['Title']     || '—';
+    const dept       = p['Department']|| 'ENG';
+    const location   = p['Location']  || '';
+    const priority   = p['Priority']  || '';
+    const status     = p['Status']    || 'PLANNING';
+    const targetDate = p['TargetDate']|| '';
+    const notes      = p['Notes']     || '';
+    const tasks      = p['_tasks']    || [];
+    const doneTasks  = tasks.filter(t => t['Status'] === 'DONE').length;
+    const totalTasks = tasks.length;
+    const pct        = totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) : 0;
+    const linked     = p['LinkedDefects'] ? p['LinkedDefects'].split(',').filter(Boolean).length : 0;
+
+    const targetStr  = targetDate
+      ? new Date(targetDate).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' })
+      : '—';
+
+    // Cek overdue
+    const isOverdue  = targetDate && status !== 'COMPLETED'
+      && new Date(targetDate) < new Date();
+
+    const priorityColor = { HIGH:'var(--accent-red)', MEDIUM:'var(--accent-amber)', LOW:'var(--accent-green)' }[priority] || 'var(--text-1)';
+    const deptColor     = deptColorMap[dept] || 'var(--accent-blue)';
+    const deptBg        = deptBgMap[dept]    || 'rgba(59,130,246,0.10)';
+
+    return `<div class="defect-card stagger-child"
+      style="--status-color:${colorMap[status]||'var(--accent-blue)'};cursor:pointer;padding:0;overflow:hidden"
+      onclick="openProject('${pid}')">
+
+      <!-- Dept header strip -->
+      <div style="background:${deptBg};border-bottom:1px solid rgba(255,255,255,0.05);padding:8px 14px;display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:13px;font-weight:700;color:${deptColor}">${getProjDeptLabel(dept)}</span>
+          ${(dept==='VENDOR'||dept==='VENDOR_ENG') && p['VendorName']
+            ? `<span style="font-size:10px;color:${deptColor};opacity:.8">· ${p['VendorName']}</span>`
+            : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${isOverdue ? `<span style="font-size:10px;font-weight:700;color:var(--accent-red);background:rgba(239,68,68,0.12);padding:2px 7px;border-radius:4px">⚠️ Overdue</span>` : ''}
+          <div class="${getProjStatusClass(status)}" style="font-size:10px;padding:2px 8px">${getProjStatusLabel(status)}</div>
+        </div>
+      </div>
+
+      <!-- Card body -->
+      <div style="padding:12px 14px">
+        <div class="defect-header" style="margin-bottom:6px">
+          <div style="min-width:0;flex:1">
+            <div class="defect-room" style="font-size:15px;line-height:1.3">${title}</div>
+            <div class="defect-id" style="margin-top:2px">${pid}</div>
+          </div>
+          <div style="font-size:11px;font-weight:700;color:${priorityColor};background:rgba(255,255,255,0.05);padding:3px 8px;border-radius:5px;flex-shrink:0;align-self:flex-start">${priority}</div>
+        </div>
+
+        ${location ? `<div style="font-size:11px;color:var(--text-1);margin-bottom:8px">📍 ${location}</div>` : ''}
+
+        ${totalTasks > 0 ? `
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-1);margin-bottom:4px">
+            <span>Progress Milestone</span>
+            <span style="font-weight:700;color:${pct===100?'var(--accent-green)':'var(--text-0)'}">${doneTasks}/${totalTasks} · ${pct}%</span>
+          </div>
+          <div style="height:5px;background:var(--bg-3);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${pct===100?'var(--accent-green)':deptColor};transition:width .3s;border-radius:3px"></div>
+          </div>
+        </div>` : `<div style="font-size:11px;color:var(--text-2);margin-bottom:8px">Belum ada milestone</div>`}
+
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-1)">
+          <span style="color:${isOverdue?'var(--accent-red)':'var(--text-1)'}">🗓 ${targetStr}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${linked ? `<span style="color:var(--accent-cyan)">🔗 ${linked}</span>` : ''}
+            <span style="color:var(--text-2)">Detail →</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Filter by status ─────────────────────────────────────────
+function filterProjects(el) {
+  document.querySelectorAll('#proj-status-filter .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  STATE.projFilter = el.dataset.pfilter;
+  _renderProjectCards();
+}
+
+// ── Filter by dept (dari filter chip) ────────────────────────
+function filterProjDept(el) {
+  document.querySelectorAll('#proj-dept-filter .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  STATE.projDeptFilter = el.dataset.dfilter;
+  _updateDeptDashboard();
+  _renderProjectCards();
+}
+
+// ── Filter by dept (dari klik dashboard card) ─────────────────
+function selectDeptFilter(dept) {
+  // Toggle: klik dept yang sama → reset ke ALL
+  if (STATE.projDeptFilter === dept) {
+    STATE.projDeptFilter = 'ALL';
+  } else {
+    STATE.projDeptFilter = dept;
+  }
+  // Sync filter chip
+  document.querySelectorAll('#proj-dept-filter .filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.dfilter === STATE.projDeptFilter);
+  });
+  _updateDeptDashboard();
+  _renderProjectCards();
+}
+
+// ── Detail project modal ────────────────────────────────────
+function openProject(id) {
+  const p = STATE.projects.find(x => (x['ProjectID'] || '') === id);
+  if (!p) return;
+  STATE.currentProject = p;
+
+  const pid      = p['ProjectID'] || '';
+  const title    = p['Title']     || '—';
+  const dept     = p['Department']|| '';
+  const location = p['Location']  || '';
+  const priority = p['Priority']  || '';
+  const status   = p['Status']    || 'PLANNING';
+  const target   = p['TargetDate']|| '';
+  const notes    = p['Notes']     || '';
+  const linked   = (p['LinkedDefects'] || '').split(',').filter(Boolean);
+  const tasks    = p['_tasks']    || [];
+
+  // Tampilkan/sembunyikan tombol Edit & Hapus (hanya SPV/GM)
+  const canManage = ['SPV','GM'].includes(STATE.role);
+  const editBtn   = document.getElementById('pm-edit-btn');
+  const delBtn    = document.getElementById('pm-delete-btn');
+  if (editBtn)  editBtn.style.display  = canManage && status !== 'COMPLETED' ? '' : 'none';
+  if (delBtn)   delBtn.style.display   = canManage ? '' : 'none';
+
+  // Reset edit panel & delete confirm
+  const editPanel  = document.getElementById('pm-edit-panel');
+  const delConfirm = document.getElementById('pm-delete-confirm');
+  if (editPanel)  editPanel.style.display  = 'none';
+  if (delConfirm) delConfirm.style.display = 'none';
+
+  // Vendor info strip
+  const vendorName = p['VendorName'] || '';
+  const vendorPic  = p['VendorPic']  || '';
+  const vendorSpk  = p['VendorSpk']  || '';
+  const vendorCost = p['VendorCost'] || 0;
+  const vendorStrip = document.getElementById('pm-vendor-strip');
+  if (vendorStrip) {
+    const isVendor = dept === 'VENDOR' || dept === 'VENDOR_ENG';
+    vendorStrip.style.display = isVendor && vendorName ? '' : 'none';
+    if (isVendor && vendorName) {
+      const el = (id) => document.getElementById(id);
+      el('pm-vendor-name').textContent = '🏢 ' + vendorName;
+      el('pm-vendor-pic').textContent  = vendorPic  ? `👤 ${vendorPic}`  : '';
+      el('pm-vendor-spk').textContent  = vendorSpk  ? `📄 SPK: ${vendorSpk}` : '';
+      el('pm-vendor-cost').textContent = vendorCost && canManage
+        ? `💰 Rp ${Number(vendorCost).toLocaleString('id-ID')}` : '';
+    }
+  }
+
+  // Dept badge di atas judul
+  const deptColorMap = { ENG:'#3b82f6', HK:'#10b981', BOTH:'#8b5cf6', VENDOR:'#f59e0b', VENDOR_ENG:'#f97316' };
+  const deptBgMap    = { ENG:'rgba(59,130,246,0.15)', HK:'rgba(16,185,129,0.15)', BOTH:'rgba(139,92,246,0.15)', VENDOR:'rgba(245,158,11,0.15)', VENDOR_ENG:'rgba(249,115,22,0.15)' };
+  const deptBadge    = document.getElementById('pm-dept-badge');
+  if (deptBadge) {
+    deptBadge.innerHTML = `<span style="background:${deptBgMap[dept]||'rgba(59,130,246,0.15)'};color:${deptColorMap[dept]||'#3b82f6'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${getProjDeptLabel(dept)}</span>`;
+  }
+
+  const targetStr = target
+    ? new Date(target).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })
+    : '—';
+  const isOverdue = target && status !== 'COMPLETED' && new Date(target) < new Date();
+  document.getElementById('pm-meta').innerHTML =
+    `${pid} · 🗓 Target: <span style="color:${isOverdue?'var(--accent-red)':'inherit'}">${targetStr}${isOverdue?' ⚠️ Overdue':''}</span>`;
+
+  // Info chips
+  const priorityColor = { HIGH:'var(--accent-red)', MEDIUM:'var(--accent-amber)', LOW:'var(--accent-green)' }[priority] || 'var(--text-1)';
+  document.getElementById('pm-info').innerHTML = `
+    <span class="defect-cat-tag"><span class="${getProjStatusClass(status)}" style="font-size:10px;padding:2px 8px">${getProjStatusLabel(status)}</span></span>
+    ${location ? `<span class="defect-cat-tag">📍 ${location}</span>` : ''}
+    <span class="defect-cat-tag" style="color:${priorityColor}">${priority}</span>
+  `;
+
+  // Deskripsi
+  const descEl = document.getElementById('pm-desc');
+  const desc   = p['Description'] || '';
+  descEl.textContent = desc;
+  descEl.style.display = desc ? '' : 'none';
+
+  // Progress
+  const done  = tasks.filter(t => t['Status'] === 'DONE').length;
+  const total = tasks.length;
+  const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('pm-pct').textContent = `${done}/${total} · ${pct}%`;
+  document.getElementById('pm-pct').style.color = pct === 100 ? 'var(--accent-green)' : 'var(--text-0)';
+  const bar = document.getElementById('pm-progress-bar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct === 100 ? 'var(--accent-green)' : 'var(--accent-blue)';
+  document.getElementById('pm-progress-wrap').style.display = total > 0 ? '' : 'none';
+
+  // Milestone checklist
+  const tasksEl = document.getElementById('pm-tasks');
+  if (!tasks.length) {
+    tasksEl.innerHTML = `<div style="font-size:12px;color:var(--text-2);padding:8px 0">Tidak ada milestone.</div>`;
+  } else {
+    tasksEl.innerHTML = tasks.map(t => {
+      const tid      = t['TaskID']   || '';
+      const tTitle   = t['Title']    || '';
+      const tStat    = t['Status']   || 'TODO';
+      const tPhoto   = t['PhotoURL'] || '';
+      const isDone   = tStat === 'DONE';
+      const isBlocked = tStat === 'BLOCKED';
+      const canToggle = (STATE.role === 'ENG' || STATE.role === 'HK' || STATE.role === 'SPV' || STATE.role === 'GM');
+      const canPhoto  = (STATE.role === 'ENG' || STATE.role === 'HK' || STATE.role === 'SPV' || STATE.role === 'GM');
+      const iconMap  = { TODO:'⬜', IN_PROGRESS:'🔄', DONE:'✅', BLOCKED:'🚫' };
+
+      // Thumbnail foto jika sudah ada
+      const thumbHtml = tPhoto
+        ? `<div id="task-thumb-${tid}"
+            onclick="event.stopPropagation();openTaskPhotoLightbox('${tPhoto}','${tTitle.replace(/'/g,"\\'")}');"
+            style="width:36px;height:36px;border-radius:6px;overflow:hidden;flex-shrink:0;cursor:zoom-in;border:1px solid var(--border-active)">
+            <div data-task-thumb="${tPhoto}" style="width:100%;height:100%;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:14px">📷</div>
+           </div>`
+        : `<div id="task-thumb-${tid}" style="width:36px;height:36px;flex-shrink:0"></div>`;
+
+      // Tombol upload foto
+      const photoBtn = canPhoto
+        ? `<button onclick="event.stopPropagation();uploadTaskPhoto('${pid}','${tid}');"
+            title="${tPhoto ? 'Ganti foto progress' : 'Upload foto progress'}"
+            style="background:${tPhoto ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)'};border:1px solid ${tPhoto ? 'rgba(16,185,129,0.3)' : 'var(--border)'};border-radius:6px;color:${tPhoto ? 'var(--accent-green)' : 'var(--text-2)'};font-size:13px;width:28px;height:28px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+            ${tPhoto ? '✅' : '📷'}
+           </button>`
+        : '';
+
+      return `<div class="checklist-item" id="task-row-${tid}"
+        style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);cursor:${canToggle?'pointer':'default'}"
+        onclick="${canToggle ? `toggleProjectTask('${pid}','${tid}','${tStat}')` : ''}">
+        <span style="font-size:16px;flex-shrink:0">${iconMap[tStat]||'⬜'}</span>
+        <span style="flex:1;font-size:13px;${isDone?'text-decoration:line-through;color:var(--text-2)':isBlocked?'color:var(--accent-red)':''}">${tTitle}</span>
+        <span style="font-size:10px;color:var(--text-2);flex-shrink:0">${tStat}</span>
+        ${thumbHtml}
+        ${photoBtn}
+      </div>`;
+    }).join('');
+
+    // ── Lazy-load semua thumbnail task via proxy + cache ──
+    // Cari semua [data-task-thumb] dan replace dengan photoSlotWithImageDOM agar
+    // menggunakan jalur fetch/cache yang sama persis dengan foto Defect.
+    requestAnimationFrame(() => {
+      tasksEl.querySelectorAll('[data-task-thumb]').forEach(el => {
+        const src = el.getAttribute('data-task-thumb');
+        if (!src) return;
+        const domNode = photoSlotWithImageDOM(src, 'PROGRESS');
+        // Ambil hanya <img> dari wrapper — set sebagai background thumb
+        const img = domNode.querySelector('img');
+        if (img) {
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:5px';
+          el.innerHTML = '';
+          el.appendChild(img);
+        }
+      });
+    });
+  }
+
+  // Notes
+  const notesEl = document.getElementById('pm-notes-wrap');
+  if (notes) { notesEl.style.display=''; notesEl.innerHTML = `📝 ${notes}`; }
+  else notesEl.style.display='none';
+
+  // Linked defects
+  const linkedWrap = document.getElementById('pm-linked-wrap');
+  const linkedList = document.getElementById('pm-linked-list');
+  if (linked.length) {
+    linkedWrap.style.display = '';
+    linkedList.innerHTML = linked.map(did => {
+      const def = STATE.defects.find(d => d.id === did);
+      return `<div onclick="closeProjectModal();openDefect('${did}')"
+        style="cursor:pointer;font-size:12px;padding:6px 10px;background:var(--bg-2);border-radius:6px;margin-bottom:5px;display:flex;justify-content:space-between">
+        <span>${did}${def ? ` — ${_roomLabel(def)}` : ''}</span>
+        <span style="color:var(--text-2)">${def ? getStatusLabel(def.status) : ''}</span>
+      </div>`;
+    }).join('');
+  } else linkedWrap.style.display = 'none';
+
+  // Actions per role dan status
+  _renderProjectModalActions(p);
+
+  document.getElementById('project-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeProjectModal() {
+  document.getElementById('project-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  STATE.currentProject = null;
+}
+
+function _renderProjectModalActions(p) {
+  const el     = document.getElementById('pm-actions');
+  const status = p['Status'] || 'PLANNING';
+  const pid    = p['ProjectID'] || '';
+  let html     = `<button class="btn btn-secondary w-full" onclick="closeProjectModal()">Tutup</button>`;
+
+  if (STATE.role === 'SPV' || STATE.role === 'GM') {
+    // Status transitions
+    const transitions = {
+      PLANNING:  [['ACTIVE',    '▶️ Mulai Project',   'btn-success']],
+      ACTIVE:    [['ON_HOLD',   '⏸ Tahan',            'btn-secondary'],
+                  ['COMPLETED', '✅ Selesaikan',        'btn-success']],
+      ON_HOLD:   [['ACTIVE',    '▶️ Lanjutkan',        'btn-success']],
+      COMPLETED: [],
+    };
+    (transitions[status] || []).forEach(([newStatus, label, cls]) => {
+      html = `<button class="btn ${cls} w-full" onclick="changeProjectStatus('${pid}','${newStatus}')">${label}</button>` + html;
+    });
+  }
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════
+// PROJECT — EDIT & HAPUS
+// ════════════════════════════════════════════════════
+
+/** Toggle panel edit inline */
+function toggleProjectEdit() {
+  const panel  = document.getElementById('pm-edit-panel');
+  const delCnf = document.getElementById('pm-delete-confirm');
+  if (!panel) return;
+
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : '';
+  if (delCnf) delCnf.style.display = 'none'; // tutup confirm hapus jika buka edit
+
+  if (!isOpen) {
+    // Isi form dari data project aktif
+    const p = STATE.projects.find(x => x['ProjectID'] === STATE.currentProject);
+    if (!p) return;
+    const _v = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    _v('pe-title',       p['Title']);
+    _v('pe-desc',        p['Description']);
+    _v('pe-department',  p['Department'] || 'ENG');
+    _v('pe-location',    p['Location']);
+    _v('pe-priority',    p['Priority'] || 'MEDIUM');
+    _v('pe-notes',       p['Notes']);
+    _v('pe-vendor-name', p['VendorName']);
+    _v('pe-vendor-pic',  p['VendorPic']);
+    _v('pe-vendor-spk',  p['VendorSpk']);
+
+    // Target date — konversi ISO ke yyyy-mm-dd
+    const td = document.getElementById('pe-target-date');
+    if (td && p['TargetDate']) {
+      try { td.value = new Date(p['TargetDate']).toISOString().split('T')[0]; } catch(e) {}
+    }
+    onEditDeptChange(p['Department'] || 'ENG');
+    document.getElementById('pe-title')?.focus();
+  }
+}
+
+/** Show/hide vendor section di edit panel */
+function onEditDeptChange(val) {
+  const sec = document.getElementById('pe-vendor-section');
+  if (sec) sec.style.display = (val === 'VENDOR' || val === 'VENDOR_ENG') ? '' : 'none';
+}
+
+/** Simpan hasil edit ke GAS */
+async function saveProjectEdit() {
+  const pid = STATE.currentProject;
+  if (!pid) return;
+
+  const _gv = (id) => (document.getElementById(id)?.value || '').trim();
+  const dept = _gv('pe-department');
+  const isVendor = dept === 'VENDOR' || dept === 'VENDOR_ENG';
+
+  const title = _gv('pe-title');
+  if (!title) { showToast('warn', 'Judul wajib diisi', ''); return; }
+
+  const payload = {
+    id:          pid,
+    title,
+    description: _gv('pe-desc'),
+    department:  dept,
+    location:    _gv('pe-location'),
+    priority:    _gv('pe-priority'),
+    targetDate:  _gv('pe-target-date') ? new Date(_gv('pe-target-date')).toISOString() : '',
+    notes:       _gv('pe-notes'),
+    vendorName:  isVendor ? _gv('pe-vendor-name') : '',
+    vendorPic:   isVendor ? _gv('pe-vendor-pic')  : '',
+    vendorSpk:   isVendor ? _gv('pe-vendor-spk')  : '',
+    updatedBy:   `${STATE.user} (${STATE.role})`,
+  };
+
+  const saveBtn = document.querySelector('#pm-edit-panel .btn-primary');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Menyimpan...'; }
+
+  try {
+    const result = await gasUpdateProject(payload);
+    if (result?.error) throw new Error(result.error);
+
+    // Update STATE lokal
+    const p = STATE.projects.find(x => x['ProjectID'] === pid);
+    if (p) {
+      p['Title']       = payload.title;
+      p['Description'] = payload.description;
+      p['Department']  = payload.department;
+      p['Location']    = payload.location;
+      p['Priority']    = payload.priority;
+      p['TargetDate']  = payload.targetDate;
+      p['Notes']       = payload.notes;
+      p['VendorName']  = payload.vendorName;
+      p['VendorPic']   = payload.vendorPic;
+      p['VendorSpk']   = payload.vendorSpk;
+    }
+
+    // Tutup panel edit, reload modal
+    document.getElementById('pm-edit-panel').style.display = 'none';
+    openProject(pid); // rerender modal
+    _updateDeptDashboard();
+    _renderProjectCards();
+    showToast('success', '✅ Project diperbarui', title);
+  } catch(e) {
+    showToast('error', 'Gagal simpan', e.message);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Simpan'; }
+  }
+}
+
+/** Tampilkan konfirmasi hapus */
+function confirmDeleteProject() {
+  const delCnf = document.getElementById('pm-delete-confirm');
+  const panel  = document.getElementById('pm-edit-panel');
+  if (panel)  panel.style.display  = 'none';
+  if (delCnf) delCnf.style.display = delCnf.style.display === 'none' ? '' : 'none';
+}
+
+/** Batal hapus */
+function cancelDeleteProject() {
+  const delCnf = document.getElementById('pm-delete-confirm');
+  if (delCnf) delCnf.style.display = 'none';
+}
+
+/** Eksekusi hapus project */
+async function executeDeleteProject() {
+  const pid = STATE.currentProject;
+  if (!pid) return;
+  const p = STATE.projects.find(x => x['ProjectID'] === pid);
+  const title = p?.['Title'] || pid;
+
+  const yesBtn = document.querySelector('#pm-delete-confirm .btn:first-child');
+  if (yesBtn) { yesBtn.disabled = true; yesBtn.textContent = '⏳ Menghapus...'; }
+
+  try {
+    const result = await gasCall('deleteProject', { id: pid, deletedBy: `${STATE.user} (${STATE.role})` });
+    if (result?.error) throw new Error(result.error);
+
+    // Hapus dari STATE
+    STATE.projects = STATE.projects.filter(x => x['ProjectID'] !== pid);
+    closeProjectModal();
+    _updateDeptDashboard();
+    _renderProjectCards();
+    showToast('success', `🗑️ Project dihapus`, title);
+  } catch(e) {
+    showToast('error', 'Gagal hapus', e.message);
+    if (yesBtn) { yesBtn.disabled = false; yesBtn.textContent = 'Ya, Hapus'; }
+  }
+}
+
+
+
+// State sementara untuk upload yang sedang berlangsung
+let _taskPhotoCtx = { pid: null, taskId: null };
+
+function uploadTaskPhoto(pid, taskId) {
+  _taskPhotoCtx = { pid, taskId };
+  const input = document.getElementById('f-task-photo');
+  if (input) { input.value = ''; input.click(); }
+}
+
+async function handleTaskPhotoUpload(input) {
+  const file = (input.files && input.files[0]) ? input.files[0] : null;
+  if (!file) return;
+  const { pid, taskId } = _taskPhotoCtx;
+  if (!taskId) return;
+
+  showToast('info', '⏳ Mengompres foto...', `${Math.round(file.size/1024)} KB`);
+
+  try {
+    // Compress — tanpa watermark untuk foto task (bisa ditambah nanti)
+    const result = await compressImage(file);
+
+    showToast('info', '⬆️ Menyimpan ke Drive...', taskId);
+
+    // Kirim ke GAS savePhoto — reuse fungsi yang sama dengan Defect
+    const saveResult = await gasCall('savePhoto', {
+      base64:     result.compressed,
+      mimeType:   result.mimeType,
+      sizeKB:     result.sizeKB,
+      width:      result.width,
+      height:     result.height,
+      slot:       'progress',
+      taskId:     taskId,
+      defectId:   null,       // bukan foto defect
+      room:       pid,        // pakai ProjectID sebagai room context
+      category:   'Task',
+      uploadedBy: `${STATE.user} (${STATE.role})`,
+      notes:      `Task: ${taskId}`,
+    });
+
+    if (!saveResult?.driveUrl && !saveResult?.photoId) {
+      throw new Error('Drive URL tidak diterima dari server');
+    }
+
+    const photoUrl = saveResult.driveUrl || saveResult.photoId;
+
+    // ── Update STATE lokal ──
+    const p = STATE.projects.find(x => x['ProjectID'] === pid);
+    if (p) {
+      const task = (p['_tasks'] || []).find(t => t['TaskID'] === taskId);
+      if (task) task['PhotoURL'] = photoUrl;
+    }
+
+    // ── Cache base64 lokal agar preview langsung instan tanpa fetch ──
+    if (saveResult.driveUrl) {
+      _cachePhotoLocally(saveResult.driveUrl, result.compressed);
+    }
+
+    // ── Update thumbnail di baris task secara langsung ──
+    const thumbWrap = document.getElementById(`task-thumb-${taskId}`);
+    if (thumbWrap) {
+      thumbWrap.style.cssText = 'width:36px;height:36px;border-radius:6px;overflow:hidden;flex-shrink:0;cursor:zoom-in;border:1px solid var(--border-active)';
+      thumbWrap.onclick = (e) => {
+        e.stopPropagation();
+        openTaskPhotoLightbox(photoUrl, taskId);
+      };
+      const img = document.createElement('img');
+      img.src = result.compressed; // tampil instan dari base64 lokal
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:5px';
+      thumbWrap.innerHTML = '';
+      thumbWrap.appendChild(img);
+    }
+
+    // ── Update tombol 📷 jadi ✅ ──
+    const photoBtn = thumbWrap?.nextElementSibling;
+    if (photoBtn && photoBtn.tagName === 'BUTTON') {
+      photoBtn.style.background = 'rgba(16,185,129,0.12)';
+      photoBtn.style.borderColor = 'rgba(16,185,129,0.3)';
+      photoBtn.style.color = 'var(--accent-green)';
+      photoBtn.textContent = '✅';
+      photoBtn.title = 'Ganti foto progress';
+      photoBtn.onclick = (e) => { e.stopPropagation(); uploadTaskPhoto(pid, taskId); };
+    }
+
+    showToast('success', '✅ Foto tersimpan', `${result.sizeKB} KB · ${taskId}`);
+
+  } catch (err) {
+    showToast('error', 'Upload foto gagal', err.message);
+  }
+}
+
+// Buka lightbox untuk foto task — reuse infrastruktur lightbox Defect
+function openTaskPhotoLightbox(photoUrl, taskTitle) {
+  if (!photoUrl) return;
+  // Panggil openLightbox dengan satu gambar, tanpa defect context
+  LB.images  = [{ src: driveImgUrl(photoUrl), label: 'PROGRESS' }];
+  LB.defect  = null;
+  LB.current = 0;
+  lbLoad(0);
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  lbRenderDots();
+  lbUpdateNav();
+}
+
+// ── Toggle milestone TODO↔DONE ──────────────────────────────
+async function toggleProjectTask(pid, taskId, currentStatus) {
+  const nextStatus = currentStatus === 'DONE' ? 'TODO' : 'DONE';
+  // Optimistic update UI
+  const row = document.getElementById(`task-row-${taskId}`);
+  if (row) {
+    const icon = row.querySelector('span:first-child');
+    const lbl  = row.querySelector('span:nth-child(3)');
+    if (icon) icon.textContent = nextStatus === 'DONE' ? '✅' : '⬜';
+    if (lbl)  lbl.textContent  = nextStatus;
+    const textEl = row.querySelector('span:nth-child(2)');
+    if (textEl) {
+      textEl.style.textDecoration = nextStatus === 'DONE' ? 'line-through' : '';
+      textEl.style.color = nextStatus === 'DONE' ? 'var(--text-2)' : '';
+    }
+  }
+
+  // Update di state lokal
+  const p = STATE.projects.find(x => x['ProjectID'] === pid);
+  if (p) {
+    const task = (p['_tasks'] || []).find(t => t['TaskID'] === taskId);
+    if (task) task['Status'] = nextStatus;
+    // Refresh progress bar di modal
+    const tasks = p['_tasks'] || [];
+    const done  = tasks.filter(t => t['Status'] === 'DONE').length;
+    const total = tasks.length;
+    const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+    document.getElementById('pm-pct').textContent = `${done}/${total} · ${pct}%`;
+    document.getElementById('pm-pct').style.color = pct===100 ? 'var(--accent-green)' : 'var(--text-0)';
+    const bar = document.getElementById('pm-progress-bar');
+    if (bar) { bar.style.width = pct+'%'; bar.style.background = pct===100?'var(--accent-green)':'var(--accent-blue)'; }
+    // Refresh list card
+    _renderProjectCards();
+  }
+
+  // Kirim ke GAS (non-blocking)
+  try {
+    await gasUpdateProject({
+      id: pid, taskId, taskStatus: nextStatus,
+      updatedBy: `${STATE.user} (${STATE.role})`,
+    });
+  } catch(e) {
+    showToast('warn', 'Sync gagal', 'Data lokal berubah, akan retry saat online');
+  }
+}
+
+// ── Ubah status project ─────────────────────────────────────
+async function changeProjectStatus(pid, newStatus) {
+  const p = STATE.projects.find(x => x['ProjectID'] === pid);
+  if (!p) return;
+
+  const btn = document.querySelector(`#pm-actions .btn-success, #pm-actions .btn-secondary`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+
+  try {
+    await gasUpdateProject({
+      id: pid, status: newStatus,
+      updatedBy: `${STATE.user} (${STATE.role})`,
+    });
+    p['Status'] = newStatus;
+    if (newStatus === 'COMPLETED') p['CompletedAt'] = new Date().toISOString();
+    _renderProjectModalActions(p);
+    _updateDeptDashboard();
+    _renderProjectCards();
+    showToast('success', getProjStatusLabel(newStatus), p['Title']);
+  } catch(e) {
+    showToast('error', 'Gagal ubah status', e.message);
+    if (btn) { btn.disabled = false; }
+  }
+}
+
+// ── Form buat project ──────────────────────────────────────────
+let _projTaskCount = 0;
+
+function addProjectTaskInput(value = '') {
+  _projTaskCount++;
+  const list = document.getElementById('pf-task-list');
+  if (!list) return;
+  const item = document.createElement('div');
+  item.className = 'pf-task-item';
+  item.style.cssText = 'display:flex;gap:8px;margin-bottom:6px;align-items:center';
+  item.innerHTML = `
+    <span style="font-size:11px;font-weight:700;color:var(--text-2);width:22px;flex-shrink:0;text-align:right">${_projTaskCount}.</span>
+    <input class="form-input" style="flex:1;font-size:13px" placeholder="Nama milestone..." value="${value}">
+    <button onclick="this.closest('.pf-task-item').remove()" style="background:transparent;border:none;color:var(--accent-red);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 4px">×</button>
+  `;
+  list.appendChild(item);
+}
+
+function resetProjectForm() {
+  ['pf-title','pf-desc','pf-location','pf-notes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const dep = document.getElementById('pf-department'); if(dep) dep.value = 'ENG';
+  const pri = document.getElementById('pf-priority');   if(pri) pri.value = 'MEDIUM';
+  const tgt = document.getElementById('pf-target-date'); if(tgt) tgt.value = '';
+  const lst = document.getElementById('pf-task-list');  if(lst) lst.innerHTML = '';
+  _projTaskCount = 0;
+}
+
+async function submitProject() {
+  const title    = (document.getElementById('pf-title')?.value       || '').trim();
+  const desc     = (document.getElementById('pf-desc')?.value        || '').trim();
+  const dept     = document.getElementById('pf-department')?.value   || 'ENG';
+  const location = (document.getElementById('pf-location')?.value    || '').trim();
+  const priority = document.getElementById('pf-priority')?.value     || 'MEDIUM';
+  const targetDate = document.getElementById('pf-target-date')?.value || '';
+  const notes    = (document.getElementById('pf-notes')?.value       || '').trim();
+  const escalatedFrom = STATE._escalatedFromDefect || '';
+
+  // Vendor fields
+  const isVendor   = dept === 'VENDOR' || dept === 'VENDOR_ENG';
+  const vendorName = isVendor ? (document.getElementById('pf-vendor-name')?.value || '').trim() : '';
+  const vendorPic  = isVendor ? (document.getElementById('pf-vendor-pic')?.value  || '').trim() : '';
+  const vendorSpk  = isVendor ? (document.getElementById('pf-vendor-spk')?.value  || '').trim() : '';
+  const vendorCost = isVendor ? Number(document.getElementById('pf-vendor-cost')?.value || 0) : 0;
+
+  if (!title) {
+    showToast('warn', 'Judul wajib diisi', '');
+    document.getElementById('pf-title')?.focus();
+    return;
+  }
+  if (isVendor && !vendorName) {
+    showToast('warn', 'Nama Vendor wajib diisi', '');
+    document.getElementById('pf-vendor-name')?.focus();
+    return;
+  }
+
+  // Kumpulkan milestone yang diisi
+  const tasks = [...document.querySelectorAll('.pf-task-item input')]
+    .map(inp => inp.value.trim())
+    .filter(v => v.length > 0);
+
+  const btn = document.getElementById('pf-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Menyimpan...'; }
+
+  try {
+    const result = await gasAddProject({
+      title, description: desc, department: dept,
+      location, priority,
+      startDate:    new Date().toISOString(),
+      targetDate:   targetDate ? new Date(targetDate).toISOString() : '',
+      notes,
+      createdBy:    `${STATE.user} (${STATE.role})`,
+      tasks,
+      linkedDefects: escalatedFrom,
+      vendorName, vendorPic, vendorSpk, vendorCost,
+    });
+
+    if (result.error) throw new Error(result.error);
+
+    // ── Jika eskalasi: update defect asal dengan linkedProject ──
+    if (escalatedFrom) {
+      try {
+        await gasUpdateDefect({
+          id: escalatedFrom,
+          linkedProject: result.id,
+          updatedBy: `${STATE.user} (${STATE.role})`,
+        });
+        // Update STATE lokal juga
+        const defect = STATE.defects.find(x => x.id === escalatedFrom);
+        if (defect) defect.linkedProject = result.id;
+      } catch(e) {
+        showToast('warn', 'Link defect gagal', `Project ${result.id} dibuat, tapi link ke ${escalatedFrom} gagal. Update manual.`);
+      }
+      STATE._escalatedFromDefect = null;
+      showToast('success', `🚀 Eskalasi berhasil`, `${escalatedFrom} → Project ${result.id}`);
+    } else {
+      showToast('success', `✅ ${result.id} dibuat`, title);
+    }
+
+    resetProjectForm();
+    document.getElementById('escalate-banner')?.remove();
+
+    // Refresh list dan kembali ke halaman projects
+    await renderProjectList();
+    showPage('projects');
+  } catch(e) {
+    showToast('error', 'Gagal simpan project', e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Simpan Project'; }
+  }
+}
+
 function exportCSV() {
   if (!STATE.defects.length) { showToast('warn', 'Tidak ada data', 'Belum ada defect untuk di-export'); return; }
 
@@ -5516,7 +7347,7 @@ function exportPDF() {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(74,85,104);
-    doc.text(`Room Defect Management System — Lotus Garden Hotel`, 14, doc.internal.pageSize.height - 6);
+    doc.text(`H.O.M.T — Hotel Operations Monitoring Tracker`, 14, doc.internal.pageSize.height - 6);
     doc.text(`Hal ${i} / ${pageCount}`, 297 - 14, doc.internal.pageSize.height - 6, { align: 'right' });
   }
 
@@ -5844,22 +7675,43 @@ function lbClampPan() {
     logoImg.src = (typeof LOGO_AUTH !== 'undefined') ? LOGO_AUTH : ICON_192;
     logoImg.onerror = function() { this.src = ICON_192; }; // fallback ke icon jika logo.png tidak ada
   }
-  const manifest={name:'Room Defects — Lotus Garden Hotel',short_name:'Room Defects',description:'Room Defect Management — Lotus Garden Hotel',start_url:window.location.href.split('?')[0],scope:'/',display:'standalone',orientation:'portrait-primary',background_color:'#060b18',theme_color:'#060b18',lang:'id',categories:['productivity'],icons:[{src:ICON_192,sizes:'192x192',type:'image/png',purpose:'any maskable'},{src:ICON_192,sizes:'512x512',type:'image/png',purpose:'any maskable'}],shortcuts:[{name:'Lapor Kerusakan',short_name:'Lapor',url:window.location.href.split('?')[0]+'?page=report',icons:[{src:ICON_192,sizes:'192x192'}]},{name:'Daftar Defect',short_name:'Defects',url:window.location.href.split('?')[0]+'?page=defects',icons:[{src:ICON_192,sizes:'192x192'}]}]};
+  const manifest={name:'H.O.M.T — Lotus Garden Hotel',short_name:'H.O.M.T',description:'Hotel Operations Monitoring Tracker — Lotus Garden Hotel',start_url:window.location.href.split('?')[0],scope:'/',display:'standalone',orientation:'portrait-primary',background_color:'#060b18',theme_color:'#060b18',lang:'id',categories:['productivity'],icons:[{src:ICON_192,sizes:'192x192',type:'image/png',purpose:'any maskable'},{src:ICON_192,sizes:'512x512',type:'image/png',purpose:'any maskable'}],shortcuts:[{name:'Lapor Kerusakan',short_name:'Lapor',url:window.location.href.split('?')[0]+'?page=report',icons:[{src:ICON_192,sizes:'192x192'}]},{name:'Daftar Defect',short_name:'Defects',url:window.location.href.split('?')[0]+'?page=defects',icons:[{src:ICON_192,sizes:'192x192'}]},{name:'Projects',short_name:'Projects',url:window.location.href.split('?')[0]+'?page=projects',icons:[{src:ICON_192,sizes:'192x192'}]}]};
   try{
     const mb=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
     const ml=document.getElementById('pwa-manifest-link'); if(ml) ml.href=URL.createObjectURL(mb);
   }catch(e){console.warn('Manifest:',e);}
-  if('serviceWorker' in navigator){
-    const sw=["const C='rdv-v1',FC='rdv-fonts-v1';","self.addEventListener('install',e=>self.skipWaiting());","self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C&&k!==FC).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});","self.addEventListener('fetch',e=>{","  const u=e.request.url;","  if(u.includes('script.google.com')||u.includes('fonnte.com')){e.respondWith(fetch(e.request).catch(()=>new Response(JSON.stringify({success:false,error:'Offline'}),{headers:{'Content-Type':'application/json'}})));return;}","  if(u.includes('fonts.g')){e.respondWith(caches.open(FC).then(c=>c.match(e.request).then(h=>{if(h)return h;return fetch(e.request).then(r=>{c.put(e.request,r.clone());return r;}).catch(()=>h);})));return;}","  if(u.includes('qrserver')){e.respondWith(fetch(e.request).catch(()=>new Response('',{status:503})));return;}","  e.respondWith(fetch(e.request).then(r=>{if(r.ok&&e.request.method==='GET')caches.open(C).then(c=>c.put(e.request,r.clone()));return r;}).catch(()=>caches.match(e.request)));","});"].join('\n');
-    try{
-      const swb=new Blob([sw],{type:'application/javascript'});
-      navigator.serviceWorker.register(URL.createObjectURL(swb),{scope:'/'})
-        .then(r=>console.log('SW OK:',r.scope)).catch(e=>console.warn('SW:',e.message));
-    }catch(e){console.warn('SW blob:',e);}
+  // ── Service Worker — daftarkan sw.js eksternal ──────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(r => {
+        console.log('[SW] Registered:', r.scope);
+        // Cek update tiap 60 menit
+        setInterval(() => r.update(), 60 * 60 * 1000);
+      })
+      .catch(e => console.warn('[SW] Gagal daftar:', e.message));
   }
-  let _ip=null;
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_ip=e;window._pwaIP=e;if(!localStorage.getItem('pwa_dismissed'))setTimeout(_showInstallBanner,4000);});
-  window.addEventListener('appinstalled',()=>{_ip=null;localStorage.setItem('pwa_installed','1');const b=document.getElementById('pwa-banner');if(b)b.remove();if(typeof showToast==='function')showToast('success','App terinstall!','Buka dari home screen');});
+
+  // ── PWA install banner ────────────────────────────────────
+  let _ip = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); _ip = e; window._pwaIP = e;
+    if (!localStorage.getItem('pwa_dismissed')) setTimeout(_showInstallBanner, 4000);
+  });
+  window.addEventListener('appinstalled', () => {
+    _ip = null;
+    localStorage.setItem('pwa_installed', '1');
+    const b = document.getElementById('pwa-banner');
+    if (b) b.remove();
+    if (typeof showToast === 'function') showToast('success', 'App terinstall!', 'Buka dari home screen');
+  });
+
+  // ── Firebase Hybrid init (opsional — hanya aktif jika firebaseConfig ada) ──
+  // File firebase-init.js di-load terpisah agar tidak mengganggu GAS mode.
+  // Jika FIREBASE_ENABLED = false, semua request tetap ke GAS seperti biasa.
+  window.FIREBASE_ENABLED = true; // ← ganti true setelah Firebase dikonfigurasi
+  if (window.FIREBASE_ENABLED && typeof initFirebaseHybrid === 'function') {
+    initFirebaseHybrid();
+  }
 })();
 
 function _showInstallBanner(){
@@ -5883,5 +7735,7 @@ function dismissPWA(){
 }
 
 </script>
+<script src=""firebase-init.js" defer></script> <!-- Optional Firebase Hybrid init -->
+
 </body>
 </html>
