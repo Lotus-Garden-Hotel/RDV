@@ -17,10 +17,10 @@ const PHOTO_TTL_MS  = 24 * 60 * 60 * 1000; // 24 jam
 
 // File yang di-precache saat install (app shell)
 const PRECACHE_URLS = [
-  '/Room_Defect.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  'Room_Defect.html',
+  'manifest.json',
+  'icon-192.png',
+  'icon-512.png',
 ];
 
 // ── INSTALL: precache app shell ─────────────────────────────
@@ -211,10 +211,10 @@ self.addEventListener('push', event => {
     event.waitUntil(
       self.registration.showNotification(data.title || 'H.O.M.T', {
         body:    data.body    || '',
-        icon:    '/icon-192.png',
-        badge:   '/icon-192.png',
+        icon:    'icon-192.png',
+        badge:   'icon-192.png',
         tag:     data.tag     || 'homt-notif',
-        data:    { url: data.url || '/Room_Defect.html' },
+        data:    { url: data.url || 'Room_Defect.html' },
         actions: [
           { action: 'open', title: 'Buka App' },
           { action: 'dismiss', title: 'Tutup' },
@@ -227,7 +227,7 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   if (event.action === 'dismiss') return;
-  const url = event.notification.data?.url || '/Room_Defect.html';
+  const url = event.notification.data?.url || 'Room_Defect.html';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       const existing = list.find(c => c.url.includes('Room_Defect'));

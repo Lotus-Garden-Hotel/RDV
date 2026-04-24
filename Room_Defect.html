@@ -11,9 +11,9 @@
 <meta name="application-name" content="H.O.M.T System">
 <meta name="description" content="Hotel Operations Monitoring Tracker — Lotus Garden Hotel">
 <title>H.O.M.T — Lotus Garden Hotel</title>
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/png" href="/icon-192.png" id="favicon-link">
-<link rel="apple-touch-icon" href="/icon-192.png" id="apple-touch-icon-link">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png" id="favicon-link">
+<link rel="apple-touch-icon" href="icon-192.png" id="apple-touch-icon-link">
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -7662,30 +7662,38 @@ function lbClampPan() {
 (function initPWA(){
 
   // ── Asset URLs — file eksternal (lebih ringan, cacheable oleh browser)
-  // Letakkan logo.png, icon-192.png, favicon.ico di folder yang sama dengan HTML ini
-  const _assetBase = window.location.href.replace(/\/[^\/]*$/, '');
+  const _assetBase = window.location.href.replace(/\/[^\/]*(\?.*)?$/, '');
   const FAVICON_ICO = _assetBase + '/favicon.ico';
   const ICON_192    = _assetBase + '/icon-192.png';
   const LOGO_AUTH   = _assetBase + '/logo.png';
-  const fl=document.getElementById('favicon-link'); if(fl) fl.href=FAVICON_ICO;
-  const al=document.getElementById('apple-touch-icon-link'); if(al) al.href=ICON_192;
-  // Set logo auth screen dari ICON_192 yang sama dengan favicon
-  const logoImg=document.getElementById('auth-logo-img');
-  if(logoImg) {
-    logoImg.src = (typeof LOGO_AUTH !== 'undefined') ? LOGO_AUTH : ICON_192;
-    logoImg.onerror = function() { this.src = ICON_192; }; // fallback ke icon jika logo.png tidak ada
+
+  // Set favicon & apple-touch-icon
+  const fl = document.getElementById('favicon-link');
+  if (fl) fl.href = ICON_192;
+  const al = document.getElementById('apple-touch-icon-link');
+  if (al) al.href = ICON_192;
+
+  // Set logo auth screen
+  const logoImg = document.getElementById('auth-logo-img');
+  if (logoImg) {
+    logoImg.src = LOGO_AUTH;
+    logoImg.onerror = function() { this.src = ICON_192; };
   }
-  const manifest={name:'H.O.M.T — Lotus Garden Hotel',short_name:'H.O.M.T',description:'Hotel Operations Monitoring Tracker — Lotus Garden Hotel',start_url:window.location.href.split('?')[0],scope:'/',display:'standalone',orientation:'portrait-primary',background_color:'#060b18',theme_color:'#060b18',lang:'id',categories:['productivity'],icons:[{src:ICON_192,sizes:'192x192',type:'image/png',purpose:'any maskable'},{src:ICON_192,sizes:'512x512',type:'image/png',purpose:'any maskable'}],shortcuts:[{name:'Lapor Kerusakan',short_name:'Lapor',url:window.location.href.split('?')[0]+'?page=report',icons:[{src:ICON_192,sizes:'192x192'}]},{name:'Daftar Defect',short_name:'Defects',url:window.location.href.split('?')[0]+'?page=defects',icons:[{src:ICON_192,sizes:'192x192'}]},{name:'Projects',short_name:'Projects',url:window.location.href.split('?')[0]+'?page=projects',icons:[{src:ICON_192,sizes:'192x192'}]}]};
-  try{
-    const mb=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
-    const ml=document.getElementById('pwa-manifest-link'); if(ml) ml.href=URL.createObjectURL(mb);
-  }catch(e){console.warn('Manifest:',e);}
-  // ── Service Worker — daftarkan sw.js eksternal ──────────
+
+  // ── Manifest — JANGAN pakai blob URL (Chrome tidak anggap valid untuk install)
+  // manifest.json sudah di-link di <head> sebagai file statis — biarkan saja.
+  // Pastikan manifest.json ada di repo GitHub dengan konten yang benar.
+
+  // ── Service Worker — path RELATIF untuk GitHub Pages ─────
+  // GitHub Pages: https://user.github.io/repo/Room_Defect.html
+  // SW harus didaftarkan dari path yang sama dengan file HTML
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    // Cari path folder saat ini (bukan root /) agar cocok di GitHub Pages
+    const swPath = _assetBase + '/sw.js';
+    const swScope = _assetBase + '/';
+    navigator.serviceWorker.register(swPath, { scope: swScope })
       .then(r => {
         console.log('[SW] Registered:', r.scope);
-        // Cek update tiap 60 menit
         setInterval(() => r.update(), 60 * 60 * 1000);
       })
       .catch(e => console.warn('[SW] Gagal daftar:', e.message));
@@ -7694,24 +7702,27 @@ function lbClampPan() {
   // ── PWA install banner ────────────────────────────────────
   let _ip = null;
   window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault(); _ip = e; window._pwaIP = e;
-    if (!localStorage.getItem('pwa_dismissed')) setTimeout(_showInstallBanner, 4000);
+    e.preventDefault();
+    _ip = e;
+    window._pwaIP = e;
+    if (!localStorage.getItem('pwa_dismissed')) setTimeout(_showInstallBanner, 3000);
   });
   window.addEventListener('appinstalled', () => {
     _ip = null;
     localStorage.setItem('pwa_installed', '1');
     const b = document.getElementById('pwa-banner');
     if (b) b.remove();
-    if (typeof showToast === 'function') showToast('success', 'App terinstall!', 'Buka dari home screen');
+    if (typeof showToast === 'function') showToast('success', 'App terinstall! 🎉', 'Buka dari home screen');
   });
 
-  // ── Firebase Hybrid init (opsional — hanya aktif jika firebaseConfig ada) ──
-  // File firebase-init.js di-load terpisah agar tidak mengganggu GAS mode.
-  // Jika FIREBASE_ENABLED = false, semua request tetap ke GAS seperti biasa.
-  window.FIREBASE_ENABLED = true; // ← ganti true setelah Firebase dikonfigurasi
-  if (window.FIREBASE_ENABLED && typeof initFirebaseHybrid === 'function') {
-    initFirebaseHybrid();
-  }
+  // ── Firebase Hybrid init ──────────────────────────────────
+  // Tunggu DOM selesai + firebase-init.js ter-load dulu
+  window.FIREBASE_ENABLED = true;
+  window.addEventListener('load', () => {
+    if (window.FIREBASE_ENABLED && typeof initFirebaseHybrid === 'function') {
+      initFirebaseHybrid().catch(e => console.warn('[Firebase] Init error:', e));
+    }
+  });
 })();
 
 function _showInstallBanner(){
@@ -7735,7 +7746,7 @@ function dismissPWA(){
 }
 
 </script>
-<script src=""firebase-init.js" defer></script> <!-- Optional Firebase Hybrid init -->
+<script src="firebase-init.js" defer></script>
 
 </body>
 </html>

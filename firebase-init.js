@@ -35,7 +35,7 @@ async function initFirebaseHybrid() {
   await _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js');
 
   try {
-    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
     // Aktifkan offline persistence (IndexedDB)
     await firebase.firestore().enablePersistence({ synchronizeTabs: true })
