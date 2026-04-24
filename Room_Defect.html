@@ -4499,14 +4499,12 @@ function renderModalActions(d) {
   // ── ENG actions ──
   if (STATE.role === 'ENG') {
     if (d.status === 'OPEN' || d.status === 'WAITING_MATERIAL') {
-      // Jika WAITING_MATERIAL: tombol "Material Tiba" → resume ke OPEN dulu lalu langsung start
       if (d.status === 'WAITING_MATERIAL') {
         html = `<button class="btn w-full" style="background:#a78bfa;color:#fff"
           onclick="materialArrivedENG()">▶️ Lanjutkan Progress</button>` + html;
       } else {
+        // ENG: hanya START REPAIR — PAUSE SLA hanya SPV/GM
         html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
-        html = `<button class="btn btn-secondary w-full" onclick="openWaitingMaterialPanel()"
-          style="border-color:#a78bfa;color:#a78bfa">⏸ Pause SLA</button>` + html;
       }
     } else if (d.status === 'IN_PROGRESS') {
       const hasPhoto = !!STATE.photoAfterData;
@@ -4526,19 +4524,17 @@ function renderModalActions(d) {
   // ── SPV / GM actions ──
   if (STATE.role === 'SPV' || STATE.role === 'GM') {
 
-    // Approve & Close untuk RESOLVED
     if (d.status === 'RESOLVED') {
       html = `<button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
               <button class="btn btn-danger"  onclick="updateStatus('OPEN')"   style="flex:1">↩️ Re-open</button>`;
     }
 
-    // Material Tiba — resume ke OPEN (saat defect WAITING_MATERIAL)
     if (d.status === 'WAITING_MATERIAL') {
       html = `<button class="btn w-full" style="background:#a78bfa;color:#fff;margin-bottom:0"
         onclick="materialArrivedSPV()">▶️ Lanjutkan Progress</button>` + html;
     }
 
-    // ── Tunggu Material — SPV/GM bisa set dari OPEN atau IN_PROGRESS ──
+    // ── PAUSE SLA — hanya SPV/GM ──
     if (d.status === 'OPEN' || d.status === 'IN_PROGRESS') {
       html = `<button class="btn btn-secondary w-full" onclick="openWaitingMaterialPanel()"
         style="border-color:#a78bfa;color:#a78bfa">
@@ -4546,7 +4542,6 @@ function renderModalActions(d) {
       </button>` + html;
     }
 
-    // Tombol Edit (semua status kecuali CLOSED)
     if (d.status !== 'CLOSED') {
       html = `<button class="btn btn-secondary w-full" onclick="openEditPanel()"
         style="border-color:var(--accent-cyan);color:var(--accent-cyan)">
@@ -4554,12 +4549,30 @@ function renderModalActions(d) {
       </button>` + html;
     }
 
-    // Assign engineer — untuk OPEN / WAITING_MATERIAL
     if (d.status === 'OPEN' || d.status === 'WAITING_MATERIAL') {
       html = `<button class="btn btn-secondary w-full" onclick="openAssignPanel()"
         style="border-color:#f59e0b;color:#f59e0b">
         👤 Assign Engineer${d.assignedTo ? ' — ' + d.assignedTo.split(' ')[0] : ''}
       </button>` + html;
+    }
+
+    // ── ESKALASI → PROJECT — hanya SPV/GM ──
+    if (d.status !== 'CLOSED') {
+      const alreadyLinked = d.linkedProject && d.linkedProject.trim() !== '';
+      if (alreadyLinked) {
+        html += `<div style="margin-top:8px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;margin-bottom:2px">Bagian dari Project</div>
+            <div style="font-size:12px;color:var(--text-0);font-weight:600">${d.linkedProject}</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal();showPage('projects')" style="border-color:#a78bfa;color:#a78bfa;white-space:nowrap">Lihat →</button>
+        </div>`;
+      } else {
+        html += `<button class="btn w-full" onclick="escalateToProject()"
+          style="margin-top:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);color:#a78bfa;font-weight:700">
+          🚀 Eskalasi → Jadikan Project
+        </button>`;
+      }
     }
   }
 
@@ -4569,26 +4582,6 @@ function renderModalActions(d) {
       style="margin-top:8px;background:transparent;border:1px solid rgba(239,68,68,0.4);color:var(--accent-red)">
       🗑️ Hapus Defect Ini
     </button>`;
-  }
-
-  // Eskalasi ke Project — ENG, SPV, GM (status bukan CLOSED)
-  if ((STATE.role === 'ENG' || STATE.role === 'SPV' || STATE.role === 'GM') && d.status !== 'CLOSED') {
-    // Cek apakah sudah ada linkedProject
-    const alreadyLinked = d.linkedProject && d.linkedProject.trim() !== '';
-    if (alreadyLinked) {
-      html += `<div style="margin-top:8px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;margin-bottom:2px">Bagian dari Project</div>
-          <div style="font-size:12px;color:var(--text-0);font-weight:600">${d.linkedProject}</div>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="closeModal();showPage('projects')" style="border-color:#a78bfa;color:#a78bfa;white-space:nowrap">Lihat →</button>
-      </div>`;
-    } else {
-      html += `<button class="btn w-full" onclick="escalateToProject()"
-        style="margin-top:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);color:#a78bfa;font-weight:700">
-        🚀 Eskalasi → Jadikan Project
-      </button>`;
-    }
   }
 
   el.innerHTML = html;
