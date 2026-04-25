@@ -5738,10 +5738,6 @@ function renderAnalytics() {
   }
 }
 
-function _renderProjectAnalytics() {
-  const projects = STATE.projects || [];
-  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
-  const now = Date.now();
 
 function _renderProjectAnalytics() {
   // Pastikan project sudah diload — jika belum, fetch dulu
