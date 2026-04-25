@@ -3329,6 +3329,13 @@ function applySession(s) {
   document.querySelectorAll('.role-card').forEach(c => c.classList.toggle('active', c.dataset.role === STATE.role));
   $id('login-name').value = STATE.user;
   updateNavForRole(STATE.role);
+  // FIX: reset active page ke dashboard setelah session restore
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const dp = document.getElementById('page-dashboard');
+  if (dp) dp.classList.add('active');
+  const dn = document.getElementById('nav-dashboard');
+  if (dn) dn.classList.add('active');
 }
 
 // ════════════════════════════════════════════════════
@@ -3399,6 +3406,7 @@ async function doLogin() {
 
     // ── Load data ────────────────────────────────────────────
     await fetchAndRender();
+    showPage('dashboard'); // FIX: explicitly trigger dashboard render after login
     startPolling();
     startLiveTick();
     requestNotificationPermission();
@@ -3415,12 +3423,6 @@ async function doLogin() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem'; }
   }
-}
-
-function selectRole(el) {
-  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  STATE.role = el.dataset.role;
 }
 
 function doLogout() {
