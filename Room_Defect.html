@@ -3329,7 +3329,7 @@ function applySession(s) {
   document.querySelectorAll('.role-card').forEach(c => c.classList.toggle('active', c.dataset.role === STATE.role));
   $id('login-name').value = STATE.user;
   updateNavForRole(STATE.role);
-  // FIX: reset active page ke dashboard setelah session restore
+  // FIX: reset ke dashboard saat session restore
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const dp = document.getElementById('page-dashboard');
@@ -3406,7 +3406,7 @@ async function doLogin() {
 
     // ── Load data ────────────────────────────────────────────
     await fetchAndRender();
-    showPage('dashboard'); // FIX: explicitly trigger dashboard render after login
+    showPage('dashboard'); // FIX: trigger dashboard render setelah login
     startPolling();
     startLiveTick();
     requestNotificationPermission();
@@ -5933,9 +5933,12 @@ let aiDebounce = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initDOMCache();
 
-  // ── Cek koneksi GAS
-  try { await gasCall('getMetrics', {}); STATE.gasAvailable = true; console.log('✅ GAS terhubung'); }
-  catch { STATE.gasAvailable = false; showToast('warn', 'Mode Offline', 'Menggunakan data lokal'); }
+  // ── Cek koneksi GAS — NON-BLOCKING (tidak menghambat auth screen)
+  // FIX: await gasCall di sini menyebabkan hang hingga 37 detik (15s × 3 retry)
+  // sebelum user bisa klik role card. Ubah ke fire-and-forget.
+  gasCall('getMetrics', {})
+    .then(() => { STATE.gasAvailable = true; console.log('✅ GAS terhubung'); })
+    .catch(() => { STATE.gasAvailable = false; showToast('warn', 'Mode Offline', 'Menggunakan data lokal'); });
 
   // ── Restore session
   const savedSession = restoreSession();
