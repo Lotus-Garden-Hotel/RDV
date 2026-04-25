@@ -1,128 +1,173 @@
 // ═══════════════════════════════════════════════════════════
-// H.O.M.T — Firebase Hybrid Bridge v1.0
+// H.O.M.T — Firebase Hybrid Bridge v2.0
 // File: firebase-init.js
 //
-// CARA KERJA (Hybrid Mode):
-//   - GAS tetap jadi PRIMARY untuk semua write operasi
-//     (validasi, notif WA, foto Drive, audit log)
-//   - Firestore jadi SECONDARY untuk:
-//     * Real-time read (onSnapshot) menggantikan polling
-//     * Cache offline (IndexedDB built-in Firestore)
-//     * Sync balik dari Firestore ke Sheets via GAS trigger
-//
-// AKTIFKAN:
-//   1. Isi firebaseConfig di bawah dengan nilai dari Firebase Console
-//   2. Di Room_Defect.html set: window.FIREBASE_ENABLED = true
-//   3. Upload firebase-init.js ke GitHub bersama Room_Defect.html
+// FIX v2.0:
+//   - Anonymous Auth sebelum akses Firestore
+//   - Fix enableMultiTabIndexedDbPersistence deprecated
+//   - Fallback ke GAS jika Firebase error (silent)
+//   - onSnapshot dengan retry logic
 // ═══════════════════════════════════════════════════════════
 
-// ── Firebase Config — GANTI dengan nilai dari Firebase Console ──
 const firebaseConfig = {
-  apiKey: "AIzaSyBshlCYJdW85bWjZfNYQw6Ap_OgQIvhEBA",
-  authDomain: "homt-lotusgarden.firebaseapp.com",
-  projectId: "homt-lotusgarden",
-  storageBucket: "homt-lotusgarden.firebasestorage.app",
+  apiKey:            "AIzaSyBshlCYJdW85bWjZfNYQw6Ap_OgQIvhEBA",
+  authDomain:        "homt-lotusgarden.firebaseapp.com",
+  projectId:         "homt-lotusgarden",
+  storageBucket:     "homt-lotusgarden.firebasestorage.app",
   messagingSenderId: "904545057231",
-  appId: "1:904545057231:web:025c9e67fd2923e2157aba"
+  appId:             "1:904545057231:web:025c9e67fd2923e2157aba"
 };
+
+// Track listener agar bisa di-unsubscribe
+let _unsubscribeListener = null;
+let _firebaseReady       = false;
+
 // ══════════════════════════════════════════════════════════
-// MAIN INIT — dipanggil dari Room_Defect.html jika FIREBASE_ENABLED = true
+// MAIN INIT
 // ══════════════════════════════════════════════════════════
 async function initFirebaseHybrid() {
-  // Load Firebase SDK dinamis (tidak bundled di HTML agar ringan)
-  await _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-  await _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
-  await _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js');
-
   try {
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    // Load SDK — urutan penting: app → auth → firestore
+    await _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+    await _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js');
+    await _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
 
-    // Aktifkan offline persistence (IndexedDB)
-    await firebase.firestore().enablePersistence({ synchronizeTabs: true })
-      .catch(err => {
-        if (err.code === 'failed-precondition') console.warn('[Firebase] Multi-tab — persistence disabled');
-        else if (err.code === 'unimplemented')  console.warn('[Firebase] Browser tidak support IndexedDB');
-      });
+    // Init Firebase app
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
 
-    const db = firebase.firestore();
-    window._HOMT_DB = db;
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    // ── Fix deprecated API — gunakan settings baru ──
+    db.settings({
+      cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+      experimentalForceLongPolling: false,
+    });
+
+    // ── Enable offline persistence dengan API yang benar ──
+    try {
+      await db.enablePersistence({ synchronizeTabs: true });
+      console.log('[Firebase] Offline persistence aktif ✅');
+    } catch(err) {
+      if (err.code === 'failed-precondition') {
+        console.warn('[Firebase] Multi-tab — persistence di satu tab saja');
+      } else if (err.code === 'unimplemented') {
+        console.warn('[Firebase] Browser tidak support offline persistence');
+      }
+      // Tidak fatal — lanjut tanpa persistence
+    }
+
+    // ── Anonymous Sign-In ──────────────────────────────────
+    // H.O.M.T pakai custom login (nama+role via GAS), bukan Firebase Auth.
+    // Kita pakai Anonymous Auth agar Security Rules bisa verifikasi
+    // request.auth != null tanpa paksa user login ulang ke Google.
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        await auth.signInAnonymously();
+        console.log('[Firebase] Anonymous auth OK ✅');
+      } else {
+        console.log('[Firebase] Auth sudah ada:', currentUser.uid.substring(0,8)+'...');
+      }
+    } catch(authErr) {
+      // Jika Anonymous Auth tidak diaktifkan di Firebase Console
+      console.warn('[Firebase] Anonymous auth gagal:', authErr.message);
+      console.warn('[Firebase] → Aktifkan Anonymous Auth di Firebase Console → Authentication → Sign-in method');
+      // Fallback: lanjut tanpa Firebase, pakai GAS saja
+      window.FIREBASE_ENABLED = false;
+      return;
+    }
+
+    window._HOMT_DB   = db;
+    window._HOMT_AUTH = auth;
+    _firebaseReady = true;
 
     console.log('[Firebase] Hybrid mode aktif ✅');
 
-    // Override gasCall untuk tickets — baca dari Firestore, write tetap ke GAS
+    // Patch gasCall untuk baca dari Firestore
     _patchGasCallForFirestore(db);
 
-    // Mulai real-time listeners
+    // Start real-time listener
     _startRealtimeListeners(db);
 
-  } catch (e) {
-    console.error('[Firebase] Init gagal, fallback ke GAS only:', e);
+  } catch(e) {
+    console.error('[Firebase] Init gagal, gunakan GAS only:', e.message);
     window.FIREBASE_ENABLED = false;
   }
 }
 
 // ══════════════════════════════════════════════════════════
-// PATCH gasCall — tetap gunakan GAS untuk WRITE
+// PATCH gasCall
 // ══════════════════════════════════════════════════════════
 function _patchGasCallForFirestore(db) {
-  // Simpan gasCall asli
-  const _origGasCall = window.gasCall;
+  const _orig = window.gasCall;
+  if (!_orig) { console.warn('[Firebase] gasCall tidak ditemukan'); return; }
 
   window.gasCall = async function(action, payload) {
 
-    // ── READ actions → baca dari Firestore (lebih cepat, offline-capable) ──
+    // ── READ: ambil dari Firestore ──
     if (action === 'getDefects') {
       try {
         const snap = await db.collection('tickets')
           .where('Status', '!=', 'DELETED')
           .orderBy('Status')
           .orderBy('CreatedAt', 'desc')
-          .limit(200)
+          .limit(300)
           .get();
 
         if (!snap.empty) {
+          console.log('[Firebase] getDefects dari Firestore:', snap.size, 'dokumen');
           return snap.docs.map(d => ({ ID: d.id, ...d.data() }));
         }
-      } catch (e) {
+        // Kosong — fallback ke GAS (mungkin belum migrasi)
+        console.log('[Firebase] Firestore kosong, fallback ke GAS');
+      } catch(e) {
         console.warn('[Firebase] getDefects fallback ke GAS:', e.message);
       }
-      return _origGasCall(action, payload);
+      return _orig(action, payload);
     }
 
     if (action === 'getProjects') {
       try {
         const snap = await db.collection('projects')
           .where('Status', '!=', 'DELETED')
+          .orderBy('Status')
           .get();
+
         if (!snap.empty) {
-          // Fetch tasks per project
           const projects = snap.docs.map(d => ({ ProjectID: d.id, ...d.data(), _tasks: [] }));
+
+          // Fetch tasks
           const taskSnap = await db.collection('projectTasks').get();
           const taskMap  = {};
           taskSnap.forEach(t => {
-            const d = t.data();
-            if (!taskMap[d.ProjectID]) taskMap[d.ProjectID] = [];
-            taskMap[d.ProjectID].push({ TaskID: t.id, ...d });
+            const td = t.data();
+            if (!taskMap[td.ProjectID]) taskMap[td.ProjectID] = [];
+            taskMap[td.ProjectID].push({ TaskID: t.id, ...td });
           });
-          projects.forEach(p => { p._tasks = (taskMap[p.ProjectID] || []).sort((a,b) => (a.Order||0)-(b.Order||0)); });
+          projects.forEach(p => {
+            p._tasks = (taskMap[p.ProjectID] || [])
+              .sort((a,b) => (a.Order||0) - (b.Order||0));
+          });
+
+          console.log('[Firebase] getProjects dari Firestore:', projects.length);
           return projects;
         }
-      } catch (e) {
+      } catch(e) {
         console.warn('[Firebase] getProjects fallback ke GAS:', e.message);
       }
-      return _origGasCall(action, payload);
+      return _orig(action, payload);
     }
 
-    // ── WRITE actions → tetap ke GAS + sync ke Firestore ──
-    // GAS yang jadi source of truth untuk write:
-    // validasi, notif WA, foto Drive, audit log semua ada di GAS
-    const result = await _origGasCall(action, payload);
-
-    // Setelah GAS berhasil, sync ke Firestore di background
+    // ── WRITE: tetap ke GAS + sync background ke Firestore ──
+    const result = await _orig(action, payload);
     if (result && !result.error) {
-      _syncToFirestoreBackground(action, payload, result, db);
+      _syncToFirestore(action, payload, result, db).catch(e =>
+        console.warn('[Firebase] Sync gagal (non-critical):', action, e.message)
+      );
     }
-
     return result;
   };
 
@@ -130,117 +175,138 @@ function _patchGasCallForFirestore(db) {
 }
 
 // ══════════════════════════════════════════════════════════
-// SYNC BACKGROUND — update Firestore setelah GAS berhasil
+// SYNC BACKGROUND ke Firestore setelah GAS berhasil
 // ══════════════════════════════════════════════════════════
-async function _syncToFirestoreBackground(action, payload, result, db) {
-  try {
-    switch (action) {
+async function _syncToFirestore(action, payload, result, db) {
+  const now = new Date().toISOString();
 
-      case 'addDefect': {
-        if (!result.id) break;
-        await db.collection('tickets').doc(result.id).set({
-          ...payload,
-          ID:        result.id,
-          Status:    'OPEN',
-          CreatedAt: new Date().toISOString(),
-          UpdatedAt: new Date().toISOString(),
-          _syncedAt: new Date().toISOString(),
-          _source:   'GAS',
-        });
-        break;
-      }
+  switch(action) {
+    case 'addDefect':
+      if (!result.id) break;
+      await db.collection('tickets').doc(result.id).set({
+        ...payload, ID: result.id,
+        Status: 'OPEN', CreatedAt: now, UpdatedAt: now,
+        _syncedAt: now, _source: 'GAS',
+      });
+      break;
 
-      case 'updateDefect': {
-        if (!payload.id) break;
-        const updates = {
-          UpdatedAt: new Date().toISOString(),
-          _syncedAt: new Date().toISOString(),
-        };
-        if (payload.status)        updates.Status        = payload.status;
-        if (payload.engineer)      updates.Engineer      = payload.engineer;
-        if (payload.linkedProject) updates.LinkedProject = payload.linkedProject;
-        if (payload.startedBy)     updates.StartedBy     = payload.startedBy;
-        if (payload.resolvedBy)    updates.ResolvedBy    = payload.resolvedBy;
-        if (payload.closedBy)      updates.ClosedBy      = payload.closedBy;
-        await db.collection('tickets').doc(payload.id).update(updates);
-        break;
-      }
+    case 'updateDefect':
+      if (!payload.id) break;
+      const upd = { UpdatedAt: now, _syncedAt: now };
+      if (payload.status)        upd.Status        = payload.status;
+      if (payload.engineer)      upd.Engineer      = payload.engineer;
+      if (payload.linkedProject) upd.LinkedProject = payload.linkedProject;
+      if (payload.startedBy)     upd.StartedBy     = payload.startedBy;
+      if (payload.resolvedBy)    upd.ResolvedBy    = payload.resolvedBy;
+      if (payload.closedBy)      upd.ClosedBy      = payload.closedBy;
+      if (payload.notes)         upd.Notes         = payload.notes;
+      await db.collection('tickets').doc(payload.id).update(upd);
+      break;
 
-      case 'addProject': {
-        if (!result.id) break;
-        await db.collection('projects').doc(result.id).set({
-          ...payload,
-          ProjectID:  result.id,
-          Status:     'PLANNING',
-          CreatedAt:  new Date().toISOString(),
-          UpdatedAt:  new Date().toISOString(),
-          _syncedAt:  new Date().toISOString(),
-          _source:    'GAS',
-        });
-        break;
-      }
+    case 'addProject':
+      if (!result.id) break;
+      await db.collection('projects').doc(result.id).set({
+        ...payload, ProjectID: result.id,
+        Status: 'PLANNING', CreatedAt: now, UpdatedAt: now,
+        _syncedAt: now, _source: 'GAS',
+      });
+      break;
 
-      case 'updateProject': {
-        if (!payload.id) break;
-        const projUpdates = { UpdatedAt: new Date().toISOString(), _syncedAt: new Date().toISOString() };
-        ['title','description','department','location','priority','status',
-         'targetDate','notes','vendorName','vendorPic','vendorSpk','vendorCost'].forEach(k => {
-          if (payload[k] !== undefined) projUpdates[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
-        });
-        await db.collection('projects').doc(payload.id).update(projUpdates);
-        break;
-      }
+    case 'updateProject':
+      if (!payload.id) break;
+      const projUpd = { UpdatedAt: now, _syncedAt: now };
+      ['title','description','department','location','priority','status',
+       'targetDate','notes','vendorName','vendorPic','vendorSpk','vendorCost']
+      .forEach(k => {
+        if (payload[k] !== undefined) {
+          projUpd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
+        }
+      });
+      await db.collection('projects').doc(payload.id).update(projUpd);
+      break;
 
-      case 'deleteProject': {
-        if (!payload.id) break;
-        await db.collection('projects').doc(payload.id).update({
-          Status:    'DELETED',
-          UpdatedAt: new Date().toISOString(),
-          _syncedAt: new Date().toISOString(),
-        });
-        break;
-      }
-    }
-  } catch (e) {
-    // Silent — GAS sudah berhasil, Firestore sync gagal tidak critical
-    console.warn('[Firebase] Sync background gagal:', action, e.message);
+    case 'deleteProject':
+      if (!payload.id) break;
+      await db.collection('projects').doc(payload.id).update({
+        Status: 'DELETED', UpdatedAt: now, _syncedAt: now,
+      });
+      break;
   }
 }
 
 // ══════════════════════════════════════════════════════════
-// REAL-TIME LISTENERS — onSnapshot untuk tickets aktif
+// REAL-TIME LISTENER dengan retry
 // ══════════════════════════════════════════════════════════
 function _startRealtimeListeners(db) {
-  // Listen tiket OPEN & IN_PROGRESS — update dashboard otomatis
-  db.collection('tickets')
-    .where('Status', 'in', ['OPEN', 'IN_PROGRESS', 'WAITING_MATERIAL'])
-    .onSnapshot(snap => {
-      if (!window.STATE || !snap) return;
-      snap.docChanges().forEach(change => {
-        const data = { ID: change.doc.id, ...change.doc.data() };
-        if (change.type === 'added' || change.type === 'modified') {
-          const idx = STATE.defects?.findIndex(d => d.id === data.ID);
-          if (idx >= 0) {
-            STATE.defects[idx] = _firestoreToDefect(data);
-          } else if (change.type === 'added') {
-            STATE.defects?.unshift(_firestoreToDefect(data));
+  // Unsubscribe listener lama jika ada
+  if (_unsubscribeListener) {
+    _unsubscribeListener();
+    _unsubscribeListener = null;
+  }
+
+  let retryCount = 0;
+  const MAX_RETRY = 3;
+
+  function subscribe() {
+    _unsubscribeListener = db.collection('tickets')
+      .where('Status', 'in', ['OPEN', 'IN_PROGRESS', 'WAITING_MATERIAL'])
+      .onSnapshot(
+        snap => {
+          retryCount = 0; // reset on success
+          if (!window.STATE || !snap) return;
+
+          let changed = false;
+          snap.docChanges().forEach(change => {
+            const data = { ID: change.doc.id, ...change.doc.data() };
+            if (change.type === 'added' || change.type === 'modified') {
+              const idx = STATE.defects?.findIndex(d => d.id === data.ID);
+              if (idx >= 0) {
+                STATE.defects[idx] = _firestoreToDefect(data);
+                changed = true;
+              } else if (change.type === 'added' && STATE.defects) {
+                STATE.defects.unshift(_firestoreToDefect(data));
+                changed = true;
+              }
+            } else if (change.type === 'removed') {
+              if (STATE.defects) {
+                STATE.defects = STATE.defects.filter(d => d.id !== data.ID);
+                changed = true;
+              }
+            }
+          });
+
+          if (changed) {
+            const dashPage = document.getElementById('page-dashboard');
+            if (dashPage && dashPage.style.display !== 'none') {
+              if (typeof renderDashboard === 'function') renderDashboard();
+            }
+            console.log('[Firebase] Real-time update:', snap.docChanges().length, 'changes');
+          }
+        },
+        err => {
+          console.warn('[Firebase] Listener error:', err.message);
+          // Retry dengan exponential backoff
+          if (retryCount < MAX_RETRY) {
+            retryCount++;
+            const delay = Math.pow(2, retryCount) * 1000;
+            console.log(`[Firebase] Retry listener dalam ${delay/1000}s...`);
+            setTimeout(subscribe, delay);
+          } else {
+            console.warn('[Firebase] Listener gagal setelah', MAX_RETRY, 'retry — gunakan GAS polling');
           }
         }
-      });
-      // Re-render dashboard jika sedang tampil
-      if (typeof renderDashboard === 'function' && document.getElementById('page-dashboard')?.style.display !== 'none') {
-        renderDashboard();
-      }
-      console.log('[Firebase] Real-time update:', snap.docChanges().length, 'changes');
-    }, err => {
-      console.warn('[Firebase] Listener error:', err.message);
-    });
+      );
+  }
+
+  subscribe();
 }
 
-// Helper: konversi Firestore doc ke format STATE.defects
+// ══════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════
 function _firestoreToDefect(d) {
   return {
-    id:            d.ID            || d.id,
+    id:            d.ID            || d.id            || '',
     room:          d.RoomNumber    || '',
     category:      d.Category      || '',
     desc:          d.Description   || '',
@@ -249,10 +315,10 @@ function _firestoreToDefect(d) {
     reporter:      d.Reporter      || '',
     engineer:      d.Engineer      || '',
     notes:         d.Notes         || '',
-    createdAt:     d.CreatedAt     ? new Date(d.CreatedAt).getTime() : 0,
-    startedAt:     d.StartedAt     ? new Date(d.StartedAt).getTime() : 0,
+    createdAt:     d.CreatedAt     ? new Date(d.CreatedAt).getTime()  : 0,
+    startedAt:     d.StartedAt     ? new Date(d.StartedAt).getTime()  : 0,
     resolvedAt:    d.ResolvedAt    ? new Date(d.ResolvedAt).getTime() : 0,
-    closedAt:      d.ClosedAt      ? new Date(d.ClosedAt).getTime() : 0,
+    closedAt:      d.ClosedAt      ? new Date(d.ClosedAt).getTime()   : 0,
     startedBy:     d.StartedBy     || '',
     resolvedBy:    d.ResolvedBy    || '',
     closedBy:      d.ClosedBy      || '',
@@ -261,12 +327,15 @@ function _firestoreToDefect(d) {
     photoAfter:    d.PhotoAfter    || '',
     areaType:      d.AreaType      || 'ROOM',
     urgencyScore:  Number(d.UrgencyScore || 0),
+    slaPausedMin:  Number(d.SLAPausedMin || 0),
+    materialNote:  d.MaterialNote  || '',
+    waitDurationLabel:   d.WaitDurationLabel   || '',
+    repairDurationLabel: d.RepairDurationLabel || '',
+    totalDurationLabel:  d.TotalDurationLabel  || '',
+    assignedTo:    d.AssignedTo    || '',
   };
 }
 
-// ══════════════════════════════════════════════════════════
-// UTILITY
-// ══════════════════════════════════════════════════════════
 function _loadScript(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
