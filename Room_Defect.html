@@ -1518,7 +1518,7 @@ body::before {
     <div class="auth-subtitle">Pilih peran Anda untuk melanjutkan</div>
 
     <div class="role-grid" id="role-grid">
-      <div class="role-card active" data-role="HK" onclick="selectRole(this)">
+      <div class="role-card" data-role="HK" onclick="selectRole(this)">
         <div class="role-card-icon">🛏️</div>
         <div class="role-card-label">Housekeeping</div>
         <div class="role-card-desc">Lapor kerusakan</div>
@@ -3335,76 +3335,113 @@ function applySession(s) {
 // AUTH
 // ════════════════════════════════════════════════════
 function selectRole(el) {
-  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+  // Hapus active dari SEMUA card secara eksplisit
+  const allCards = document.getElementById('role-grid')?.children;
+  if (allCards) {
+    Array.from(allCards).forEach(c => {
+      c.classList.remove('active');
+      c.removeAttribute('aria-selected');
+    });
+  }
+  // Set active ke card yang diklik
   el.classList.add('active');
+  el.setAttribute('aria-selected', 'true');
+  // Simpan ke STATE
   STATE.role = el.dataset.role;
+  // Simpan ke sessionStorage sebagai backup
+  try { sessionStorage.setItem('_pendingRole', STATE.role); } catch(e) {}
+}
+
+// Sync visual role card dengan STATE.role
+function _syncRoleCard() {
+  const role = (function(){
+    // Coba ambil dari STATE, sessionStorage, default HK
+    if (STATE.role) return STATE.role;
+    try { return sessionStorage.getItem('_pendingRole') || 'HK'; } catch(e) { return 'HK'; }
+  })();
+  STATE.role = role;
+  const grid = document.getElementById('role-grid');
+  if (!grid) return;
+  Array.from(grid.children).forEach(c => {
+    const isMatch = c.dataset.role === role;
+    c.classList.toggle('active', isMatch);
+    if (isMatch) c.setAttribute('aria-selected', 'true');
+    else c.removeAttribute('aria-selected');
+  });
 }
 
 async function doLogin() {
-  const name = ($id('login-name').value || '').trim();
+  const name = ($id('login-name')?.value || '').trim();
   if (!name) {
     showToast('error', 'Nama diperlukan', 'Masukkan nama Anda');
-    $id('login-name').focus();
+    $id('login-name')?.focus();
     return;
   }
-  const role = STATE.role || 'HK';
-  const btn  = document.querySelector('#auth-screen .btn-primary');
+
+  // Ambil role dari DOM (source of truth) — bukan STATE yang mungkin stale
+  const activeCard = document.querySelector('#role-grid .role-card.active');
+  const role = activeCard?.dataset?.role || STATE.role || 'HK';
+
+  // Update STATE sesuai DOM
+  STATE.role = role;
+
+  const btn = document.querySelector('#auth-screen .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Memvalidasi...'; }
 
   try {
-    // ── Validasi ke GAS ──────────────────────────────────────
     let loginAllowed = false;
     let loginWarning = '';
 
     try {
+      // Timeout 15 detik — GAS cold start bisa 10-12 detik
       const vResult = await Promise.race([
         gasValidateUser({ name, role }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000)),
       ]);
 
       if (vResult?.valid === false) {
-        // User tidak terdaftar — tolak login
-        showToast('error', 'Akses Ditolak', vResult.error || 'Nama / Role tidak terdaftar di sistem');
-        if (btn) { btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem'; }
+        showToast('error', 'Akses Ditolak', vResult.error || 'Nama / Role tidak terdaftar');
         return;
       }
-
-      // valid === true atau ada warning (Sheet_Users kosong/tidak ditemukan)
       loginAllowed = true;
       if (vResult?.warning) loginWarning = vResult.warning;
 
     } catch (gasErr) {
-      // GAS timeout atau error jaringan → izinkan login dengan peringatan
+      // Timeout / offline → login dengan peringatan
       loginAllowed = true;
-      loginWarning = `Validasi tidak tersedia (${gasErr.message === 'timeout' ? 'timeout 8s' : 'offline'}). Login tanpa verifikasi.`;
-      console.warn('[Login] GAS error:', gasErr.message);
+      loginWarning = gasErr.message === 'timeout'
+        ? 'GAS lambat merespons — login tanpa verifikasi server.'
+        : 'Tidak ada koneksi — login dalam mode offline.';
+      console.warn('[Login] GAS:', gasErr.message);
     }
 
     if (!loginAllowed) return;
 
-    // ── Set session ──────────────────────────────────────────
+    // ── Terapkan session ──
     STATE.user = name;
     STATE.role = role;
-    $id('auth-screen').style.display = 'none';
+
+    $id('auth-screen').style.display  = 'none';
     $id('app-shell').classList.add('visible');
 
-    // Topbar & greeting
-    const roleEl = $id('topbar-role');
-    if (roleEl) roleEl.textContent = role;
+    const roleEl  = $id('topbar-role');
     const greetEl = $id('dash-greeting');
+    if (roleEl)  roleEl.textContent  = role;
     if (greetEl) greetEl.textContent = `Halo, ${name} 👋`;
 
     updateNavForRole(role);
     saveSession();
 
-    // ── Load data ────────────────────────────────────────────
+    // Bersihkan pending role di sessionStorage
+    try { sessionStorage.removeItem('_pendingRole'); } catch(e) {}
+
     await fetchAndRender();
     startPolling();
     startLiveTick();
     requestNotificationPermission();
 
     if (loginWarning) {
-      showToast('warn', 'Login tanpa verifikasi', loginWarning);
+      showToast('warn', 'Login berhasil (offline)', loginWarning);
     } else {
       showToast('success', `Selamat datang, ${name}!`, `Role: ${role}`);
     }
@@ -3417,19 +3454,16 @@ async function doLogin() {
   }
 }
 
-function selectRole(el) {
-  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  STATE.role = el.dataset.role;
-}
-
 function doLogout() {
   clearSession(); stopPolling();
   $id('app-shell').classList.remove('visible');
   $id('auth-screen').style.display = 'flex';
-  STATE.user = null; STATE.defects = [];
+  STATE.user = null; STATE.role = 'HK';
+  STATE.defects = []; STATE.projects = [];
   STATE.photoBeforeData = null; STATE.photoAfterData = null;
   STATE.lastDefectSnapshot = ''; STATE.badgeCount = 0;
+  // Reset role card visual ke HK
+  _syncRoleCard();
 }
 
 // ════════════════════════════════════════════════════
@@ -5931,6 +5965,9 @@ let aiDebounce = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initDOMCache();
 
+  // Sync visual role card dengan STATE.role default (HK)
+  _syncRoleCard();
+
   // ── Cek koneksi GAS
   try { await gasCall('getMetrics', {}); STATE.gasAvailable = true; console.log('✅ GAS terhubung'); }
   catch { STATE.gasAvailable = false; showToast('warn', 'Mode Offline', 'Menggunakan data lokal'); }
@@ -8070,15 +8107,37 @@ function lbClampPan() {
   // GitHub Pages: https://user.github.io/repo/Room_Defect.html
   // SW harus didaftarkan dari path yang sama dengan file HTML
   if ('serviceWorker' in navigator) {
-    // Cari path folder saat ini (bukan root /) agar cocok di GitHub Pages
-    const swPath = _assetBase + '/sw.js';
+    const swPath  = _assetBase + '/sw.js';
     const swScope = _assetBase + '/';
     navigator.serviceWorker.register(swPath, { scope: swScope })
       .then(r => {
         console.log('[SW] Registered:', r.scope);
-        setInterval(() => r.update(), 60 * 60 * 1000);
+
+        // Cek update setiap 30 menit
+        setInterval(() => r.update(), 30 * 60 * 1000);
+
+        // Jika sudah ada SW baru menunggu, aktifkan langsung
+        if (r.waiting) r.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+        // Jika SW baru ditemukan saat berjalan
+        r.addEventListener('updatefound', () => {
+          const newSW = r.installing;
+          if (!newSW) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[SW] Versi baru tersedia — reload otomatis...');
+              newSW.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
       })
       .catch(e => console.warn('[SW] Gagal daftar:', e.message));
+
+    // Reload halaman saat SW baru ambil alih (setelah SKIP_WAITING)
+    let _swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!_swRefreshing) { _swRefreshing = true; window.location.reload(); }
+    });
   }
 
   // ── PWA install banner ────────────────────────────────────

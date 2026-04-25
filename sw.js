@@ -1,84 +1,110 @@
 // ═══════════════════════════════════════════════════════════
-// H.O.M.T — Service Worker v2.0
-// Room_Defect.html — Lotus Garden Hotel by Waringinhospitality
-//
-// STRATEGI CACHE:
-//   - App shell (HTML)        → Cache First + background update
-//   - Font Google             → Cache First (stale-while-revalidate)
-//   - GAS / Firestore API     → Network First + offline fallback
-//   - Foto (Drive proxy)      → Cache First (24 jam TTL)
-//   - QR / external           → Network only, gagal silent
+// H.O.M.T — Service Worker v2.1
+// ── PENTING: Update APP_VERSION setiap kali deploy file baru
+//    Ini yang memaksa browser hapus cache lama dan ambil fresh
 // ═══════════════════════════════════════════════════════════
 
-const APP_VERSION   = 'homt-v2.1';
-const FONT_CACHE    = 'homt-fonts-v1';
-const PHOTO_CACHE   = 'homt-photos-v1';
-const PHOTO_TTL_MS  = 24 * 60 * 60 * 1000; // 24 jam
+const APP_VERSION  = 'homt-v2.1';   // ← UPDATE INI setiap deploy
+const FONT_CACHE   = 'homt-fonts-v1';
+const PHOTO_CACHE  = 'homt-photos-v1';
+const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;
 
-// File yang di-precache saat install (app shell)
+// App shell — JANGAN cache Room_Defect.html di sini
+// Biarkan HTML selalu fresh dari network agar perubahan login/role langsung terasa
 const PRECACHE_URLS = [
-  'Room_Defect.html',
   'manifest.json',
-  'icon-192.png',
-  'icon-512.png',
+  'firebase-init.js',
 ];
 
-// ── INSTALL: precache app shell ─────────────────────────────
+// ── INSTALL ─────────────────────────────────────────────────
 self.addEventListener('install', event => {
+  console.log('[SW] Installing:', APP_VERSION);
   event.waitUntil(
     caches.open(APP_VERSION)
-      .then(cache => cache.addAll(PRECACHE_URLS.filter(u => {
-        // Jangan crash jika icon belum ada
-        return !u.includes('icon');
-      })))
-      .then(() => self.skipWaiting())
-      .catch(err => {
-        console.warn('[SW] Precache partial fail:', err);
-        return self.skipWaiting();
+      .then(cache => {
+        // Precache file statis yang jarang berubah
+        return Promise.allSettled(
+          PRECACHE_URLS.map(url =>
+            cache.add(url).catch(e => console.warn('[SW] Precache skip:', url, e.message))
+          )
+        );
+      })
+      .then(() => {
+        console.log('[SW] Installed:', APP_VERSION);
+        return self.skipWaiting(); // Langsung aktif tanpa tunggu tab lama tutup
       })
   );
 });
 
-// ── ACTIVATE: hapus cache lama ──────────────────────────────
+// ── ACTIVATE ────────────────────────────────────────────────
 self.addEventListener('activate', event => {
   const KEEP = [APP_VERSION, FONT_CACHE, PHOTO_CACHE];
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => !KEEP.includes(k)).map(k => {
-          console.log('[SW] Hapus cache lama:', k);
-          return caches.delete(k);
-        })
+        keys
+          .filter(k => !KEEP.includes(k))
+          .map(k => {
+            console.log('[SW] Hapus cache lama:', k);
+            return caches.delete(k);
+          })
       ))
-      .then(() => self.clients.claim())
+      .then(() => {
+        console.log('[SW] Activated:', APP_VERSION);
+        return self.clients.claim(); // Ambil kontrol semua tab langsung
+      })
   );
 });
 
-// ── FETCH: routing strategy ─────────────────────────────────
+// ── FETCH ────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
   const req = event.request;
   const url = req.url;
 
-  // Abaikan non-GET
+  // Abaikan non-GET dan chrome-extension
   if (req.method !== 'GET') return;
+  if (url.startsWith('chrome-extension://')) return;
+  if (url.startsWith('moz-extension://')) return;
 
-  // FIX: Abaikan chrome-extension://, moz-extension://, dan skema non-http
-  // Cache API tidak support skema selain http/https → TypeError di sw.js:118
-  if (!url.startsWith('http://') && !url.startsWith('https://')) return;
+  // 1. Room_Defect.html → SELALU Network First (jangan cache HTML)
+  //    Ini kunci agar perubahan login/role langsung terasa tanpa clear cache
+  if (url.includes('Room_Defect.html') || url.endsWith('/') && !url.includes('.')) {
+    event.respondWith(
+      fetch(req)
+        .then(res => {
+          if (res.ok) {
+            // Update cache di background tapi JANGAN serve dari cache untuk HTML
+            const clone = res.clone();
+            caches.open(APP_VERSION).then(c => c.put(req, clone));
+          }
+          return res;
+        })
+        .catch(() =>
+          // Offline fallback — ambil dari cache
+          caches.match(req).then(cached =>
+            cached || new Response(
+              '<h1>H.O.M.T Offline</h1><p>Sambungkan ke internet lalu refresh.</p>',
+              { headers: { 'Content-Type': 'text/html' }, status: 503 }
+            )
+          )
+        )
+    );
+    return;
+  }
 
-  // 1. GAS (Google Apps Script) → Network First, offline fallback JSON
+  // 2. GAS (Google Apps Script) → Network First, offline fallback JSON
   if (url.includes('script.google.com')) {
     event.respondWith(networkFirstJSON(req));
     return;
   }
 
-  // 2. Firestore REST API → Network First, offline fallback JSON
+  // 3. Firestore → Network First, offline fallback JSON
   if (url.includes('firestore.googleapis.com') || url.includes('firebase.googleapis.com')) {
     event.respondWith(networkFirstJSON(req));
     return;
   }
 
-  // 3. WhatsApp API (Fonnte) → Network only, gagal silent
+  // 4. Fonnte WA API → Network only, gagal silent
   if (url.includes('fonnte.com') || url.includes('api.whatsapp')) {
     event.respondWith(
       fetch(req).catch(() => new Response('{}', {
@@ -88,145 +114,123 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 4. Google Drive foto proxy → Cache First + TTL 24 jam
+  // 5. Google Drive foto → Cache First + TTL 24 jam
   if (url.includes('drive.google.com') || url.includes('lh3.googleusercontent.com')) {
     event.respondWith(cacheFirstWithTTL(req, PHOTO_CACHE, PHOTO_TTL_MS));
     return;
   }
 
-  // 5. Google Fonts → Cache First (stale-while-revalidate)
+  // 6. Google Fonts → Cache First (stale-while-revalidate)
   if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
     event.respondWith(cacheFirst(req, FONT_CACHE));
     return;
   }
 
-  // 6. CDN (jsPDF, dll) → Cache First
-  if (url.includes('cdnjs.cloudflare.com') || url.includes('cdn.')) {
+  // 7. CDN (jsPDF, SheetJS, dll) → Cache First
+  if (url.includes('cdnjs.cloudflare.com')) {
     event.respondWith(cacheFirst(req, APP_VERSION));
     return;
   }
 
-  // 7. App shell (HTML + aset lokal) → Cache First + background update
-  if (url.includes('Room_Defect.html') || url.includes('manifest.json') ||
-      url.includes('icon-') || url.includes('favicon')) {
+  // 8. Icon, manifest → Cache First + background update
+  if (url.includes('icon-') || url.includes('manifest.json') || url.includes('favicon')) {
     event.respondWith(cacheFirstWithRevalidate(req));
     return;
   }
 
-  // 8. Semua lainnya → Network First
+  // 9. Semua lainnya → Network First dengan fallback cache
   event.respondWith(
     fetch(req)
       .then(res => {
-        // FIX: hanya cache http/https — chrome-extension:// crash di cache.put()
-        if (res.ok && res.status < 400 && (req.url.startsWith('http://') || req.url.startsWith('https://'))) {
-          const clone = res.clone();
-          caches.open(APP_VERSION).then(c => c.put(req, clone));
+        if (res.ok) {
+          caches.open(APP_VERSION).then(c => c.put(req, res.clone()));
         }
         return res;
       })
-      .catch(() => caches.match(req).then(cached => cached ||
-        new Response('Offline', { status: 503 })
-      ))
+      .catch(() =>
+        caches.match(req).then(c => c || new Response('Offline', { status: 503 }))
+      )
   );
 });
 
 // ══════════════════════════════════════════════════
-// HELPER STRATEGIES
+// STRATEGIES
 // ══════════════════════════════════════════════════
 
-/** Network First — fallback ke cache, fallback ke JSON error */
 async function networkFirstJSON(req) {
   try {
-    const res = await fetch(req);
-    return res;
+    return await fetch(req);
   } catch (err) {
     const cached = await caches.match(req);
     if (cached) return cached;
     return new Response(
-      JSON.stringify({ success: false, error: 'Offline — tidak ada koneksi internet', offline: true }),
+      JSON.stringify({ success: false, error: 'Offline', offline: true }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
 
-/** Cache First — ambil dari cache, fetch jika miss */
 async function cacheFirst(req, cacheName) {
   const cached = await caches.match(req);
   if (cached) return cached;
   try {
     const res = await fetch(req);
-    if (res.ok) {
-      const cache = await caches.open(cacheName);
-      cache.put(req, res.clone());
-    }
+    if (res.ok) caches.open(cacheName).then(c => c.put(req, res.clone()));
     return res;
-  } catch (err) {
+  } catch {
     return new Response('Offline', { status: 503 });
   }
 }
 
-/** Cache First dengan TTL — untuk foto */
 async function cacheFirstWithTTL(req, cacheName, ttlMs) {
   const cache  = await caches.open(cacheName);
   const cached = await cache.match(req);
-
   if (cached) {
-    const date = cached.headers.get('sw-cached-at');
-    const age  = date ? Date.now() - new Date(date).getTime() : 0;
-    if (!date || age < ttlMs) return cached;
-    // Expired — hapus dan fetch ulang di background
+    const age = Date.now() - new Date(cached.headers.get('sw-cached-at') || 0).getTime();
+    if (age < ttlMs) return cached;
     cache.delete(req);
   }
-
   try {
     const res = await fetch(req);
     if (res.ok) {
-      // Tambah header timestamp
-      const headers = new Headers(res.headers);
-      headers.set('sw-cached-at', new Date().toISOString());
-      const resWithTs = new Response(await res.blob(), { status: res.status, headers });
-      cache.put(req, resWithTs.clone());
-      return resWithTs;
+      const h = new Headers(res.headers);
+      h.set('sw-cached-at', new Date().toISOString());
+      const r = new Response(await res.blob(), { status: res.status, headers: h });
+      cache.put(req, r.clone());
+      return r;
     }
     return res;
-  } catch (err) {
+  } catch {
     return cached || new Response('', { status: 503 });
   }
 }
 
-/** Cache First + background revalidate (stale-while-revalidate) */
 async function cacheFirstWithRevalidate(req) {
   const cache  = await caches.open(APP_VERSION);
   const cached = await cache.match(req);
-
-  // Revalidate di background
-  const fetchPromise = fetch(req).then(res => {
-    if (res.ok) cache.put(req, res.clone());
-    return res;
-  }).catch(() => null);
-
-  return cached || await fetchPromise || new Response('Offline', { status: 503 });
+  fetch(req).then(res => { if (res.ok) cache.put(req, res.clone()); }).catch(() => {});
+  return cached || fetch(req);
 }
 
-// ── Push notification handler (opsional — untuk Firebase Cloud Messaging) ──
+// ── Push Notification ────────────────────────────────────────
 self.addEventListener('push', event => {
   if (!event.data) return;
   try {
-    const data = event.data.json();
+    const d = event.data.json();
     event.waitUntil(
-      self.registration.showNotification(data.title || 'H.O.M.T', {
-        body:    data.body    || '',
+      self.registration.showNotification(d.title || 'H.O.M.T', {
+        body:    d.body    || '',
         icon:    'icon-192.png',
         badge:   'icon-192.png',
-        tag:     data.tag     || 'homt-notif',
-        data:    { url: data.url || 'Room_Defect.html' },
+        tag:     d.tag     || 'homt',
+        data:    { url: d.url || 'Room_Defect.html' },
         actions: [
-          { action: 'open', title: 'Buka App' },
+          { action: 'open',    title: 'Buka' },
           { action: 'dismiss', title: 'Tutup' },
         ],
       })
     );
-  } catch (e) { console.warn('[SW] Push parse error:', e); }
+  } catch(e) { console.warn('[SW] Push error:', e); }
 });
 
 self.addEventListener('notificationclick', event => {
@@ -240,4 +244,15 @@ self.addEventListener('notificationclick', event => {
       else clients.openWindow(url);
     })
   );
+});
+
+// ── Message handler — force update dari app ─────────────────
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data?.type === 'CLEAR_CACHE') {
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => event.source?.postMessage({ type: 'CACHE_CLEARED' }));
+  }
 });
