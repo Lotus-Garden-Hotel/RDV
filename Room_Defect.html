@@ -1835,21 +1835,27 @@ body::before {
           <label class="form-label">Lokasi Area Umum</label>
           <select class="form-select" id="f-area-code" onchange="syncRoomFromArea()">
             <option value="">Pilih lokasi...</option>
-            <optgroup label="Area Umum">
+            <optgroup label="Ground Floor">
               <option value="LOBBY">🚪 Lobby Utama</option>
-              <option value="LOBBY-TOILET-P">🚻 Toilet (Pria)</option>
-              <option value="LOBBY-TOILET-W">🚻 Toilet (Wanita)</option>
+              <option value="LOBBY-TOILET-P">🚻 Toilet Lobby (Pria)</option>
+              <option value="LOBBY-TOILET-W">🚻 Toilet Lobby (Wanita)</option>
               <option value="FO-AREA">🛎 Front Office Area</option>
-              <option value="PARKING-B1">🚗 Parkir Lotus</option>
-              <option value="PARKING-GF">🚗 Parkir Loji</option>
+              <option value="PARKING-B1">🚗 Parkir Basement</option>
+              <option value="PARKING-GF">🚗 Parkir Ground Floor</option>
             </optgroup>
             <optgroup label="Koridor & Sirkulasi">
               <option value="KORIDOR-LT1">🚶 Koridor Lantai 1</option>
               <option value="KORIDOR-LT2">🚶 Koridor Lantai 2</option>
+              <option value="KORIDOR-LT3">🚶 Koridor Lantai 3</option>
+              <option value="KORIDOR-LT4">🚶 Koridor Lantai 4</option>
+              <option value="KORIDOR-LT5">🚶 Koridor Lantai 5</option>
+              <option value="LIFT-01">🛗 Lift 01</option>
+              <option value="LIFT-02">🛗 Lift 02</option>
               <option value="TANGGA-DARURAT">🔥 Tangga Darurat</option>
             </optgroup>
             <optgroup label="Fasilitas">
-              <option value="POOL">🏊 Kolam Ikan</option>
+              <option value="POOL">🏊 Kolam Renang</option>
+              <option value="GYM">🏋 Gym / Fitness</option>
               <option value="MEETING-R1">📅 Meeting Room 1</option>
               <option value="MEETING-R2">📅 Meeting Room 2</option>
               <option value="BALLROOM">🎉 Ballroom</option>
@@ -2071,6 +2077,18 @@ body::before {
           <div class="chart-title">🏆 Task Completion per Assignee</div>
           <div id="prj-task-leaderboard"></div>
         </div>
+
+        <!-- Vendor Project Summary -->
+        <div class="chart-card stagger-child">
+          <div class="chart-title">🏢 Project Vendor Aktif</div>
+          <div id="prj-vendor-summary"></div>
+        </div>
+      </div>
+
+      <!-- Trend Bulanan Defect -->
+      <div class="chart-card stagger-child">
+        <div class="chart-title">📈 Trend Bulanan Defect (6 Bulan Terakhir)</div>
+        <div id="monthly-trend-chart"></div>
       </div>
     </div>
 
@@ -5603,8 +5621,37 @@ function renderAnalytics() {
     }).join('') : '<div class="text-muted text-sm" style="padding:12px 0">Tidak ada defect aktif.</div>';
   }
 
-  // ── FIX v7: PROJECT ANALYTICS ──────────────────────────────
+  // ── PROJECT ANALYTICS ──────────────────────────────
   _renderProjectAnalytics();
+
+  // ── TREND BULANAN defect ────────────────────────────
+  const trendEl = document.getElementById('monthly-trend-chart');
+  if (trendEl) {
+    const monthMap = {};
+    STATE.defects.forEach(d => {
+      if (!d.createdAt) return;
+      const key = new Date(d.createdAt).toLocaleDateString('id-ID', { month:'short', year:'numeric' });
+      if (!monthMap[key]) monthMap[key] = { total:0, closed:0 };
+      monthMap[key].total++;
+      if (d.status === 'CLOSED' || d.status === 'RESOLVED') monthMap[key].closed++;
+    });
+    const months = Object.keys(monthMap).slice(-6); // 6 bulan terakhir
+    const maxT   = Math.max(...months.map(m => monthMap[m].total), 1);
+    trendEl.innerHTML = months.length ? months.map(m => {
+      const { total, closed } = monthMap[m];
+      const pct = Math.round(total/maxT*100);
+      const closedPct = total > 0 ? Math.round(closed/total*100) : 0;
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+          <span style="font-weight:600">${m}</span>
+          <span style="color:var(--text-1)">${total} defect · <span style="color:#10b981">${closedPct}% selesai</span></span>
+        </div>
+        <div style="height:8px;background:var(--bg-3);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:4px;transition:width .4s"></div>
+        </div>
+      </div>`;
+    }).join('') : '<div class="text-muted text-sm">Belum ada data trend.</div>';
+  }
 }
 
 function _renderProjectAnalytics() {
@@ -5612,23 +5659,54 @@ function _renderProjectAnalytics() {
   const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
   const now = Date.now();
 
-  // ── 1. Status distribution per department ──
+function _renderProjectAnalytics() {
+  // Pastikan project sudah diload — jika belum, fetch dulu
+  if (!STATE.projects || !STATE.projects.length) {
+    gasGetProjects().then(raw => {
+      STATE.projects = raw || [];
+      _renderProjectAnalytics();
+    }).catch(() => {});
+    return;
+  }
+
+  const projects = STATE.projects;
+  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '—';
+  const now = Date.now();
+
+  // ── 1. Status distribution per department (termasuk VENDOR) ──
   const statusEl = document.getElementById('prj-status-chart');
   if (statusEl) {
     const statuses = ['PLANNING','ACTIVE','ON_HOLD','COMPLETED'];
-    const statusColors = { PLANNING:'#8b5cf6', ACTIVE:'#f59e0b', ON_HOLD:'#a78bfa', COMPLETED:'#10b981' };
-    const statusLabels = { PLANNING:'🗓 Planning', ACTIVE:'🟢 Active', ON_HOLD:'⏸ On Hold', COMPLETED:'✅ Completed' };
-    const depts = ['ENG','HK','BOTH'];
-    const deptLabels = { ENG:'⚙️ ENG', HK:'🧹 HK', BOTH:'🤝 BOTH' };
+    const statusColors  = { PLANNING:'#8b5cf6', ACTIVE:'#f59e0b', ON_HOLD:'#a78bfa', COMPLETED:'#10b981' };
+    const statusLabels  = { PLANNING:'🗓 Planning', ACTIVE:'🟢 Active', ON_HOLD:'⏸ On Hold', COMPLETED:'✅ Completed' };
+    const depts      = ['ENG','HK','BOTH','VENDOR','VENDOR_ENG'];
+    const deptLabels = { ENG:'⚙️ ENG', HK:'🧹 HK', BOTH:'🤝 ENG+HK', VENDOR:'🏢 Vendor', VENDOR_ENG:'🔧 V+ENG' };
 
-    if (!projects.length) {
-      statusEl.innerHTML = '<div class="text-muted text-sm">Belum ada project.</div>';
-    } else {
-      statusEl.innerHTML = statuses.map(st => {
+    // Ringkasan total
+    const total = projects.length;
+    const completedPct = total > 0 ? Math.round(projects.filter(p=>p['Status']==='COMPLETED').length/total*100) : 0;
+    const vendorCount  = projects.filter(p=>p['Department']==='VENDOR'||p['Department']==='VENDOR_ENG').length;
+
+    statusEl.innerHTML = `
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="background:var(--bg-2);border-radius:8px;padding:10px 14px;flex:1;min-width:80px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:#3b82f6">${total}</div>
+          <div style="font-size:10px;color:var(--text-2);text-transform:uppercase">Total</div>
+        </div>
+        <div style="background:var(--bg-2);border-radius:8px;padding:10px 14px;flex:1;min-width:80px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:#10b981">${completedPct}%</div>
+          <div style="font-size:10px;color:var(--text-2);text-transform:uppercase">Selesai</div>
+        </div>
+        <div style="background:var(--bg-2);border-radius:8px;padding:10px 14px;flex:1;min-width:80px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:#f59e0b">${vendorCount}</div>
+          <div style="font-size:10px;color:var(--text-2);text-transform:uppercase">Vendor</div>
+        </div>
+      </div>` +
+      (statuses.map(st => {
         const stProjects = projects.filter(p => p['Status'] === st);
         if (!stProjects.length) return '';
-        const total = stProjects.length;
-        const color = statusColors[st] || 'var(--accent-blue)';
+        const stTotal = stProjects.length;
+        const color   = statusColors[st] || 'var(--accent-blue)';
         const deptBreakdown = depts.map(dep => {
           const cnt = stProjects.filter(p => p['Department'] === dep).length;
           return cnt > 0 ? `<span style="font-size:10px;color:var(--text-1);margin-right:8px">${deptLabels[dep]}: <strong>${cnt}</strong></span>` : '';
@@ -5636,18 +5714,47 @@ function _renderProjectAnalytics() {
         return `<div style="margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
             <span style="font-size:13px;font-weight:700;color:${color}">${statusLabels[st]}</span>
-            <span style="font-size:13px;font-weight:700">${total}</span>
+            <span style="font-size:13px;font-weight:700">${stTotal}</span>
           </div>
           <div style="height:6px;background:var(--bg-3);border-radius:3px;margin-bottom:5px">
-            <div style="height:100%;width:${Math.min(100,Math.round(total/Math.max(projects.length,1)*100))}%;background:${color};border-radius:3px;transition:width .4s"></div>
+            <div style="height:100%;width:${Math.min(100,Math.round(stTotal/Math.max(total,1)*100))}%;background:${color};border-radius:3px;transition:width .4s"></div>
           </div>
           <div style="display:flex;flex-wrap:wrap">${deptBreakdown}</div>
         </div>`;
-      }).join('') || '<div class="text-muted text-sm">Belum ada data.</div>';
-    }
+      }).join('') || '<div class="text-muted text-sm">Belum ada project.</div>');
   }
 
-  // ── 2. Overdue list ──
+  // ── 4. Vendor project summary ──
+  const vendorEl = document.getElementById('prj-vendor-summary');
+  if (vendorEl) {
+    const vendorProjects = projects.filter(p =>
+      p['Department'] === 'VENDOR' || p['Department'] === 'VENDOR_ENG'
+    );
+    if (!vendorProjects.length) {
+      vendorEl.innerHTML = '<div class="text-muted text-sm">Belum ada project vendor.</div>';
+    } else {
+      vendorEl.innerHTML = vendorProjects.map(p => {
+        const st     = p['Status'] || 'PLANNING';
+        const stColor = { PLANNING:'#8b5cf6', ACTIVE:'#f59e0b', ON_HOLD:'#a78bfa', COMPLETED:'#10b981' }[st] || '#3b82f6';
+        const tasks  = p['_tasks'] || [];
+        const done   = tasks.filter(t => t['Status'] === 'DONE').length;
+        const pct    = tasks.length ? Math.round(done/tasks.length*100) : 0;
+        return `<div style="background:var(--bg-2);border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #f59e0b">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--text-0)">${p['Title']||'—'}</div>
+              <div style="font-size:10px;color:#fbbf24;margin-top:2px">🏢 ${p['VendorName']||'Vendor'} ${p['Department']==='VENDOR_ENG'?'· +ENG':''}</div>
+            </div>
+            <span style="font-size:10px;font-weight:700;color:${stColor}">${st}</span>
+          </div>
+          ${tasks.length ? `<div style="height:4px;background:var(--bg-3);border-radius:2px;margin-top:6px">
+            <div style="height:100%;width:${pct}%;background:#f59e0b;border-radius:2px;transition:width .4s"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text-2);margin-top:3px">${done}/${tasks.length} milestone · ${pct}%</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+  }
   const overdueEl = document.getElementById('prj-overdue-list');
   if (overdueEl) {
     const upcoming = projects.filter(p => {
@@ -7182,40 +7289,76 @@ async function submitProject() {
 }
 
 function exportCSV() {
-  if (!STATE.defects.length) { showToast('warn', 'Tidak ada data', 'Belum ada defect untuk di-export'); return; }
+  if (!STATE.defects.length && !(STATE.projects||[]).length) {
+    showToast('warn', 'Tidak ada data', 'Belum ada defect atau project untuk di-export');
+    return;
+  }
+  const now    = new Date();
+  const prefix = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
 
-  const now  = new Date();
-  const month = now.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-  const headers = ['ID','Kamar','Kategori','Deskripsi','Prioritas','Status','Reporter','Engineer','Dibuat','Selesai','Durasi (jam)'];
-
-  const rows = STATE.defects.map(d => {
-    const durH = (d.startedAt && d.resolvedAt)
-      ? ((d.resolvedAt - d.startedAt) / 3600000).toFixed(1)
-      : '-';
+  // ── Sheet 1: Defects ──
+  const defHeaders = ['ID','Kamar','Kategori','Deskripsi','Prioritas','Status','Reporter','Engineer',
+    'StartedBy','ResolvedBy','ClosedBy','Dibuat','Mulai','Selesai','Durasi Tunggu','Durasi Perbaikan','Durasi Total','LinkedProject'];
+  const defRows = STATE.defects.map(d => {
+    const fmtDt = ts => ts ? new Date(ts).toLocaleDateString('id-ID') : '-';
     return [
-      d.id,
-      d.room,
-      (d.category||'').replace('_','/'),
+      d.id, d.room, (d.category||'').replace('_','/'),
       `"${(d.desc||'').replace(/"/g,'""').substring(0,80)}"`,
-      d.priority,
-      d.status,
-      d.reporter,
-      d.engineer || '-',
-      d.createdAt  ? new Date(d.createdAt).toLocaleDateString('id-ID')  : '-',
-      d.resolvedAt ? new Date(d.resolvedAt).toLocaleDateString('id-ID') : '-',
-      durH,
+      d.priority, d.status,
+      d.reporter, d.engineer||'-',
+      d.startedBy||'-', d.resolvedBy||'-', d.closedBy||'-',
+      fmtDt(d.createdAt), fmtDt(d.startedAt), fmtDt(d.resolvedAt),
+      d.waitDurationLabel||'-', d.repairDurationLabel||'-', d.totalDurationLabel||'-',
+      d.linkedProject||'-',
     ].join(',');
   });
 
-  const csv = [headers.join(','), ...rows].join('\n');
+  // ── Sheet 2: Projects ──
+  const projects = STATE.projects || [];
+  const projHeaders = ['ProjectID','Judul','Departemen','Vendor','PIC Vendor','No SPK','Estimasi Biaya',
+    'Prioritas','Status','Dibuat Oleh','Mulai','Target','Selesai','Total Milestone','Done Milestone','Progress%','Catatan','LinkedDefects'];
+  const projRows = projects.map(p => {
+    const tasks  = p['_tasks'] || [];
+    const done   = tasks.filter(t => t['Status'] === 'DONE').length;
+    const pct    = tasks.length ? Math.round(done/tasks.length*100) : 0;
+    const fmtDt  = iso => iso ? new Date(iso).toLocaleDateString('id-ID') : '-';
+    return [
+      p['ProjectID']||'-',
+      `"${(p['Title']||'').replace(/"/g,'""')}"`,
+      p['Department']||'-',
+      `"${(p['VendorName']||'-').replace(/"/g,'""')}"`,
+      p['VendorPic']||'-',
+      p['VendorSpk']||'-',
+      p['VendorCost']||0,
+      p['Priority']||'-',
+      p['Status']||'-',
+      p['CreatedBy']||'-',
+      fmtDt(p['StartDate']), fmtDt(p['TargetDate']), fmtDt(p['CompletedAt']),
+      tasks.length, done, pct,
+      `"${(p['Notes']||'').replace(/"/g,'""').substring(0,80)}"`,
+      p['LinkedDefects']||'-',
+    ].join(',');
+  });
+
+  // Gabungkan dua section dengan separator
+  const csv = [
+    '=== DEFECT REPORT ===',
+    defHeaders.join(','),
+    ...defRows,
+    '',
+    '=== PROJECT REPORT ===',
+    projHeaders.join(','),
+    ...projRows,
+  ].join('\n');
+
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = `RoomDefect_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}.csv`;
+  a.download = `HOMT_Report_${prefix}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast('success', '📊 CSV diunduh', `${STATE.defects.length} defect`);
+  showToast('success', '📊 CSV diunduh', `${STATE.defects.length} defect + ${projects.length} project`);
 }
 
 function exportPDF() {
@@ -7328,7 +7471,97 @@ function exportPDF() {
     },
   });
 
-  // ── FOOTER ──
+  // ── HALAMAN 2: PROJECT REPORT ─────────────────────────────
+  const projects = STATE.projects || [];
+  if (projects.length > 0) {
+    doc.addPage('a4', 'landscape');
+
+    // Header halaman 2
+    doc.setFillColor(6, 11, 24);
+    doc.rect(0, 0, 297, 22, 'F');
+    doc.setTextColor(240, 244, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('PROJECT REPORT', 14, 10);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.text('Lotus Garden Hotel by Waringin Hospitality — Kediri', 14, 16);
+    doc.text(`Dicetak: ${dateStr}`, 297 - 14, 16, { align: 'right' });
+
+    // Summary project cards
+    const pCounts  = { PLANNING:0, ACTIVE:0, ON_HOLD:0, COMPLETED:0 };
+    const vendorCnt = projects.filter(p => p['Department']==='VENDOR'||p['Department']==='VENDOR_ENG').length;
+    projects.forEach(p => { if (pCounts[p['Status']] !== undefined) pCounts[p['Status']]++; });
+    const pCards = [
+      { label:'Total Project', val: projects.length,       color:[59,130,246]  },
+      { label:'Planning',      val: pCounts.PLANNING,      color:[139,92,246]  },
+      { label:'Active',        val: pCounts.ACTIVE,        color:[245,158,11]  },
+      { label:'On Hold',       val: pCounts.ON_HOLD,       color:[167,139,250] },
+      { label:'Completed',     val: pCounts.COMPLETED,     color:[16,185,129]  },
+      { label:'Vendor',        val: vendorCnt,              color:[251,191,36]  },
+    ];
+    const pcY = 28;
+    pCards.forEach((c, i) => {
+      const x = 14 + i * 47;
+      doc.setFillColor(13, 21, 41);
+      doc.roundedRect(x, pcY, 43, 14, 2, 2, 'F');
+      doc.setFillColor(...c.color);
+      doc.roundedRect(x, pcY, 3, 14, 1, 1, 'F');
+      doc.setTextColor(...c.color);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(String(c.val), x + 8, pcY + 9);
+      doc.setTextColor(148, 163, 184);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.text(c.label, x + 8, pcY + 13);
+    });
+
+    // Tabel project
+    const projTableData = projects.map(p => {
+      const tasks   = p['_tasks'] || [];
+      const done    = tasks.filter(t => t['Status'] === 'DONE').length;
+      const pct     = tasks.length ? Math.round(done/tasks.length*100) : 0;
+      const target  = p['TargetDate'] ? new Date(p['TargetDate']).toLocaleDateString('id-ID') : '—';
+      const isOver  = p['TargetDate'] && p['Status'] !== 'COMPLETED' && new Date(p['TargetDate']) < new Date();
+      const deptLabel = { ENG:'Engineering', HK:'Housekeeping', BOTH:'ENG+HK', VENDOR:'Vendor', VENDOR_ENG:'Vendor+ENG' }[p['Department']] || p['Department'];
+      return [
+        p['ProjectID']  || '—',
+        (p['Title']     || '—').substring(0,35),
+        deptLabel,
+        p['VendorName'] || '—',
+        p['Priority']   || '—',
+        p['Status']     || '—',
+        target + (isOver ? ' ⚠️' : ''),
+        `${pct}% (${done}/${tasks.length})`,
+        (p['Notes']     || '').substring(0,30),
+      ];
+    });
+
+    doc.autoTable({
+      startY: pcY + 20,
+      head: [['Project ID','Judul','Departemen','Vendor','Prioritas','Status','Target','Progress','Catatan']],
+      body: projTableData,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2, textColor: [240,244,255], fillColor: [13,21,41], lineColor: [26,39,68], lineWidth: 0.2 },
+      headStyles: { fillColor: [26,39,68], textColor: [148,163,184], fontStyle: 'bold', fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [18,29,56] },
+      columnStyles: {
+        0: { cellWidth: 22 }, 1: { cellWidth: 50 }, 2: { cellWidth: 26 },
+        3: { cellWidth: 30 }, 4: { cellWidth: 18 }, 5: { cellWidth: 22 },
+        6: { cellWidth: 22 }, 7: { cellWidth: 22 }, 8: { cellWidth: 50 },
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 5) {
+          const colorMap = { PLANNING:[139,92,246], ACTIVE:[245,158,11], ON_HOLD:[167,139,250], COMPLETED:[16,185,129] };
+          if (colorMap[data.cell.raw]) data.cell.styles.textColor = colorMap[data.cell.raw];
+        }
+      },
+    });
+  }
+
+  // ── FOOTER semua halaman ──
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -7340,7 +7573,7 @@ function exportPDF() {
 
   const filename = `RoomDefect_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}_${String(now.getDate()).padStart(2,'0')}.pdf`;
   doc.save(filename);
-  showToast('success', '📄 PDF diunduh', `${STATE.defects.length} defect`);
+  showToast('success', '📄 PDF diunduh', `${STATE.defects.length} defect + ${projects.length} project`);
 }
 
 // ════════════════════════════════════════════════════
