@@ -20,6 +20,7 @@
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap"></noscript>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
 /* ═══════════════════════════════════════════
    DESIGN SYSTEM — Industrial Precision Dark
@@ -1505,7 +1506,7 @@ body::before {
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="auth-logo-icon"><img id="auth-logo-img" src="" alt="Lotus Garden Hotel"></div>
+      <div class="auth-logo-icon"><img id="auth-logo-img" src="logo.png" onerror="this.src='icon-192.png';this.onerror=null" alt="Lotus Garden Hotel"></div>
       <div>
         <div class="auth-logo-text">Lotus Garden Hotel</div>
         <div class="auth-logo-sub">Hotel Operations Monitoring Tracker</div>
@@ -1980,7 +1981,7 @@ body::before {
 
       <div class="export-bar">
         <button class="btn btn-export-pdf btn-sm" onclick="exportPDF()">📄 Export PDF</button>
-        <button class="btn btn-export-csv btn-sm" onclick="exportCSV()">📊 Export CSV</button>
+        <button class="btn btn-export-csv btn-sm" onclick="exportExcel()" style="background:#1d6f42">📊 Export Excel</button>
       </div>
 
       <div class="chart-card stagger-child">
@@ -3340,37 +3341,86 @@ function selectRole(el) {
 }
 
 async function doLogin() {
-  const name = $id('login-name').value.trim();
-  if (!name) { showToast('error', 'Nama diperlukan', 'Masukkan nama Anda'); return; }
-  const btn = document.querySelector('#auth-screen .btn-primary');
-  btn.disabled = true; btn.textContent = '⏳ Memvalidasi...';
+  const name = ($id('login-name').value || '').trim();
+  if (!name) {
+    showToast('error', 'Nama diperlukan', 'Masukkan nama Anda');
+    $id('login-name').focus();
+    return;
+  }
+  const role = STATE.role || 'HK';
+  const btn  = document.querySelector('#auth-screen .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Memvalidasi...'; }
+
   try {
+    // ── Validasi ke GAS ──────────────────────────────────────
+    let loginAllowed = false;
+    let loginWarning = '';
+
     try {
-      const vResult = await gasValidateUser({ name, role: STATE.role });
+      const vResult = await Promise.race([
+        gasValidateUser({ name, role }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
+      ]);
+
       if (vResult?.valid === false) {
-        showToast('error', 'Akses Ditolak', vResult.error);
-        btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem';
+        // User tidak terdaftar — tolak login
+        showToast('error', 'Akses Ditolak', vResult.error || 'Nama / Role tidak terdaftar di sistem');
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem'; }
         return;
       }
-    } catch { showToast('warn', 'Validasi tidak tersedia', 'Login tanpa verifikasi'); }
+
+      // valid === true atau ada warning (Sheet_Users kosong/tidak ditemukan)
+      loginAllowed = true;
+      if (vResult?.warning) loginWarning = vResult.warning;
+
+    } catch (gasErr) {
+      // GAS timeout atau error jaringan → izinkan login dengan peringatan
+      loginAllowed = true;
+      loginWarning = `Validasi tidak tersedia (${gasErr.message === 'timeout' ? 'timeout 8s' : 'offline'}). Login tanpa verifikasi.`;
+      console.warn('[Login] GAS error:', gasErr.message);
+    }
+
+    if (!loginAllowed) return;
+
+    // ── Set session ──────────────────────────────────────────
     STATE.user = name;
+    STATE.role = role;
     $id('auth-screen').style.display = 'none';
     $id('app-shell').classList.add('visible');
-    $id('topbar-role').textContent = STATE.role;
-    $id('dash-greeting').textContent = `Halo, ${name} 👋`;
-    updateNavForRole(STATE.role);
+
+    // Topbar & greeting
+    const roleEl = $id('topbar-role');
+    if (roleEl) roleEl.textContent = role;
+    const greetEl = $id('dash-greeting');
+    if (greetEl) greetEl.textContent = `Halo, ${name} 👋`;
+
+    updateNavForRole(role);
     saveSession();
+
+    // ── Load data ────────────────────────────────────────────
     await fetchAndRender();
     startPolling();
     startLiveTick();
-    // Minta izin browser notification (hanya muncul sekali, tidak mengganggu)
     requestNotificationPermission();
-    showToast('success', 'Berhasil masuk', `Selamat datang, ${name}!`);
+
+    if (loginWarning) {
+      showToast('warn', 'Login tanpa verifikasi', loginWarning);
+    } else {
+      showToast('success', `Selamat datang, ${name}!`, `Role: ${role}`);
+    }
+
   } catch (err) {
+    console.error('[Login] Fatal:', err);
     showToast('error', 'Login gagal', err.message);
   } finally {
-    btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem';
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem'; }
   }
+}
+
+function selectRole(el) {
+  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  STATE.role = el.dataset.role;
 }
 
 function doLogout() {
@@ -7288,77 +7338,189 @@ async function submitProject() {
   }
 }
 
-function exportCSV() {
-  if (!STATE.defects.length && !(STATE.projects||[]).length) {
-    showToast('warn', 'Tidak ada data', 'Belum ada defect atau project untuk di-export');
+// ════════════════════════════════════════════════════
+// EXPORT EXCEL — SheetJS (menggantikan CSV)
+// 4 Sheet: Defects | Projects | Tasks | Summary
+// ════════════════════════════════════════════════════
+function exportExcel() {
+  if (typeof XLSX === 'undefined') {
+    showToast('warn', 'SheetJS belum siap', 'Coba lagi dalam beberapa detik');
     return;
   }
-  const now    = new Date();
-  const prefix = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
 
-  // ── Sheet 1: Defects ──
-  const defHeaders = ['ID','Kamar','Kategori','Deskripsi','Prioritas','Status','Reporter','Engineer',
-    'StartedBy','ResolvedBy','ClosedBy','Dibuat','Mulai','Selesai','Durasi Tunggu','Durasi Perbaikan','Durasi Total','LinkedProject'];
-  const defRows = STATE.defects.map(d => {
-    const fmtDt = ts => ts ? new Date(ts).toLocaleDateString('id-ID') : '-';
-    return [
-      d.id, d.room, (d.category||'').replace('_','/'),
-      `"${(d.desc||'').replace(/"/g,'""').substring(0,80)}"`,
-      d.priority, d.status,
-      d.reporter, d.engineer||'-',
-      d.startedBy||'-', d.resolvedBy||'-', d.closedBy||'-',
-      fmtDt(d.createdAt), fmtDt(d.startedAt), fmtDt(d.resolvedAt),
-      d.waitDurationLabel||'-', d.repairDurationLabel||'-', d.totalDurationLabel||'-',
-      d.linkedProject||'-',
-    ].join(',');
-  });
+  const now      = new Date();
+  const dateStr  = now.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+  const prefix   = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const fmtDt    = ts => ts ? new Date(ts).toLocaleDateString('id-ID') : '-';
+  const fmtDtIso = iso => iso ? new Date(iso).toLocaleDateString('id-ID') : '-';
 
-  // ── Sheet 2: Projects ──
+  const wb = XLSX.utils.book_new();
+
+  // ══════════════════════════════════════
+  // SHEET 1 — SUMMARY
+  // ══════════════════════════════════════
+  const defects  = STATE.defects  || [];
   const projects = STATE.projects || [];
-  const projHeaders = ['ProjectID','Judul','Departemen','Vendor','PIC Vendor','No SPK','Estimasi Biaya',
-    'Prioritas','Status','Dibuat Oleh','Mulai','Target','Selesai','Total Milestone','Done Milestone','Progress%','Catatan','LinkedDefects'];
+  const counts   = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0, WAITING_MATERIAL:0 };
+  defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
+  const pCounts  = { PLANNING:0, ACTIVE:0, ON_HOLD:0, COMPLETED:0 };
+  projects.forEach(p => { if (pCounts[p['Status']] !== undefined) pCounts[p['Status']]++; });
+
+  const summaryData = [
+    ['H.O.M.T — LAPORAN OPERASIONAL', '', ''],
+    ['Lotus Garden Hotel by Waringinhospitality, Kediri', '', ''],
+    [`Dicetak: ${dateStr} oleh ${STATE.user} (${STATE.role})`, '', ''],
+    ['', '', ''],
+    ['═══ RINGKASAN DEFECT ═══', '', ''],
+    ['Status', 'Jumlah', ''],
+    ['Open',             counts.OPEN,            ''],
+    ['In Progress',      counts.IN_PROGRESS,      ''],
+    ['Waiting Material', counts.WAITING_MATERIAL, ''],
+    ['Resolved',         counts.RESOLVED,         ''],
+    ['Closed',           counts.CLOSED,           ''],
+    ['TOTAL',            defects.length,          ''],
+    ['', '', ''],
+    ['═══ RINGKASAN PROJECT ═══', '', ''],
+    ['Status', 'Jumlah', ''],
+    ['Planning',   pCounts.PLANNING,  ''],
+    ['Active',     pCounts.ACTIVE,    ''],
+    ['On Hold',    pCounts.ON_HOLD,   ''],
+    ['Completed',  pCounts.COMPLETED, ''],
+    ['TOTAL',      projects.length,   ''],
+    ['', '', ''],
+    ['═══ SLA ═══', '', ''],
+    ['SLA Breach', defects.filter(d => {
+      if (d.status === 'CLOSED' || d.status === 'RESOLVED') return false;
+      return (Date.now() - d.createdAt) / 3600000 > (CONFIG.SLA_HOURS?.[d.priority] || 8);
+    }).length, ''],
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{ wch:35 }, { wch:12 }, { wch:12 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  // ══════════════════════════════════════
+  // SHEET 2 — DEFECTS
+  // ══════════════════════════════════════
+  const defHead = [
+    'ID','Kamar/Area','Kategori','Deskripsi','Prioritas','Status',
+    'Reporter','Engineer','StartedBy','ResolvedBy','ClosedBy',
+    'Tgl Lapor','Tgl Mulai','Tgl Selesai','Tgl Closed',
+    'Durasi Tunggu','Durasi Perbaikan','Durasi Total',
+    'SLA Paused (mnt)','Area','LinkedProject','Catatan',
+  ];
+  const defRows = defects.map(d => [
+    d.id,
+    d.room,
+    (d.category||'').replace('_','/'),
+    (d.desc||'').substring(0,120),
+    d.priority,
+    d.status,
+    d.reporter||'-',
+    d.engineer||'-',
+    d.startedBy||'-',
+    d.resolvedBy||'-',
+    d.closedBy||'-',
+    fmtDt(d.createdAt),
+    fmtDt(d.startedAt),
+    fmtDt(d.resolvedAt),
+    fmtDt(d.closedAt),
+    d.waitDurationLabel||'-',
+    d.repairDurationLabel||'-',
+    d.totalDurationLabel||'-',
+    d.slaPausedMin||0,
+    d.areaType||'ROOM',
+    d.linkedProject||'-',
+    (d.notes||'').substring(0,100),
+  ]);
+  const wsDefects = XLSX.utils.aoa_to_sheet([defHead, ...defRows]);
+  // Style header (bold) — SheetJS community tidak support style, tapi kolom width bisa diset
+  wsDefects['!cols'] = [
+    {wch:14},{wch:10},{wch:16},{wch:40},{wch:10},{wch:14},
+    {wch:18},{wch:18},{wch:18},{wch:18},{wch:18},
+    {wch:12},{wch:12},{wch:12},{wch:12},
+    {wch:14},{wch:14},{wch:14},
+    {wch:12},{wch:8},{wch:14},{wch:30},
+  ];
+  // Freeze header row
+  wsDefects['!freeze'] = { xSplit:0, ySplit:1 };
+  XLSX.utils.book_append_sheet(wb, wsDefects, 'Defects');
+
+  // ══════════════════════════════════════
+  // SHEET 3 — PROJECTS
+  // ══════════════════════════════════════
+  const projHead = [
+    'Project ID','Judul','Deskripsi','Departemen',
+    'Vendor','PIC Vendor','No. SPK','Est. Biaya (Rp)',
+    'Prioritas','Status','Dibuat Oleh',
+    'Tgl Mulai','Target Selesai','Tgl Selesai Aktual',
+    'Total Milestone','Done Milestone','Progress %',
+    'Defect Terhubung','Catatan',
+  ];
   const projRows = projects.map(p => {
-    const tasks  = p['_tasks'] || [];
-    const done   = tasks.filter(t => t['Status'] === 'DONE').length;
-    const pct    = tasks.length ? Math.round(done/tasks.length*100) : 0;
-    const fmtDt  = iso => iso ? new Date(iso).toLocaleDateString('id-ID') : '-';
+    const tasks = p['_tasks'] || [];
+    const done  = tasks.filter(t => t['Status'] === 'DONE').length;
+    const pct   = tasks.length ? Math.round(done/tasks.length*100) : 0;
     return [
       p['ProjectID']||'-',
-      `"${(p['Title']||'').replace(/"/g,'""')}"`,
+      (p['Title']||'-'),
+      (p['Description']||'-').substring(0,100),
       p['Department']||'-',
-      `"${(p['VendorName']||'-').replace(/"/g,'""')}"`,
+      p['VendorName']||'-',
       p['VendorPic']||'-',
       p['VendorSpk']||'-',
-      p['VendorCost']||0,
+      Number(p['VendorCost']||0),
       p['Priority']||'-',
       p['Status']||'-',
       p['CreatedBy']||'-',
-      fmtDt(p['StartDate']), fmtDt(p['TargetDate']), fmtDt(p['CompletedAt']),
-      tasks.length, done, pct,
-      `"${(p['Notes']||'').replace(/"/g,'""').substring(0,80)}"`,
+      fmtDtIso(p['StartDate']),
+      fmtDtIso(p['TargetDate']),
+      fmtDtIso(p['CompletedAt']),
+      tasks.length,
+      done,
+      pct,
       p['LinkedDefects']||'-',
-    ].join(',');
+      (p['Notes']||'-').substring(0,100),
+    ];
   });
+  const wsProjects = XLSX.utils.aoa_to_sheet([projHead, ...projRows]);
+  wsProjects['!cols'] = [
+    {wch:14},{wch:35},{wch:40},{wch:14},
+    {wch:25},{wch:20},{wch:16},{wch:16},
+    {wch:10},{wch:12},{wch:20},
+    {wch:14},{wch:14},{wch:14},
+    {wch:12},{wch:12},{wch:10},
+    {wch:20},{wch:30},
+  ];
+  wsProjects['!freeze'] = { xSplit:0, ySplit:1 };
+  XLSX.utils.book_append_sheet(wb, wsProjects, 'Projects');
 
-  // Gabungkan dua section dengan separator
-  const csv = [
-    '=== DEFECT REPORT ===',
-    defHeaders.join(','),
-    ...defRows,
-    '',
-    '=== PROJECT REPORT ===',
-    projHeaders.join(','),
-    ...projRows,
-  ].join('\n');
+  // ══════════════════════════════════════
+  // SHEET 4 — MILESTONES / TASKS
+  // ══════════════════════════════════════
+  const taskHead = ['Project ID','Judul Project','Task ID','Nama Milestone','Status','Dibuat','Selesai'];
+  const taskRows = [];
+  projects.forEach(p => {
+    (p['_tasks'] || []).forEach(t => {
+      taskRows.push([
+        p['ProjectID']||'-',
+        (p['Title']||'-').substring(0,35),
+        t['TaskID']||'-',
+        (t['Title']||t['Name']||'-'),
+        t['Status']||'-',
+        fmtDtIso(t['CreatedAt']),
+        fmtDtIso(t['DoneAt']),
+      ]);
+    });
+  });
+  const wsTasks = XLSX.utils.aoa_to_sheet([taskHead, ...taskRows]);
+  wsTasks['!cols'] = [{wch:14},{wch:35},{wch:14},{wch:40},{wch:10},{wch:14},{wch:14}];
+  wsTasks['!freeze'] = { xSplit:0, ySplit:1 };
+  XLSX.utils.book_append_sheet(wb, wsTasks, 'Milestones');
 
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `HOMT_Report_${prefix}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('success', '📊 CSV diunduh', `${STATE.defects.length} defect + ${projects.length} project`);
+  // ── Download ──────────────────────────────────────────────
+  const filename = `HOMT_Report_${prefix}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  showToast('success', '📊 Excel diunduh', `${defects.length} defect · ${projects.length} project · 4 sheet`);
 }
 
 function exportPDF() {
