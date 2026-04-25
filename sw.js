@@ -10,7 +10,7 @@
 //   - QR / external           → Network only, gagal silent
 // ═══════════════════════════════════════════════════════════
 
-const APP_VERSION   = 'homt-v2.0';
+const APP_VERSION   = 'homt-v2.1';
 const FONT_CACHE    = 'homt-fonts-v1';
 const PHOTO_CACHE   = 'homt-photos-v1';
 const PHOTO_TTL_MS  = 24 * 60 * 60 * 1000; // 24 jam
@@ -61,6 +61,10 @@ self.addEventListener('fetch', event => {
 
   // Abaikan non-GET
   if (req.method !== 'GET') return;
+
+  // FIX: Abaikan chrome-extension://, moz-extension://, dan skema non-http
+  // Cache API tidak support skema selain http/https → TypeError di sw.js:118
+  if (!url.startsWith('http://') && !url.startsWith('https://')) return;
 
   // 1. GAS (Google Apps Script) → Network First, offline fallback JSON
   if (url.includes('script.google.com')) {
@@ -113,7 +117,8 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(req)
       .then(res => {
-        if (res.ok && res.status < 400) {
+        // FIX: hanya cache http/https — chrome-extension:// crash di cache.put()
+        if (res.ok && res.status < 400 && (req.url.startsWith('http://') || req.url.startsWith('https://'))) {
           const clone = res.clone();
           caches.open(APP_VERSION).then(c => c.put(req, clone));
         }

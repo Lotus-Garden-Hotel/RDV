@@ -3329,7 +3329,7 @@ function applySession(s) {
   document.querySelectorAll('.role-card').forEach(c => c.classList.toggle('active', c.dataset.role === STATE.role));
   $id('login-name').value = STATE.user;
   updateNavForRole(STATE.role);
-  // FIX: reset ke dashboard saat session restore
+  // FIX: pastikan halaman aktif adalah dashboard
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const dp = document.getElementById('page-dashboard');
@@ -3403,10 +3403,10 @@ async function doLogin() {
 
     updateNavForRole(role);
     saveSession();
+    showPage('dashboard'); // FIX: render dashboard sebelum data load
 
     // ── Load data ────────────────────────────────────────────
     await fetchAndRender();
-    showPage('dashboard'); // FIX: trigger dashboard render setelah login
     startPolling();
     startLiveTick();
     requestNotificationPermission();
@@ -5933,23 +5933,23 @@ let aiDebounce = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initDOMCache();
 
-  // ── Cek koneksi GAS — NON-BLOCKING (tidak menghambat auth screen)
-  // FIX: await gasCall di sini menyebabkan hang hingga 37 detik (15s × 3 retry)
-  // sebelum user bisa klik role card. Ubah ke fire-and-forget.
+  // ── Cek koneksi GAS — NON-BLOCKING (FIX: was causing 45s hang)
   gasCall('getMetrics', {})
     .then(() => { STATE.gasAvailable = true; console.log('✅ GAS terhubung'); })
-    .catch(() => { STATE.gasAvailable = false; showToast('warn', 'Mode Offline', 'Menggunakan data lokal'); });
+    .catch(() => { STATE.gasAvailable = false; });
 
-  // ── Restore session
+  // ── Restore session — NON-BLOCKING (FIX: fetchAndRender was blocking DOMContentLoaded)
   const savedSession = restoreSession();
   if (savedSession) {
     applySession(savedSession);
-    await fetchAndRender();
-    startPolling();
-    startLiveTick();
-    requestNotificationPermission();
-    loadAiPredictive(); // load AI setelah data ready
-    showToast('info', `👋 Selamat datang, ${savedSession.user}!`, '');
+    (async () => {
+      await fetchAndRender();
+      startPolling();
+      startLiveTick();
+      requestNotificationPermission();
+      loadAiPredictive();
+      showToast('info', `👋 Selamat datang, ${savedSession.user}!`, '');
+    })();
   }
 
   // ── Form event listeners
@@ -8104,10 +8104,20 @@ function lbClampPan() {
 
   // ── Firebase Hybrid init ──────────────────────────────────
   // Tunggu DOM selesai + firebase-init.js ter-load dulu
-  window.FIREBASE_ENABLED = true;
+  // FIX: default false — hanya aktif jika firebase-init.js berhasil load
+  // Error di firebase-init.js menyebabkan "Uncaught" di Room_Defect:8135
+  window.FIREBASE_ENABLED = false;
   window.addEventListener('load', () => {
-    if (window.FIREBASE_ENABLED && typeof initFirebaseHybrid === 'function') {
-      initFirebaseHybrid().catch(e => console.warn('[Firebase] Init error:', e));
+    // FIX: firebase-init.js gagal load tidak crash page — cek dulu filenya ada
+    if (typeof initFirebaseHybrid === 'function') {
+      window.FIREBASE_ENABLED = true;
+      initFirebaseHybrid().catch(e => {
+        console.warn('[Firebase] Init gagal, mode GAS-only:', e);
+        window.FIREBASE_ENABLED = false;
+      });
+    } else {
+      console.info('[Firebase] firebase-init.js tidak tersedia, mode GAS-only');
+      window.FIREBASE_ENABLED = false;
     }
   });
 })();
