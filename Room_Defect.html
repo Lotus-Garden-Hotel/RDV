@@ -3329,12 +3329,11 @@ function applySession(s) {
   document.querySelectorAll('.role-card').forEach(c => c.classList.toggle('active', c.dataset.role === STATE.role));
   $id('login-name').value = STATE.user;
   updateNavForRole(STATE.role);
-  // FIX: pastikan halaman aktif adalah dashboard
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const dp = document.getElementById('page-dashboard');
+  var dp = document.getElementById('page-dashboard');
   if (dp) dp.classList.add('active');
-  const dn = document.getElementById('nav-dashboard');
+  var dn = document.getElementById('nav-dashboard');
   if (dn) dn.classList.add('active');
 }
 
@@ -3403,7 +3402,7 @@ async function doLogin() {
 
     updateNavForRole(role);
     saveSession();
-    showPage('dashboard'); // FIX: render dashboard sebelum data load
+    showPage('dashboard');
 
     // ── Load data ────────────────────────────────────────────
     await fetchAndRender();
@@ -5933,23 +5932,23 @@ let aiDebounce = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initDOMCache();
 
-  // ── Cek koneksi GAS — NON-BLOCKING (FIX: was causing 45s hang)
+  // ── Cek koneksi GAS — NON-BLOCKING
   gasCall('getMetrics', {})
-    .then(() => { STATE.gasAvailable = true; console.log('✅ GAS terhubung'); })
+    .then(() => { STATE.gasAvailable = true; })
     .catch(() => { STATE.gasAvailable = false; });
 
-  // ── Restore session — NON-BLOCKING (FIX: fetchAndRender was blocking DOMContentLoaded)
+  // ── Restore session — NON-BLOCKING
   const savedSession = restoreSession();
   if (savedSession) {
     applySession(savedSession);
-    (async () => {
+    setTimeout(async () => {
       await fetchAndRender();
       startPolling();
       startLiveTick();
       requestNotificationPermission();
       loadAiPredictive();
       showToast('info', `👋 Selamat datang, ${savedSession.user}!`, '');
-    })();
+    }, 0);
   }
 
   // ── Form event listeners
@@ -8102,24 +8101,9 @@ function lbClampPan() {
     if (typeof showToast === 'function') showToast('success', 'App terinstall! 🎉', 'Buka dari home screen');
   });
 
-  // ── Firebase Hybrid init ──────────────────────────────────
-  // Tunggu DOM selesai + firebase-init.js ter-load dulu
-  // FIX: default false — hanya aktif jika firebase-init.js berhasil load
-  // Error di firebase-init.js menyebabkan "Uncaught" di Room_Defect:8135
+  // ── Firebase Hybrid — DISABLED (firebase-init.js menyebabkan crash)
+  // App berjalan mode GAS-only sampai Firebase diverifikasi
   window.FIREBASE_ENABLED = false;
-  window.addEventListener('load', () => {
-    // FIX: firebase-init.js gagal load tidak crash page — cek dulu filenya ada
-    if (typeof initFirebaseHybrid === 'function') {
-      window.FIREBASE_ENABLED = true;
-      initFirebaseHybrid().catch(e => {
-        console.warn('[Firebase] Init gagal, mode GAS-only:', e);
-        window.FIREBASE_ENABLED = false;
-      });
-    } else {
-      console.info('[Firebase] firebase-init.js tidak tersedia, mode GAS-only');
-      window.FIREBASE_ENABLED = false;
-    }
-  });
 })();
 
 function _showInstallBanner(){
@@ -8143,7 +8127,9 @@ function dismissPWA(){
 }
 
 </script>
-<script src="firebase-init.js" defer></script>
+<!-- firebase-init.js DISABLED: menyebabkan SyntaxError cascade yang memblokir selectRole/doLogin -->
+<!-- Aktifkan kembali setelah file firebase-init.js diverifikasi tidak mengandung error -->
+<!-- <script src="firebase-init.js" defer></script> -->
 
 </body>
 </html>
