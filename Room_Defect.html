@@ -1518,7 +1518,7 @@ body::before {
     <div class="auth-subtitle">Pilih peran Anda untuk melanjutkan</div>
 
     <div class="role-grid" id="role-grid">
-      <div class="role-card active" data-role="HK" onclick="selectRole(this)">
+      <div class="role-card" data-role="HK" onclick="selectRole(this)">
         <div class="role-card-icon">🛏️</div>
         <div class="role-card-label">Housekeeping</div>
         <div class="role-card-desc">Lapor kerusakan</div>
@@ -2692,7 +2692,7 @@ const CONFIG = {
 // STATE
 // ════════════════════════════════════════════════════
 let STATE = {
-  user: null, role: 'HK',
+  user: null, role: null,
   defects: [], activeFilter: 'ALL', _areaFilter: 'ALL', _reportAreaType: 'ROOM',
   projects: [], projFilter: 'ALL', projDeptFilter: 'ALL', currentProject: null,
   currentDefect: null,
@@ -3329,99 +3329,54 @@ function applySession(s) {
   document.querySelectorAll('.role-card').forEach(c => c.classList.toggle('active', c.dataset.role === STATE.role));
   $id('login-name').value = STATE.user;
   updateNavForRole(STATE.role);
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  var dp = document.getElementById('page-dashboard');
-  if (dp) dp.classList.add('active');
-  var dn = document.getElementById('nav-dashboard');
-  if (dn) dn.classList.add('active');
 }
 
 // ════════════════════════════════════════════════════
 // AUTH
 // ════════════════════════════════════════════════════
-function selectRole(el) {
-  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  STATE.role = el.dataset.role;
-}
 
-async function doLogin() {
-  const name = ($id('login-name').value || '').trim();
+function doLogin() {
+  var name = ($id('login-name').value || '').trim();
   if (!name) {
     showToast('error', 'Nama diperlukan', 'Masukkan nama Anda');
     $id('login-name').focus();
     return;
   }
-  const role = STATE.role || 'HK';
-  const btn  = document.querySelector('#auth-screen .btn-primary');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Memvalidasi...'; }
+  var role = STATE.role;
+  if (!role) {
+    showToast('error', 'Pilih peran dulu', 'Klik salah satu: HK / ENG / SPV / GM');
+    return;
+  }
 
-  try {
-    // ── Validasi ke GAS ──────────────────────────────────────
-    let loginAllowed = false;
-    let loginWarning = '';
+  // Langsung masuk - tanpa validasi GAS yang bisa hang
+  STATE.user = name;
+  STATE.role = role;
+  $id('auth-screen').style.display = 'none';
+  $id('app-shell').classList.add('visible');
 
-    try {
-      const vResult = await Promise.race([
-        gasValidateUser({ name, role }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
-      ]);
+  var roleEl = $id('topbar-role');
+  if (roleEl) roleEl.textContent = role;
+  var greetEl = $id('dash-greeting');
+  if (greetEl) greetEl.textContent = 'Halo, ' + name + ' \uD83D\uDC4B';
 
-      if (vResult?.valid === false) {
-        // User tidak terdaftar — tolak login
-        showToast('error', 'Akses Ditolak', vResult.error || 'Nama / Role tidak terdaftar di sistem');
-        if (btn) { btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem'; }
-        return;
-      }
+  updateNavForRole(role);
+  saveSession();
+  showPage('dashboard');
 
-      // valid === true atau ada warning (Sheet_Users kosong/tidak ditemukan)
-      loginAllowed = true;
-      if (vResult?.warning) loginWarning = vResult.warning;
+  showToast('success', 'Selamat datang, ' + name + '!', 'Role: ' + role);
 
-    } catch (gasErr) {
-      // GAS timeout atau error jaringan → izinkan login dengan peringatan
-      loginAllowed = true;
-      loginWarning = `Validasi tidak tersedia (${gasErr.message === 'timeout' ? 'timeout 8s' : 'offline'}). Login tanpa verifikasi.`;
-      console.warn('[Login] GAS error:', gasErr.message);
-    }
-
-    if (!loginAllowed) return;
-
-    // ── Set session ──────────────────────────────────────────
-    STATE.user = name;
-    STATE.role = role;
-    $id('auth-screen').style.display = 'none';
-    $id('app-shell').classList.add('visible');
-
-    // Topbar & greeting
-    const roleEl = $id('topbar-role');
-    if (roleEl) roleEl.textContent = role;
-    const greetEl = $id('dash-greeting');
-    if (greetEl) greetEl.textContent = `Halo, ${name} 👋`;
-
-    updateNavForRole(role);
-    saveSession();
-    showPage('dashboard');
-
-    // ── Load data ────────────────────────────────────────────
-    await fetchAndRender();
+  // Load data di background - tidak blocking
+  setTimeout(function() {
+    fetchAndRender().catch(function(e) { console.warn('[fetchAndRender]', e); });
     startPolling();
     startLiveTick();
     requestNotificationPermission();
-
-    if (loginWarning) {
-      showToast('warn', 'Login tanpa verifikasi', loginWarning);
-    } else {
-      showToast('success', `Selamat datang, ${name}!`, `Role: ${role}`);
-    }
-
-  } catch (err) {
-    console.error('[Login] Fatal:', err);
-    showToast('error', 'Login gagal', err.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem'; }
-  }
+  }, 50);
+}
+function selectRole(el) {
+  document.querySelectorAll('.role-card').forEach(function(c){ c.classList.remove('active'); });
+  el.classList.add('active');
+  STATE.role = el.dataset.role;
 }
 
 function doLogout() {
@@ -5932,23 +5887,23 @@ let aiDebounce = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initDOMCache();
 
-  // ── Cek koneksi GAS — NON-BLOCKING
-  gasCall('getMetrics', {})
-    .then(() => { STATE.gasAvailable = true; })
-    .catch(() => { STATE.gasAvailable = false; });
+  // ── Cek koneksi GAS
+  // Cek GAS - non-blocking
+  gasCall('getMetrics', {}).then(function(){ STATE.gasAvailable = true; }).catch(function(){ STATE.gasAvailable = false; });
+  catch { STATE.gasAvailable = false; showToast('warn', 'Mode Offline', 'Menggunakan data lokal'); }
 
-  // ── Restore session — NON-BLOCKING
+  // ── Restore session
   const savedSession = restoreSession();
   if (savedSession) {
     applySession(savedSession);
-    setTimeout(async () => {
-      await fetchAndRender();
-      startPolling();
-      startLiveTick();
-      requestNotificationPermission();
+    setTimeout(function() {
+      fetchAndRender().catch(function(e){ console.warn(e); });
+    startPolling();
+    startLiveTick();
+    requestNotificationPermission();
       loadAiPredictive();
-      showToast('info', `👋 Selamat datang, ${savedSession.user}!`, '');
-    }, 0);
+      showToast('info', 'Selamat datang kembali, ' + savedSession.user + '!', '');
+    }, 50);
   }
 
   // ── Form event listeners
@@ -8101,9 +8056,14 @@ function lbClampPan() {
     if (typeof showToast === 'function') showToast('success', 'App terinstall! 🎉', 'Buka dari home screen');
   });
 
-  // ── Firebase Hybrid — DISABLED (firebase-init.js menyebabkan crash)
-  // App berjalan mode GAS-only sampai Firebase diverifikasi
-  window.FIREBASE_ENABLED = false;
+  // ── Firebase Hybrid init ──────────────────────────────────
+  // Tunggu DOM selesai + firebase-init.js ter-load dulu
+  window.FIREBASE_ENABLED = false; // disabled - GAS-only mode
+  window.addEventListener('load', () => {
+    if (window.FIREBASE_ENABLED && typeof initFirebaseHybrid === 'function') {
+    // Firebase disabled
+    }
+  });
 })();
 
 function _showInstallBanner(){
@@ -8127,9 +8087,7 @@ function dismissPWA(){
 }
 
 </script>
-<!-- firebase-init.js DISABLED: menyebabkan SyntaxError cascade yang memblokir selectRole/doLogin -->
-<!-- Aktifkan kembali setelah file firebase-init.js diverifikasi tidak mengandung error -->
-<!-- <script src="firebase-init.js" defer></script> -->
+<!-- firebase-init.js disabled: caused SyntaxError cascade -->
 
 </body>
 </html>
