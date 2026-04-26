@@ -891,10 +891,20 @@ body::before {
 /* ── Sticky action bar di bawah modal ── */
 .modal-footer {
   flex-shrink: 0;
-  padding: 12px 20px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 12px 16px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
   background: var(--bg-1);
+}
+
+/* Presisi tombol di semua device */
+@media (max-width: 430px) {
+  .ma-row .btn { font-size: 12px; padding: 0 8px; min-height: 44px; }
+  .modal-actions .btn { min-height: 44px; font-size: 13px; }
+}
+@media (min-width: 431px) {
+  .ma-row .btn { font-size: 13px; min-height: 46px; }
+  .modal-actions .btn { min-height: 46px; }
 }
 
 .modal-handle {
@@ -942,9 +952,30 @@ body::before {
 .modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin-bottom: 4px; padding-right: 40px; }
 .modal-sub { font-size: 13px; color: var(--text-1); margin-bottom: 16px; }
 .modal-actions {
-  display: flex;
-  flex-wrap: wrap;  /* Tombol wrap jika tidak muat dalam 1 baris */
+  display: block;
+  width: 100%;
+}
+.modal-actions .btn {
+  width: 100%;
+  min-height: 46px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.ma-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
+  margin-bottom: 8px;
+}
+.ma-solo {
+  margin-bottom: 8px;
+}
+.ma-solo:last-child,
+.ma-row:last-child {
+  margin-bottom: 0;
 }
 
 /* ── INLINE EDIT PANEL (SPV/GM) ── */
@@ -4590,98 +4621,77 @@ function openDefect(id) {
 
 function renderModalActions(d) {
   const el = $id('modal-actions');
-  let html = `<button class="btn btn-secondary w-full" onclick="closeModal()">Tutup</button>`;
+  if (!el) return;
 
-  // ── ENG actions ──
-  if (STATE.role === 'ENG') {
-    if (d.status === 'OPEN' || d.status === 'WAITING_MATERIAL') {
-      if (d.status === 'WAITING_MATERIAL') {
-        html = `<button class="btn w-full" style="background:#a78bfa;color:#fff"
-          onclick="materialArrivedENG()">▶️ Lanjutkan Progress</button>` + html;
-      } else {
-        // ENG: hanya START REPAIR — PAUSE SLA hanya SPV/GM
-        html = `<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>` + html;
-      }
-    } else if (d.status === 'IN_PROGRESS') {
-      const hasPhoto = !!STATE.photoAfterData;
-      html = `
-        <label for="f-photo-after-persistent" class="btn ${hasPhoto?'btn-secondary':'btn-amber'} w-full"
-          style="cursor:pointer;text-align:center">
-          📷 ${hasPhoto?'Ganti Foto After':'Upload Foto After'}
-        </label>
-        <button class="btn btn-success w-full" id="btn-konfirmasi-selesai"
-          onclick="updateStatus('RESOLVED')"
-          ${hasPhoto?'':'disabled style="opacity:0.4;cursor:not-allowed"'}>
-          ✅ Konfirmasi Selesai & Simpan
-        </button>` + html;
+  const isSPV = STATE.role === 'SPV' || STATE.role === 'GM';
+  const isENG = STATE.role === 'ENG';
+  const isGM  = STATE.role === 'GM';
+
+  let html = '';
+
+  // ENG ACTIONS
+  if (isENG) {
+    if (d.status === 'OPEN') {
+      html += _maSolo(`<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>`);
     }
-  }
-
-  // ── SPV / GM actions ──
-  if (STATE.role === 'SPV' || STATE.role === 'GM') {
-
-    if (d.status === 'RESOLVED') {
-      html = `<button class="btn btn-success" onclick="updateStatus('CLOSED')" style="flex:1">✅ Approve & Close</button>
-              <button class="btn btn-danger"  onclick="updateStatus('OPEN')"   style="flex:1">↩️ Re-open</button>`;
-    }
-
     if (d.status === 'WAITING_MATERIAL') {
-      html = `<button class="btn w-full" style="background:#a78bfa;color:#fff;margin-bottom:0"
-        onclick="materialArrivedSPV()">▶️ Lanjutkan Progress</button>` + html;
+      html += _maSolo(`<button class="btn w-full" style="background:#a78bfa;color:#fff" onclick="materialArrivedENG()">▶️ Lanjutkan Progress</button>`);
     }
-
-    // ── PAUSE SLA — hanya SPV/GM ──
-    if (d.status === 'OPEN' || d.status === 'IN_PROGRESS') {
-      html = `<button class="btn btn-secondary w-full" onclick="openWaitingMaterialPanel()"
-        style="border-color:#a78bfa;color:#a78bfa">
-        ⏸ Pause SLA — Alasan Penundaan
-      </button>` + html;
-    }
-
-    if (d.status !== 'CLOSED') {
-      html = `<button class="btn btn-secondary w-full" onclick="openEditPanel()"
-        style="border-color:var(--accent-cyan);color:var(--accent-cyan)">
-        ✏️ Edit Prioritas / Kategori / Deskripsi
-      </button>` + html;
-    }
-
-    if (d.status === 'OPEN' || d.status === 'WAITING_MATERIAL') {
-      html = `<button class="btn btn-secondary w-full" onclick="openAssignPanel()"
-        style="border-color:#f59e0b;color:#f59e0b">
-        👤 Assign Engineer${d.assignedTo ? ' — ' + d.assignedTo.split(' ')[0] : ''}
-      </button>` + html;
-    }
-
-    // ── ESKALASI → PROJECT — hanya SPV/GM ──
-    if (d.status !== 'CLOSED') {
-      const alreadyLinked = d.linkedProject && d.linkedProject.trim() !== '';
-      if (alreadyLinked) {
-        html += `<div style="margin-top:8px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-md);padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;margin-bottom:2px">Bagian dari Project</div>
-            <div style="font-size:12px;color:var(--text-0);font-weight:600">${d.linkedProject}</div>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="closeModal();showPage('projects')" style="border-color:#a78bfa;color:#a78bfa;white-space:nowrap">Lihat →</button>
-        </div>`;
-      } else {
-        html += `<button class="btn w-full" onclick="escalateToProject()"
-          style="margin-top:8px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);color:#a78bfa;font-weight:700">
-          🚀 Eskalasi → Jadikan Project
-        </button>`;
-      }
+    if (d.status === 'IN_PROGRESS') {
+      const hasPhoto = !!STATE.photoAfterData;
+      html += _maRow(
+        `<label for="f-photo-after-persistent" class="btn ${hasPhoto?'btn-secondary':'btn-amber'} w-full" style="cursor:pointer;display:flex;align-items:center;justify-content:center">📷 ${hasPhoto?'Ganti':'Upload'} After</label>`,
+        `<button class="btn btn-success w-full" id="btn-konfirmasi-selesai" onclick="updateStatus('RESOLVED')" ${hasPhoto?'':'disabled style="opacity:0.4;cursor:not-allowed"'}>✅ Konfirmasi</button>`
+      );
     }
   }
 
-  // Hapus — GM only
-  if (STATE.role === 'GM') {
-    html += `<button class="btn btn-danger w-full" onclick="confirmDeleteDefect()"
-      style="margin-top:8px;background:transparent;border:1px solid rgba(239,68,68,0.4);color:var(--accent-red)">
-      🗑️ Hapus Defect Ini
-    </button>`;
+  // SPV / GM ACTIONS
+  if (isSPV) {
+    if (d.status === 'RESOLVED') {
+      html += _maRow(
+        `<button class="btn btn-success w-full" onclick="updateStatus('CLOSED')">✅ Approve & Close</button>`,
+        `<button class="btn btn-danger  w-full" onclick="updateStatus('OPEN')">↩️ Re-open</button>`
+      );
+    }
+    if (d.status === 'WAITING_MATERIAL') {
+      html += _maSolo(`<button class="btn w-full" style="background:#a78bfa;color:#fff" onclick="materialArrivedSPV()">▶️ Lanjutkan Progress</button>`);
+    }
+    if (d.status !== 'CLOSED') {
+      const assignLabel = d.assignedTo ? `👤 ${d.assignedTo.split(' ')[0]}` : '👤 Assign';
+      html += _maRow(
+        `<button class="btn btn-secondary w-full" style="border-color:#f59e0b;color:#f59e0b" onclick="openAssignPanel()">${assignLabel}</button>`,
+        `<button class="btn btn-secondary w-full" style="border-color:#22d3ee;color:#22d3ee"  onclick="openEditPanel()">✏️ Edit</button>`
+      );
+    }
+    if (d.status === 'OPEN' || d.status === 'IN_PROGRESS') {
+      const linked = d.linkedProject?.trim();
+      const projBtn = linked
+        ? `<button class="btn btn-secondary w-full" style="border-color:#a78bfa;color:#a78bfa;font-size:11px" onclick="closeModal();showPage('projects')">🔗 ${linked}</button>`
+        : `<button class="btn btn-secondary w-full" style="border-color:#a78bfa;color:#a78bfa" onclick="escalateToProject()">🚀 Jadikan Project</button>`;
+      html += _maRow(
+        `<button class="btn btn-secondary w-full" style="border-color:#a78bfa;color:#a78bfa" onclick="openWaitingMaterialPanel()">⏸ Pause SLA</button>`,
+        projBtn
+      );
+    }
+  }
+
+  html += _maSolo(`<button class="btn btn-secondary w-full" onclick="closeModal()">Tutup</button>`);
+
+  if (isGM) {
+    html += _maSolo(`<button class="btn w-full" style="background:transparent;border:1px solid rgba(239,68,68,0.35);color:var(--accent-red)" onclick="confirmDeleteDefect()">🗑️ Hapus Defect</button>`);
   }
 
   el.innerHTML = html;
 }
+
+function _maRow(btn1, btn2) {
+  return `<div class="ma-row">${btn1}${btn2||''}</div>`;
+}
+function _maSolo(btn) {
+  return `<div class="ma-solo">${btn}</div>`;
+}
+
 
 // ════════════════════════════════════════════════════
 // ESKALASI DEFECT → PROJECT
@@ -6729,8 +6739,10 @@ function selectDeptFilter(dept) {
 // ── Detail project modal ────────────────────────────────────
 function openProject(id) {
   const p = STATE.projects.find(x => (x['ProjectID'] || '') === id);
-  if (!p) return;
-  STATE.currentProject = p;
+  if (!p) { console.warn('[openProject] Project tidak ditemukan:', id); return; }
+
+  // Selalu simpan sebagai STRING ID — bukan object
+  STATE.currentProject = p['ProjectID'] || id;
 
   const pid      = p['ProjectID'] || '';
   const title    = p['Title']     || '—';
@@ -6914,24 +6926,39 @@ function closeProjectModal() {
 
 function _renderProjectModalActions(p) {
   const el     = document.getElementById('pm-actions');
+  if (!el) return;
   const status = p['Status'] || 'PLANNING';
   const pid    = p['ProjectID'] || '';
-  let html     = `<button class="btn btn-secondary w-full" onclick="closeProjectModal()">Tutup</button>`;
+  const isSPV  = STATE.role === 'SPV' || STATE.role === 'GM';
 
-  if (STATE.role === 'SPV' || STATE.role === 'GM') {
-    // Status transitions
+  const rows = [];
+
+  if (isSPV) {
     const transitions = {
-      PLANNING:  [['ACTIVE',    '▶️ Mulai Project',   'btn-success']],
-      ACTIVE:    [['ON_HOLD',   '⏸ Tahan',            'btn-secondary'],
-                  ['COMPLETED', '✅ Selesaikan',        'btn-success']],
-      ON_HOLD:   [['ACTIVE',    '▶️ Lanjutkan',        'btn-success']],
+      PLANNING:  [['ACTIVE',    '▶️ Mulai',   'btn-success']],
+      ACTIVE:    [['ON_HOLD',   '⏸ Tahan',    'btn-secondary'],
+                  ['COMPLETED', '✅ Selesai',  'btn-success']],
+      ON_HOLD:   [['ACTIVE',    '▶️ Lanjutkan','btn-success'],
+                  ['COMPLETED', '✅ Selesai',  'btn-success']],
       COMPLETED: [],
     };
-    (transitions[status] || []).forEach(([newStatus, label, cls]) => {
-      html = `<button class="btn ${cls} w-full" onclick="changeProjectStatus('${pid}','${newStatus}')">${label}</button>` + html;
-    });
+    const trans = transitions[status] || [];
+    if (trans.length === 2) {
+      rows.push(`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        ${trans.map(([ns,lbl,cls]) =>
+          `<button class="btn ${cls} w-full" onclick="changeProjectStatus('${pid}','${ns}')">${lbl}</button>`
+        ).join('')}
+      </div>`);
+    } else if (trans.length === 1) {
+      const [ns,lbl,cls] = trans[0];
+      rows.push(`<button class="btn ${cls} w-full" style="margin-bottom:8px" onclick="changeProjectStatus('${pid}','${ns}')">${lbl}</button>`);
+    }
   }
-  el.innerHTML = html;
+
+  // Tutup — selalu ada, 1 baris penuh
+  rows.push(`<button class="btn btn-secondary w-full" onclick="closeProjectModal()">Tutup</button>`);
+
+  el.innerHTML = rows.join('');
 }
 
 // ════════════════════════════════════════════════════
@@ -6950,7 +6977,10 @@ function toggleProjectEdit() {
 
   if (!isOpen) {
     // Isi form dari data project aktif
-    const p = STATE.projects.find(x => x['ProjectID'] === STATE.currentProject);
+    const pid = typeof STATE.currentProject === 'string'
+      ? STATE.currentProject
+      : (STATE.currentProject?.['ProjectID'] || '');
+    const p = STATE.projects.find(x => x['ProjectID'] === pid);
     if (!p) return;
     const _v = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
     _v('pe-title',       p['Title']);
@@ -6981,8 +7011,10 @@ function onEditDeptChange(val) {
 
 /** Simpan hasil edit ke GAS */
 async function saveProjectEdit() {
-  const pid = STATE.currentProject;
-  if (!pid) return;
+  const pid = typeof STATE.currentProject === 'string'
+    ? STATE.currentProject
+    : (STATE.currentProject?.['ProjectID'] || '');
+  if (!pid) { showToast('error', 'Project ID tidak ditemukan', ''); return; }
 
   const _gv = (id) => (document.getElementById(id)?.value || '').trim();
   const dept = _gv('pe-department');
@@ -7057,7 +7089,9 @@ function cancelDeleteProject() {
 
 /** Eksekusi hapus project */
 async function executeDeleteProject() {
-  const pid = STATE.currentProject;
+  const pid = typeof STATE.currentProject === 'string'
+    ? STATE.currentProject
+    : (STATE.currentProject?.['ProjectID'] || '');
   if (!pid) return;
   const p = STATE.projects.find(x => x['ProjectID'] === pid);
   const title = p?.['Title'] || pid;
