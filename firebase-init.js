@@ -119,12 +119,54 @@ function _patchGasCallForFirestore(db) {
 
         if (!snap.empty) {
           console.log('[Firebase] getDefects dari Firestore:', snap.size, 'dokumen');
-          return snap.docs.map(d => ({ ID: d.id, ...d.data() }));
+          // Kembalikan format yang kompatibel dengan normalizeDefect di HTML
+          // Pastikan field key PascalCase (RoomNumber, Status, Category, dll)
+          return snap.docs.map(d => {
+            const raw = d.data();
+            // Jika data disimpan dengan key lowercase, normalisasi ke PascalCase
+            return {
+              ID:                  d.id,
+              RoomNumber:          raw.RoomNumber    || raw.room         || '',
+              Category:            raw.Category      || raw.category     || '',
+              Description:         raw.Description   || raw.description  || raw.desc || '',
+              Priority:            raw.Priority      || raw.priority     || 'MEDIUM',
+              Status:              raw.Status        || raw.status       || 'OPEN',
+              Reporter:            raw.Reporter      || raw.reporter     || '',
+              Engineer:            raw.Engineer      || raw.engineer     || '',
+              Notes:               raw.Notes         || raw.notes        || '',
+              PhotoBefore:         raw.PhotoBefore   || raw.photoBefore  || '',
+              PhotoAfter:          raw.PhotoAfter    || raw.photoAfter   || '',
+              SLA_Clock:           raw.SLA_Clock     || raw.slaClockIso  || '',
+              StartedAt:           raw.StartedAt     || raw.startedAt    || '',
+              ResolvedAt:          raw.ResolvedAt    || raw.resolvedAt   || '',
+              ClosedAt:            raw.ClosedAt      || raw.closedAt     || '',
+              ReopenedAt:          raw.ReopenedAt    || raw.reopenedAt   || '',
+              CreatedAt:           raw.CreatedAt     || raw.createdAt    || raw.Timestamp || '',
+              UpdatedAt:           raw.UpdatedAt     || raw.updatedAt    || '',
+              WaitingMaterialAt:   raw.WaitingMaterialAt || raw.waitingMaterialAt || '',
+              MaterialNote:        raw.MaterialNote  || raw.materialNote || '',
+              AssignedTo:          raw.AssignedTo    || raw.assignedTo   || '',
+              AreaType:            raw.AreaType      || raw.areaType     || 'ROOM',
+              UrgencyScore:        Number(raw.UrgencyScore  || raw.urgencyScore  || 0),
+              SLAPausedMin:        Number(raw.SLAPausedMin  || raw.slaPausedMin  || 0),
+              RepairDurationMin:   Number(raw.RepairDurationMin  || 0),
+              RepairDurationLabel: raw.RepairDurationLabel || '',
+              WaitDurationMin:     Number(raw.WaitDurationMin    || 0),
+              WaitDurationLabel:   raw.WaitDurationLabel   || '',
+              TotalDurationMin:    Number(raw.TotalDurationMin   || 0),
+              TotalDurationLabel:  raw.TotalDurationLabel  || '',
+              LinkedProject:       raw.LinkedProject  || raw.linkedProject || '',
+            };
+          });
         }
         // Kosong — fallback ke GAS (mungkin belum migrasi)
         console.log('[Firebase] Firestore kosong, fallback ke GAS');
       } catch(e) {
-        console.warn('[Firebase] getDefects fallback ke GAS:', e.message);
+        if (e.code === 'failed-precondition' || (e.message && e.message.includes('index'))) {
+          console.warn('[Firebase] Index Firestore belum dibuat → fallback GAS. Buat composite index di Firebase Console untuk koleksi "tickets": Status (!=) + CreatedAt (desc)');
+        } else {
+          console.warn('[Firebase] getDefects fallback ke GAS:', e.message);
+        }
       }
       return _orig(action, payload);
     }
@@ -137,19 +179,25 @@ function _patchGasCallForFirestore(db) {
           .get();
 
         if (!snap.empty) {
-          const projects = snap.docs.map(d => ({ ProjectID: d.id, ...d.data(), _tasks: [] }));
+          // FIX: normalisasi dokumen Firestore ke PascalCase
+          // Data lama mungkin tersimpan dengan key lowercase — pastikan selalu PascalCase
+          const projects = snap.docs.map(d => {
+            const raw = d.data();
+            return _normFirestoreProject(d.id, raw);
+          });
 
           // Fetch tasks
           const taskSnap = await db.collection('projectTasks').get();
           const taskMap  = {};
           taskSnap.forEach(t => {
-            const td = t.data();
-            if (!taskMap[td.ProjectID]) taskMap[td.ProjectID] = [];
-            taskMap[td.ProjectID].push({ TaskID: t.id, ...td });
+            const td  = t.data();
+            const pid = td.ProjectID || td.projectId || td.projectID || '';
+            if (!taskMap[pid]) taskMap[pid] = [];
+            taskMap[pid].push(_normFirestoreTask(t.id, td));
           });
           projects.forEach(p => {
-            p._tasks = (taskMap[p.ProjectID] || [])
-              .sort((a,b) => (a.Order||0) - (b.Order||0));
+            p._tasks = (taskMap[p['ProjectID']] || [])
+              .sort((a,b) => (Number(a['Order'])||0) - (Number(b['Order'])||0));
           });
 
           console.log('[Firebase] getProjects dari Firestore:', projects.length);
@@ -183,10 +231,25 @@ async function _syncToFirestore(action, payload, result, db) {
   switch(action) {
     case 'addDefect':
       if (!result.id) break;
+      // FIX: normalisasi payload lowercase ke PascalCase sebelum simpan ke Firestore
       await db.collection('tickets').doc(result.id).set({
-        ...payload, ID: result.id,
-        Status: 'OPEN', CreatedAt: now, UpdatedAt: now,
-        _syncedAt: now, _source: 'GAS',
+        ID:           result.id,
+        RoomNumber:   String(payload.room      || payload.RoomNumber || ''),
+        Category:     payload.category         || payload.Category   || '',
+        Description:  payload.description      || payload.desc       || '',
+        Priority:     payload.priority         || payload.Priority   || 'MEDIUM',
+        Status:       'OPEN',
+        Reporter:     payload.reporter         || payload.Reporter   || '',
+        Engineer:     payload.engineer         || payload.Engineer   || '',
+        Notes:        payload.notes            || payload.Notes      || '',
+        PhotoBefore:  payload.photoBefore      || payload.PhotoBefore|| '',
+        PhotoAfter:   '',
+        AreaType:     payload.areaType         || payload.AreaType   || 'ROOM',
+        SLA_Clock:    result.slaDeadline       || '',
+        CreatedAt:    now,
+        UpdatedAt:    now,
+        _syncedAt:    now,
+        _source:      'GAS',
       });
       break;
 
@@ -205,24 +268,81 @@ async function _syncToFirestore(action, payload, result, db) {
 
     case 'addProject':
       if (!result.id) break;
+      // FIX: payload pakai lowercase keys (title, department, dll)
+      // Normalisasi ke PascalCase agar konsisten dengan data GAS Sheets
       await db.collection('projects').doc(result.id).set({
-        ...payload, ProjectID: result.id,
-        Status: 'PLANNING', CreatedAt: now, UpdatedAt: now,
-        _syncedAt: now, _source: 'GAS',
+        ProjectID:    result.id,
+        Title:        payload.title        || '',
+        Description:  payload.description  || '',
+        Department:   payload.department   || 'ENG',
+        Location:     payload.location     || '',
+        Priority:     payload.priority     || 'MEDIUM',
+        Status:       'PLANNING',
+        CreatedBy:    payload.createdBy    || '',
+        AssignedTo:   payload.assignedTo   || '',
+        StartDate:    payload.startDate    || now,
+        TargetDate:   payload.targetDate   || '',
+        CompletedAt:  '',
+        CreatedAt:    now,
+        UpdatedAt:    now,
+        Notes:        payload.notes        || '',
+        LinkedDefects: payload.linkedDefects || '',
+        VendorName:   payload.vendorName   || '',
+        VendorPic:    payload.vendorPic    || '',
+        VendorSpk:    payload.vendorSpk    || '',
+        VendorCost:   payload.vendorCost   || 0,
+        _syncedAt:    now,
+        _source:      'GAS',
       });
+      // Sync tasks jika ada
+      if (payload.tasks && payload.tasks.length > 0) {
+        const batch = db.batch();
+        payload.tasks.forEach((taskTitle, idx) => {
+          const taskId  = 'TSK-' + result.id.replace('PRJ-','') + '-' + String(idx+1).padStart(2,'0');
+          const taskRef = db.collection('projectTasks').doc(taskId);
+          batch.set(taskRef, {
+            TaskID:     taskId,
+            ProjectID:  result.id,
+            Title:      taskTitle,
+            AssignedTo: payload.assignedTo || '',
+            Status:     'TODO',
+            Order:      idx + 1,
+            CreatedAt:  now,
+            UpdatedAt:  now,
+            DoneAt:     '',
+            PhotoURL:   '',
+            PhotoNote:  '',
+          });
+        });
+        await batch.commit();
+      }
       break;
 
     case 'updateProject':
       if (!payload.id) break;
       const projUpd = { UpdatedAt: now, _syncedAt: now };
-      ['title','description','department','location','priority','status',
-       'targetDate','notes','vendorName','vendorPic','vendorSpk','vendorCost']
-      .forEach(k => {
-        if (payload[k] !== undefined) {
-          projUpd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
-        }
+      // FIX: map lowercase payload keys ke PascalCase untuk Firestore
+      const _keyMap = {
+        title:'Title', description:'Description', department:'Department',
+        location:'Location', priority:'Priority', status:'Status',
+        targetDate:'TargetDate', notes:'Notes',
+        vendorName:'VendorName', vendorPic:'VendorPic',
+        vendorSpk:'VendorSpk', vendorCost:'VendorCost',
+        assignedTo:'AssignedTo', linkedDefects:'LinkedDefects',
+      };
+      Object.entries(_keyMap).forEach(([lc, pc]) => {
+        if (payload[lc] !== undefined) projUpd[pc] = payload[lc];
       });
+      if (payload.status === 'COMPLETED') projUpd.CompletedAt = now;
       await db.collection('projects').doc(payload.id).update(projUpd);
+      // Update task status jika ada
+      if (payload.taskId && payload.taskStatus) {
+        const taskUpd = { Status: payload.taskStatus, UpdatedAt: now, _syncedAt: now };
+        if (payload.taskStatus === 'DONE') taskUpd.DoneAt = now;
+        if (payload.taskPhotoUrl) taskUpd.PhotoURL = payload.taskPhotoUrl;
+        if (payload.taskPhotoNote) taskUpd.PhotoNote = payload.taskPhotoNote;
+        await db.collection('projectTasks').doc(payload.taskId).update(taskUpd);
+      }
       break;
 
     case 'deleteProject':
@@ -299,6 +419,64 @@ function _startRealtimeListeners(db) {
   }
 
   subscribe();
+}
+
+// ══════════════════════════════════════════════════════════
+// NORMALIZATION HELPERS — Firestore key case fix
+// ══════════════════════════════════════════════════════════
+
+/**
+ * Normalisasi dokumen project Firestore ke PascalCase konsisten dengan GAS Sheets.
+ * Data lama mungkin punya keys lowercase (title, department, dll) karena bug
+ * _syncToFirestore lama yang spread payload langsung tanpa konversi.
+ */
+function _normFirestoreProject(docId, raw) {
+  // Helper: ambil nilai dari PascalCase ATAU lowercase key
+  const _v = (pc, lc) => raw[pc] !== undefined ? raw[pc] : (raw[lc] !== undefined ? raw[lc] : '');
+  return {
+    ProjectID:    docId,
+    Title:        _v('Title',        'title'),
+    Description:  _v('Description',  'description'),
+    Department:   _v('Department',   'department') || 'ENG',
+    Location:     _v('Location',     'location'),
+    Priority:     _v('Priority',     'priority') || 'MEDIUM',
+    Status:       _v('Status',       'status') || 'PLANNING',
+    CreatedBy:    _v('CreatedBy',    'createdBy'),
+    AssignedTo:   _v('AssignedTo',   'assignedTo'),
+    StartDate:    _v('StartDate',    'startDate'),
+    TargetDate:   _v('TargetDate',   'targetDate'),
+    CompletedAt:  _v('CompletedAt',  'completedAt'),
+    CreatedAt:    _v('CreatedAt',    'createdAt'),
+    UpdatedAt:    _v('UpdatedAt',    'updatedAt'),
+    Notes:        _v('Notes',        'notes'),
+    LinkedDefects: _v('LinkedDefects', 'linkedDefects'),
+    VendorName:   _v('VendorName',   'vendorName'),
+    VendorPic:    _v('VendorPic',    'vendorPic'),
+    VendorSpk:    _v('VendorSpk',    'vendorSpk'),
+    VendorCost:   Number(_v('VendorCost', 'vendorCost')) || 0,
+    _tasks:       [],
+    _source:      raw._source || 'Firestore',
+  };
+}
+
+/**
+ * Normalisasi dokumen task Firestore ke PascalCase.
+ */
+function _normFirestoreTask(docId, raw) {
+  const _v = (pc, lc) => raw[pc] !== undefined ? raw[pc] : (raw[lc] !== undefined ? raw[lc] : '');
+  return {
+    TaskID:     docId,
+    ProjectID:  _v('ProjectID',  'projectId') || _v('ProjectID', 'projectID'),
+    Title:      _v('Title',      'title'),
+    AssignedTo: _v('AssignedTo', 'assignedTo'),
+    Status:     _v('Status',     'status') || 'TODO',
+    Order:      Number(_v('Order', 'order')) || 0,
+    CreatedAt:  _v('CreatedAt',  'createdAt'),
+    UpdatedAt:  _v('UpdatedAt',  'updatedAt'),
+    DoneAt:     _v('DoneAt',     'doneAt'),
+    PhotoURL:   _v('PhotoURL',   'photoUrl') || _v('PhotoURL', 'photoURL'),
+    PhotoNote:  _v('PhotoNote',  'photoNote'),
+  };
 }
 
 // ══════════════════════════════════════════════════════════
