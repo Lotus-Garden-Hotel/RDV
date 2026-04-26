@@ -5237,13 +5237,13 @@ async function executeDeleteDefect() {
   const btn = document.getElementById('btn-confirm-delete');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Menghapus...'; }
 
-  try {
-    await gasCall('deleteDefect', {
-      id: d.id,
-      deletedBy: STATE.user,
-    });
-    STATE.gasAvailable = true;
-    // Hapus dari local state
+  if (STATE.gasAvailable) {
+    try {
+      await gasCall('deleteDefect', {
+        id: d.id,
+        deletedBy: STATE.user,
+      });
+      // Hapus dari local state
       STATE.defects = STATE.defects.filter(x => x.id !== d.id);
       STATE.currentDefect = null;
       closeModal();
@@ -5252,9 +5252,17 @@ async function executeDeleteDefect() {
       showToast('success', '🗑️ Defect dihapus', d.id);
     } catch (e) {
       showToast('error', '❌ Gagal hapus', e.message);
-      if (btn) { btn.disabled = false; btn.textContent = 'Ya, Hapus'; }
-      renderModalActions(d);
+      renderModalActions(d); // reset tombol
     }
+  } else {
+    // Offline — hapus lokal saja, beri peringatan
+    STATE.defects = STATE.defects.filter(x => x.id !== d.id);
+    STATE.currentDefect = null;
+    closeModal();
+    renderDefectList();
+    renderDashboard();
+    showToast('warn', '📴 Hapus lokal (offline)', 'Sync ke server saat online kembali');
+  }
 }
 
 function closeModal() {
@@ -5392,30 +5400,30 @@ async function updateStatus(newStatus) {
 
   if (newStatus === 'IN_PROGRESS') {
     const engineerName = `${STATE.user} (${STATE.role})`;
-    const prevStatus   = d.status;
+    // Simpan state lama untuk rollback
+    const prevStatus = d.status;
     const prevEngineer = d.engineer;
     const prevStartedAt = d.startedAt;
-    const prevLogsLen  = d.logs.length;
+    const prevLogsLen = d.logs.length;
 
-    // Optimistic update lokal
     d.status = newStatus; d.engineer = engineerName; d.startedAt = Date.now();
     d.logs.push({ action: `Mulai dikerjakan oleh ${engineerName}`, time: Date.now() });
     closeModal(); renderDefectList(); renderDashboard();
 
-    // ── Selalu coba kirim ke GAS — tidak bergantung STATE.gasAvailable ──
-    try {
-      await gasUpdateDef({ id: d.id, status: newStatus, engineer: engineerName, updatedBy: engineerName });
-      STATE.gasAvailable = true;
-      showToast('success', '✅ Perbaikan dimulai!', d.id);
-    } catch (e) {
-      // Rollback lokal jika GAS gagal total
-      d.status    = prevStatus;
-      d.engineer  = prevEngineer;
-      d.startedAt = prevStartedAt;
-      d.logs.splice(prevLogsLen);
-      renderDefectList(); renderDashboard();
-      showToast('error', '❌ Gagal simpan — coba lagi', e.message);
-    }
+    if (STATE.gasAvailable) {
+      try {
+        await gasUpdateDef({ id: d.id, status: newStatus, engineer: engineerName, updatedBy: engineerName });
+        showToast('success', '✅ Perbaikan dimulai!', d.id);
+      } catch (e) {
+        // Bug #2: rollback lokal jika server gagal
+        d.status = prevStatus;
+        d.engineer = prevEngineer;
+        d.startedAt = prevStartedAt;
+        d.logs.splice(prevLogsLen);
+        renderDefectList(); renderDashboard();
+        showToast('error', '❌ Gagal — perubahan dibatalkan', e.message);
+      }
+    } else { showToast('warn', '📴 Mode offline', 'Perubahan lokal'); }
     return;
   }
 
@@ -5423,25 +5431,26 @@ async function updateStatus(newStatus) {
     d.status = newStatus; d.closedAt = Date.now();
     d.logs.push({ action: `Diverifikasi oleh ${STATE.user}`, time: Date.now() });
     closeModal(); renderDefectList(); renderDashboard();
-    try {
-      await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user });
-      STATE.gasAvailable = true;
-      showToast('success', '✅ Ditutup!', d.id);
-    } catch (e) { showToast('error', 'Gagal simpan', e.message); }
+    if (STATE.gasAvailable) {
+      try { await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user }); showToast('success', '✅ Ditutup!', d.id); }
+      catch (e) { showToast('error', 'Gagal simpan', e.message); }
+    }
     return;
   }
 
   if (newStatus === 'OPEN') {
     d.status = newStatus; d.resolvedAt = null; d.closedAt = null;
-    d.photoAfter = null;
-    d.reopenedAt = Date.now();
+    d.photoAfter = null;        // hapus foto After lama — engineer wajib foto ulang
+    d.reopenedAt = Date.now();  // tandai bahwa defect ini pernah di-reopen
     d.logs.push({ action: `Di-reopen oleh ${STATE.user} — foto After dihapus, wajib foto ulang`, time: Date.now() });
     closeModal(); renderDefectList(); renderDashboard();
-    try {
-      await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user, notes: 'Reopen — foto After dihapus', photoAfter: '' });
-      STATE.gasAvailable = true;
-      showToast('success', '↩️ Dibuka kembali!', `${d.id} — Engineer wajib foto ulang`);
-    } catch (e) { showToast('error', 'Gagal simpan', e.message); }
+    if (STATE.gasAvailable) {
+      try {
+        await gasUpdateDef({ id: d.id, status: newStatus, updatedBy: STATE.user, notes: 'Reopen — foto After dihapus', photoAfter: '' });
+        showToast('success', '↩️ Dibuka kembali!', `${d.id} — Engineer wajib foto ulang`);
+      }
+      catch (e) { showToast('error', 'Gagal simpan', e.message); }
+    }
     return;
   }
 }
@@ -5480,35 +5489,37 @@ async function submitDefect() {
     let realId = `DEF-${String(STATE.defects.length+1).padStart(4,'0')}`;
     let photoBeforeRef = STATE.photoBeforeData?.compressed || null;
 
-    // Selalu coba GAS — tidak bergantung STATE.gasAvailable
-    if (STATE.photoBeforeData) {
-      showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
-      try {
-        const photoResult = await gasSavePhoto({
-          defectId: 'PENDING', slot: 'before',
-          base64: STATE.photoBeforeData.compressed,
-          mimeType: STATE.photoBeforeData.mimeType,
-          sizeKB: STATE.photoBeforeData.sizeKB,
-          uploadedBy: `${STATE.user} (${STATE.role})`,
-          room, category: cat,
-        });
-        if (photoResult?.driveUrl) {
-          photoBeforeRef = photoResult.driveUrl;
+    if (STATE.gasAvailable) {
+      if (STATE.photoBeforeData) {
+        showToast('info', '📤 Upload foto Before...', `${STATE.photoBeforeData.sizeKB} KB`);
+        try {
+          const photoResult = await gasSavePhoto({
+            defectId: 'PENDING', slot: 'before',
+            base64: STATE.photoBeforeData.compressed,
+            mimeType: STATE.photoBeforeData.mimeType,
+            sizeKB: STATE.photoBeforeData.sizeKB,
+            uploadedBy: `${STATE.user} (${STATE.role})`,
+            room, category: cat,
+          });
+          if (photoResult?.driveUrl) {
+            photoBeforeRef = photoResult.driveUrl;
             showToast('success', '📁 Foto di Drive', '');
           } else if (photoResult?.driveError) {
             showToast('warn', '⚠️ Drive gagal', 'Foto disimpan di Sheets');
             photoBeforeRef = STATE.photoBeforeData.compressed;
           }
         } catch(e) { photoBeforeRef = STATE.photoBeforeData.compressed; }
+      }
+      const result = await gasAddDefect({
+        room, desc, description: desc, category: cat, priority: prio, notes,
+        reporter: `${STATE.user} (${STATE.role})`,
+        photoBefore: photoBeforeRef || '',
+        areaType,
+      });
+      realId = result?.id || realId;
+    } else {
+      showToast('warn', '📴 Mode offline', 'Data tersimpan lokal');
     }
-    const result = await gasAddDefect({
-      room, desc, description: desc, category: cat, priority: prio, notes,
-      reporter: `${STATE.user} (${STATE.role})`,
-      photoBefore: photoBeforeRef || '',
-      areaType,
-    });
-    STATE.gasAvailable = true;
-    realId = result?.id || realId;
     STATE.defects.unshift(normalizeDefect({
       ID: realId, RoomNumber: room, Description: desc, Category: cat,
       Priority: prio, Status: 'OPEN',
