@@ -134,7 +134,7 @@ function _patchGasCallForFirestore(db) {
         .then(function(snap) {
           if (!snap.empty) {
             var projects = snap.docs.map(function(d) {
-              return Object.assign({ ProjectID: d.id, _tasks: [] }, d.data());
+              return _normalizeProject(Object.assign({ ProjectID: d.id, _tasks: [] }, d.data()));
             });
             // Fetch tasks
             return db.collection('projectTasks').get()
@@ -202,12 +202,24 @@ function _syncToFirestore(action, payload, result, db) {
   }
 
   else if (action === 'addProject' && result.id) {
-    db.collection('projects').doc(result.id).set(
-      Object.assign({}, payload, {
-        ProjectID: result.id, Status: 'PLANNING',
-        CreatedAt: now, UpdatedAt: now, _source: 'GAS'
-      })
-    ).catch(function(e) { console.warn('[Firebase] sync addProject:', e.message); });
+    // FIX: payload dari GAS pakai lowercase (title, department) — konversi ke PascalCase
+    db.collection('projects').doc(result.id).set({
+      ProjectID:   result.id,
+      Title:       payload.title       || payload.Title       || '',
+      Description: payload.description || payload.Description || '',
+      Department:  payload.department  || payload.Department  || '',
+      Location:    payload.location    || payload.Location    || '',
+      Priority:    payload.priority    || payload.Priority    || 'MEDIUM',
+      Status:      'PLANNING',
+      TargetDate:  payload.targetDate  || payload.TargetDate  || '',
+      Notes:       payload.notes       || payload.Notes       || '',
+      VendorName:  payload.vendorName  || payload.VendorName  || '',
+      VendorPic:   payload.vendorPic   || payload.VendorPic   || '',
+      VendorSpk:   payload.vendorSpk   || payload.VendorSpk   || '',
+      VendorCost:  payload.vendorCost  || payload.VendorCost  || '',
+      CreatedBy:   payload.createdBy   || payload.CreatedBy   || '',
+      CreatedAt:   now, UpdatedAt: now, _source: 'GAS',
+    }).catch(function(e) { console.warn('[Firebase] sync addProject:', e.message); });
   }
 
   else if (action === 'updateProject' && payload.id) {
@@ -319,6 +331,36 @@ function _firestoreToDefect(d) {
     repairDurationLabel: d.RepairDurationLabel || '',
     totalDurationLabel:  d.TotalDurationLabel  || '',
     assignedTo:    d.AssignedTo    || '',
+  };
+}
+
+
+// ══════════════════════════════════════════════════════════
+// NORMALIZE PROJECT — pastikan field selalu PascalCase
+// GAS payload lowercase, Firestore mungkin simpan campur
+// ══════════════════════════════════════════════════════════
+function _normalizeProject(d) {
+  return {
+    ProjectID:   d.ProjectID   || d.projectId   || d.id || '',
+    Title:       d.Title       || d.title        || '—',
+    Description: d.Description || d.description  || '',
+    Department:  d.Department  || d.department   || '',
+    Location:    d.Location    || d.location     || '',
+    Priority:    d.Priority    || d.priority     || 'MEDIUM',
+    Status:      d.Status      || d.status       || 'PLANNING',
+    TargetDate:  d.TargetDate  || d.targetDate   || '',
+    StartDate:   d.StartDate   || d.startDate    || '',
+    CompletedAt: d.CompletedAt || d.completedAt  || '',
+    Notes:       d.Notes       || d.notes        || '',
+    VendorName:  d.VendorName  || d.vendorName   || '',
+    VendorPic:   d.VendorPic   || d.vendorPic    || '',
+    VendorSpk:   d.VendorSpk   || d.vendorSpk    || '',
+    VendorCost:  d.VendorCost  || d.vendorCost   || '',
+    CreatedBy:   d.CreatedBy   || d.createdBy    || '',
+    CreatedAt:   d.CreatedAt   || d.createdAt    || '',
+    UpdatedAt:   d.UpdatedAt   || d.updatedAt    || '',
+    _tasks:      d._tasks      || [],
+    _source:     d._source     || 'Firestore',
   };
 }
 
