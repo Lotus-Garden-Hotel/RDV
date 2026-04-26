@@ -2723,7 +2723,7 @@ const CONFIG = {
 // STATE
 // ════════════════════════════════════════════════════
 let STATE = {
-  user: null, role: 'HK',
+  user: null, role: null,
   defects: [], activeFilter: 'ALL', _areaFilter: 'ALL', _reportAreaType: 'ROOM',
   projects: [], projFilter: 'ALL', projDeptFilter: 'ALL', currentProject: null,
   currentDefect: null,
@@ -3404,93 +3404,37 @@ function _syncRoleCard() {
   });
 }
 
-async function doLogin() {
-  const name = ($id('login-name')?.value || '').trim();
-  if (!name) {
+function doLogin() {
+  var nameVal = ($id('login-name') ? $id('login-name').value : '').trim();
+  if (!nameVal) {
     showToast('error', 'Nama diperlukan', 'Masukkan nama Anda');
-    $id('login-name')?.focus();
+    if ($id('login-name')) $id('login-name').focus();
     return;
   }
-
-  // Ambil role dari DOM (source of truth) — bukan STATE yang mungkin stale
-  const activeCard = document.querySelector('#role-grid .role-card.active');
-  const role = activeCard?.dataset?.role || STATE.role || 'HK';
-
-  // Update STATE sesuai DOM
+  var activeCard = document.querySelector('#role-grid .role-card.active');
+  var role = activeCard ? activeCard.dataset.role : null;
+  if (!role) {
+    showToast('error', 'Pilih peran dulu', 'Klik salah satu departemen');
+    return;
+  }
+  STATE.user = nameVal;
   STATE.role = role;
-
-  const btn = document.querySelector('#auth-screen .btn-primary');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Memvalidasi...'; }
-
-  try {
-    let loginAllowed = false;
-    let loginWarning = '';
-
-    try {
-      // Timeout 15 detik — GAS cold start bisa 10-12 detik
-      const vResult = await Promise.race([
-        gasValidateUser({ name, role }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000)),
-      ]);
-
-      if (vResult?.valid === false) {
-        showToast('error', 'Akses Ditolak', vResult.error || 'Nama / Role tidak terdaftar');
-        return;
-      }
-      loginAllowed = true;
-      if (vResult?.warning) loginWarning = vResult.warning;
-
-    } catch (gasErr) {
-      // Timeout / offline → login dengan peringatan
-      loginAllowed = true;
-      loginWarning = gasErr.message === 'timeout'
-        ? 'GAS lambat merespons — login tanpa verifikasi server.'
-        : 'Tidak ada koneksi — login dalam mode offline.';
-      console.warn('[Login] GAS:', gasErr.message);
-    }
-
-    if (!loginAllowed) return;
-
-    // ── Terapkan session ──
-    STATE.user = name;
-    STATE.role = role;
-
-    $id('auth-screen').style.display  = 'none';
-    $id('app-shell').classList.add('visible');
-
-    const roleEl  = $id('topbar-role');
-    const greetEl = $id('dash-greeting');
-    if (roleEl)  roleEl.textContent  = role;
-    if (greetEl) greetEl.textContent = `Halo, ${name} 👋`;
-
-    updateNavForRole(role);
-    saveSession();
-
-    // Bersihkan pending role di sessionStorage
-    try { sessionStorage.removeItem('_pendingRole'); } catch(e) {}
-
-    // ── FIX HANG #8: fetchAndRender non-blocking setelah login ──
-    // Jangan await — tampilkan app shell langsung,
-    // data load di background. User tidak perlu tunggu data untuk masuk.
-    fetchAndRender().catch(e => {
-      console.warn('[Login] fetchAndRender error (non-fatal):', e.message);
-    });
+  $id('auth-screen').style.display = 'none';
+  $id('app-shell').classList.add('visible');
+  var roleEl = $id('topbar-role');
+  var greetEl = $id('dash-greeting');
+  if (roleEl) roleEl.textContent = role;
+  if (greetEl) greetEl.textContent = 'Halo, ' + nameVal + ' 👋';
+  updateNavForRole(role);
+  saveSession();
+  showPage('dashboard');
+  showToast('success', 'Selamat datang, ' + nameVal + '!', 'Role: ' + role);
+  setTimeout(function() {
+    fetchAndRender().catch(function(e) { console.warn('[Login] fetchAndRender:', e.message); });
     startPolling();
     startLiveTick();
     requestNotificationPermission();
-
-    if (loginWarning) {
-      showToast('warn', 'Login berhasil (offline)', loginWarning);
-    } else {
-      showToast('success', `Selamat datang, ${name}!`, `Role: ${role}`);
-    }
-
-  } catch (err) {
-    console.error('[Login] Fatal:', err);
-    showToast('error', 'Login gagal', err.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🚀 Masuk ke Sistem'; }
-  }
+  }, 50);
 }
 
 function doLogout() {
@@ -8241,7 +8185,7 @@ function lbClampPan() {
   // ── FIX HANG #3: Firebase init dengan timeout guard ──────────
   // defer script bisa delay 'load' event jika network lambat.
   // Tambah timeout 12s — jika Firebase belum init dalam 12s, skip ke GAS only.
-  window.FIREBASE_ENABLED = true;
+  window.FIREBASE_ENABLED = false;
 
   // Fungsi init dengan timeout guard
   function _initFirebaseWithGuard() {
@@ -8305,28 +8249,7 @@ function dismissPWA(){
 }
 
 </script>
-<script>
-// ── FIX HANG #5: Load firebase-init.js dengan error handling ──
-// 'defer' bisa delay 'load' event. Pakai dynamic load dengan timeout.
-(function() {
-  const s = document.createElement('script');
-  s.src   = 'firebase-init.js';
-  s.async = true; // async tidak delay load event
-  s.onerror = function() {
-    console.warn('[Firebase] firebase-init.js gagal dimuat — Firebase disabled, pakai GAS only');
-    window.FIREBASE_ENABLED = false;
-    window._FIREBASE_LOAD_ERROR = true;
-  };
-  s.onload = function() {
-    console.log('[Firebase] firebase-init.js loaded ✅');
-    // Trigger init jika load event sudah fire sebelum script selesai load
-    if (document.readyState === 'complete' && typeof initFirebaseHybrid === 'function') {
-      if (typeof _initFirebaseWithGuard === 'function') _initFirebaseWithGuard();
-    }
-  };
-  document.head.appendChild(s);
-})();
-</script>
+<!-- Firebase loader disabled: GAS-only mode -->
 
 </body>
 </html>
