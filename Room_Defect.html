@@ -8188,7 +8188,7 @@ function lbClampPan() {
 
   // ── Firebase Hybrid init ──────────────────────────────────
   // Tunggu DOM selesai + firebase-init.js ter-load dulu
-  window.FIREBASE_ENABLED = true;
+  window.FIREBASE_ENABLED = false;
   window.addEventListener('load', () => {
     if (window.FIREBASE_ENABLED && typeof initFirebaseHybrid === 'function') {
       initFirebaseHybrid().catch(e => console.warn('[Firebase] Init error:', e));
@@ -8221,3 +8221,4 @@ function dismissPWA(){
 
 </body>
 </html>
+
