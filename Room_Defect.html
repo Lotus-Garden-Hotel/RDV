@@ -8185,7 +8185,7 @@ function lbClampPan() {
   // ── FIX HANG #3: Firebase init dengan timeout guard ──────────
   // defer script bisa delay 'load' event jika network lambat.
   // Tambah timeout 12s — jika Firebase belum init dalam 12s, skip ke GAS only.
-  window.FIREBASE_ENABLED = false;
+  window.FIREBASE_ENABLED = true;
 
   // Fungsi init dengan timeout guard
   function _initFirebaseWithGuard() {
