@@ -112,9 +112,19 @@ function _patchGasCallForFirestore(db) {
         .then(function(snap) {
           if (!snap.empty) {
             console.log('[Firebase] getDefects:', snap.size, 'dok');
-            return snap.docs.map(function(d) {
-              return Object.assign({ ID: d.id }, d.data());
+            var defects = snap.docs.map(function(d) {
+              return _firestoreToDefect(Object.assign({ ID: d.id }, d.data()));
             });
+            // FIX: jika tidak ada satupun foto di Firestore (data lama sebelum fix)
+            // fallback ke GAS agar foto before/after tetap tampil
+            var hasAnyPhoto = defects.some(function(d) {
+              return d.photoBefore || d.photoAfter;
+            });
+            if (!hasAnyPhoto && defects.length > 0) {
+              console.log('[Firebase] getDefects: foto kosong, fallback GAS untuk data lengkap');
+              return _orig(action, payload);
+            }
+            return defects;
           }
           // Firestore kosong — fallback ke GAS
           return _orig(action, payload);
@@ -185,17 +195,31 @@ function _syncToFirestore(action, payload, result, db) {
   var now = new Date().toISOString();
 
   if (action === 'addDefect' && result.id) {
-    db.collection('tickets').doc(result.id).set(
-      Object.assign({}, payload, {
-        ID: result.id, Status: 'OPEN',
-        CreatedAt: now, UpdatedAt: now, _source: 'GAS'
-      })
-    ).catch(function(e) { console.warn('[Firebase] sync addDefect:', e.message); });
+    // FIX: payload GAS pakai lowercase — simpan PascalCase ke Firestore
+    // agar _firestoreToDefect(d.PhotoBefore) bisa baca dengan benar
+    db.collection('tickets').doc(result.id).set({
+      ID:          result.id,
+      RoomNumber:  payload.room        || payload.RoomNumber  || '',
+      Category:    payload.category    || payload.Category    || '',
+      Description: payload.desc        || payload.Description || '',
+      Priority:    payload.priority    || payload.Priority    || 'MEDIUM',
+      Reporter:    payload.reporter    || payload.Reporter    || '',
+      AreaType:    payload.areaType    || payload.AreaType    || 'ROOM',
+      PhotoBefore: payload.photoBefore || payload.PhotoBefore || '',
+      PhotoAfter:  payload.photoAfter  || payload.PhotoAfter  || '',
+      Notes:       payload.notes       || payload.Notes       || '',
+      Status:      'OPEN',
+      CreatedAt:   now,
+      UpdatedAt:   now,
+      _source:     'GAS',
+    }).catch(function(e) { console.warn('[Firebase] sync addDefect:', e.message); });
   }
 
   else if (action === 'updateDefect' && payload.id) {
     var upd = { UpdatedAt: now };
-    ['status','engineer','linkedProject','startedBy','resolvedBy','closedBy','notes']
+    // FIX: tambah photoBefore & photoAfter agar foto ter-sync ke Firestore
+    ['status','engineer','linkedProject','startedBy','resolvedBy',
+     'closedBy','notes','photoBefore','photoAfter']
       .forEach(function(k) { if (payload[k] !== undefined) upd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k]; });
     db.collection('tickets').doc(payload.id).update(upd)
       .catch(function(e) { console.warn('[Firebase] sync updateDefect:', e.message); });
@@ -321,8 +345,8 @@ function _firestoreToDefect(d) {
     resolvedBy:    d.ResolvedBy    || '',
     closedBy:      d.ClosedBy      || '',
     linkedProject: d.LinkedProject || '',
-    photoBefore:   d.PhotoBefore   || '',
-    photoAfter:    d.PhotoAfter    || '',
+    photoBefore:   d.PhotoBefore   || d.photoBefore  || '',
+    photoAfter:    d.PhotoAfter    || d.photoAfter   || '',
     areaType:      d.AreaType      || 'ROOM',
     urgencyScore:  Number(d.UrgencyScore  || 0),
     slaPausedMin:  Number(d.SLAPausedMin  || 0),
