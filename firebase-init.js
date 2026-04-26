@@ -1,16 +1,16 @@
 // ═══════════════════════════════════════════════════════════
-// H.O.M.T — Firebase Hybrid Bridge v2.2
-// File: firebase-init.js
+// H.O.M.T — Firebase Hybrid Bridge v3.0
+// Strategi: Stale-While-Revalidate
 //
-// ARSITEKTUR:
-//   - GAS = PRIMARY untuk semua WRITE (validasi, notif WA, foto Drive)
-//   - Firestore = SECONDARY untuk READ real-time & offline cache
-//   - Anonymous Auth wajib agar Security Rules canRead() = true
+// ALUR PERFORMA:
+//   1. INSTAN  → Tampilkan cache IndexedDB (offline-first)
+//   2. CEPAT   → Firestore overlay status real-time (~200ms)
+//   3. AKURAT  → GAS background refresh data lengkap (~2-8s)
+//   4. LIVE    → onSnapshot update status otomatis
 //
-// PRASYARAT DI FIREBASE CONSOLE:
-//   1. Authentication → Sign-in method → Anonymous → Enable
-//   2. Firestore → Rules → deploy rules dari H.O.M.T_V8_rules.txt
-//   3. Firestore → Indexes → buat composite index jika diminta
+// FALLBACK:
+//   Firebase gagal → app jalan 100% via GAS (tidak ada perubahan)
+//   GAS gagal      → data dari cache IndexedDB tetap tampil
 // ═══════════════════════════════════════════════════════════
 
 var firebaseConfig = {
@@ -22,17 +22,59 @@ var firebaseConfig = {
   appId:             "1:904545057231:web:025c9e67fd2923e2157aba"
 };
 
-// Internal state
 var _unsubscribeListener = null;
-var _firebaseReady = false;
+var _firebaseReady       = false;
+var _db                  = null;
 
 // ══════════════════════════════════════════════════════════
-// MAIN INIT — dipanggil dari _initFirebaseWithGuard di HTML
+// CACHE LAYER — IndexedDB via localStorage fallback
+// Simpan snapshot terakhir agar bisa tampil INSTAN
+// ══════════════════════════════════════════════════════════
+var _CACHE_KEY_DEFECTS  = 'homt_cache_defects';
+var _CACHE_KEY_PROJECTS = 'homt_cache_projects';
+var _CACHE_TTL_MS       = 5 * 60 * 1000; // 5 menit — refresh jika stale
+
+function _cacheGet(key) {
+  try {
+    var raw = localStorage.getItem(key);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    // Tidak expired
+    if (Date.now() - (obj.ts || 0) < _CACHE_TTL_MS) {
+      return obj.data;
+    }
+    return obj.data; // Tetap return meski stale — akan di-revalidate background
+  } catch(e) { return null; }
+}
+
+function _cacheSet(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: data }));
+  } catch(e) {
+    // localStorage penuh — clear cache lama dan coba lagi
+    try {
+      localStorage.removeItem(_CACHE_KEY_DEFECTS);
+      localStorage.removeItem(_CACHE_KEY_PROJECTS);
+      localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: data }));
+    } catch(e2) { /* silent */ }
+  }
+}
+
+function _cacheIsStale(key) {
+  try {
+    var raw = localStorage.getItem(key);
+    if (!raw) return true;
+    var obj = JSON.parse(raw);
+    return Date.now() - (obj.ts || 0) > _CACHE_TTL_MS;
+  } catch(e) { return true; }
+}
+
+// ══════════════════════════════════════════════════════════
+// MAIN INIT
 // ══════════════════════════════════════════════════════════
 function initFirebaseHybrid() {
   return _loadFirebaseSDKs()
     .then(function() {
-      // Init app
       if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
       }
@@ -40,7 +82,7 @@ function initFirebaseHybrid() {
       var auth = firebase.auth();
       var db   = firebase.firestore();
 
-      // Offline persistence — non-fatal jika gagal
+      // Offline persistence — IndexedDB sebagai cache otomatis Firestore
       return db.enablePersistence({ synchronizeTabs: true })
         .catch(function(err) {
           if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
@@ -48,203 +90,258 @@ function initFirebaseHybrid() {
           }
         })
         .then(function() {
-          // Anonymous sign-in — wajib agar Firestore Security Rules izinkan read
           var user = auth.currentUser;
-          if (user) {
-            return user;
-          }
+          if (user) return user;
           return auth.signInAnonymously();
         })
         .then(function() {
+          _db = db;
           window._HOMT_DB   = db;
           window._HOMT_AUTH = auth;
           _firebaseReady = true;
           window._firebaseReady = true;
-          console.log('[Firebase] Hybrid mode aktif');
+          console.log('[Firebase] v3.0 Hybrid + SWR aktif ✅');
 
-          // Patch gasCall: read dari Firestore, write tetap ke GAS
-          _patchGasCallForFirestore(db);
+          // Patch gasCall dengan strategi SWR
+          _patchGasCallSWR(db);
 
-          // Real-time listener untuk tiket aktif
+          // Real-time listener
           _startRealtimeListeners(db);
         });
     })
     .catch(function(e) {
-      console.warn('[Firebase] Init gagal, GAS-only mode:', e.message);
+      console.warn('[Firebase] Init gagal → GAS-only mode:', e.message);
       window.FIREBASE_ENABLED = false;
       _firebaseReady = false;
+      // gasCall TIDAK di-patch → app jalan normal 100% via GAS
     });
 }
 
 // ══════════════════════════════════════════════════════════
-// LOAD SDK — urutan penting: app -> auth -> firestore
+// PATCH gasCall — STALE-WHILE-REVALIDATE
 // ══════════════════════════════════════════════════════════
-function _loadFirebaseSDKs() {
-  return _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js')
-    .then(function() {
-      return _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js');
-    })
-    .then(function() {
-      return _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
-    });
-}
-
-// ══════════════════════════════════════════════════════════
-// PATCH gasCall — intercept READ actions ke Firestore
-// ══════════════════════════════════════════════════════════
-function _patchGasCallForFirestore(db) {
+function _patchGasCallSWR(db) {
   var _orig = window.gasCall;
   if (!_orig) {
-    console.warn('[Firebase] gasCall tidak ditemukan — patch dibatalkan');
+    console.warn('[Firebase] gasCall tidak ditemukan');
     return;
   }
 
   window.gasCall = function(action, payload) {
 
-    // ── getDefects: GAS = source of truth, Firestore = real-time overlay ──
-    // STRATEGI: GAS selalu punya data lengkap (foto, semua field).
-    // Firestore hanya dipakai untuk update real-time SETELAH data GAS dimuat.
+    // ════════════════════════════════════════
+    // GET DEFECTS — SWR 3 lapis
+    // ════════════════════════════════════════
     if (action === 'getDefects') {
-      return Promise.resolve(_orig(action, payload))
-        .then(function(gasData) {
-          if (!gasData || !gasData.length) return gasData;
-          console.log('[Firebase] getDefects dari GAS:', gasData.length, 'tiket');
-          // Overlay dengan data Firestore yang lebih baru (jika ada)
-          return db.collection('tickets')
-            .where('Status', 'in', ['OPEN','IN_PROGRESS','WAITING_MATERIAL'])
-            .get()
-            .then(function(snap) {
-              if (snap.empty) return gasData;
-              // Build map dari Firestore untuk merge status terbaru
-              var fsMap = {};
-              snap.docs.forEach(function(d) {
-                fsMap[d.id] = d.data();
+      return new Promise(function(resolve) {
+
+        // LAPIS 1: Cache lokal → INSTAN (0ms)
+        var cached = _cacheGet(_CACHE_KEY_DEFECTS);
+        if (cached && cached.length > 0) {
+          resolve(cached);
+          console.log('[SWR] getDefects dari cache:', cached.length, 'tiket (instan)');
+
+          // Jika cache masih fresh, cukup andalkan Firestore real-time
+          // Jika stale, refresh dari GAS di background
+          if (_cacheIsStale(_CACHE_KEY_DEFECTS)) {
+            _refreshDefectsBackground(_orig, db);
+          }
+          return;
+        }
+
+        // Tidak ada cache — LAPIS 2: Firestore dulu (cepat ~200-500ms)
+        db.collection('tickets')
+          .where('Status', '!=', 'DELETED')
+          .orderBy('Status')
+          .orderBy('CreatedAt', 'desc')
+          .limit(300)
+          .get({ source: 'cache' }) // Coba dari IndexedDB Firestore dulu
+          .catch(function() {
+            // IndexedDB kosong — ambil dari network
+            return db.collection('tickets')
+              .where('Status', '!=', 'DELETED')
+              .orderBy('Status')
+              .orderBy('CreatedAt', 'desc')
+              .limit(300)
+              .get();
+          })
+          .then(function(snap) {
+            if (!snap.empty) {
+              var fsData = snap.docs.map(function(d) {
+                return _firestoreToDefect(Object.assign({ ID: d.id }, d.data()));
               });
-              // Merge: pakai data GAS tapi update status dari Firestore jika lebih baru
-              return gasData.map(function(d) {
-                var fs = fsMap[d.id];
-                if (!fs) return d;
-                var fsUpdated = fs.UpdatedAt ? new Date(fs.UpdatedAt).getTime() : 0;
-                var gasUpdated = d.updatedAt || d.createdAt || 0;
-                if (fsUpdated > gasUpdated && fs.Status) {
-                  d.status = fs.Status.toLowerCase ? fs.Status : d.status;
-                }
-                return d;
-              });
-            })
-            .catch(function() { return gasData; }); // Firestore error → tetap pakai GAS
-        })
-        .catch(function(e) {
-          console.warn('[Firebase] getDefects error:', e.message);
-          return _orig(action, payload);
-        });
+              resolve(fsData);
+              console.log('[SWR] getDefects dari Firestore:', fsData.length, 'tiket (~200ms)');
+              _cacheSet(_CACHE_KEY_DEFECTS, fsData);
+
+              // LAPIS 3: GAS background refresh untuk data lengkap
+              _refreshDefectsBackground(_orig, db);
+              return;
+            }
+            // Firestore kosong — langsung ke GAS
+            throw new Error('Firestore kosong');
+          })
+          .catch(function() {
+            // FALLBACK: GAS langsung (2-8 detik)
+            console.log('[SWR] Fallback ke GAS untuk getDefects');
+            resolve(_orig(action, payload).then(function(data) {
+              if (data && data.length) _cacheSet(_CACHE_KEY_DEFECTS, data);
+              return data;
+            }));
+          });
+      });
     }
 
-    // ── getProjects: GAS = source of truth ────────────────
-    // GAS punya semua field lengkap (Title, Description, Tasks, dll)
-    // Firestore hanya untuk sync background — bukan untuk READ
+    // ════════════════════════════════════════
+    // GET PROJECTS — SWR 3 lapis
+    // ════════════════════════════════════════
     if (action === 'getProjects') {
-      return Promise.resolve(_orig(action, payload))
-        .then(function(data) {
-          console.log('[Firebase] getProjects dari GAS:', (data||[]).length, 'project');
-          return data || [];
-        })
-        .catch(function(e) {
-          console.warn('[Firebase] getProjects error:', e.message);
-          return [];
-        });
+      return new Promise(function(resolve) {
+
+        // LAPIS 1: Cache lokal → INSTAN
+        var cached = _cacheGet(_CACHE_KEY_PROJECTS);
+        if (cached && cached.length > 0) {
+          resolve(cached);
+          console.log('[SWR] getProjects dari cache:', cached.length, 'project (instan)');
+
+          if (_cacheIsStale(_CACHE_KEY_PROJECTS)) {
+            _refreshProjectsBackground(_orig, db);
+          }
+          return;
+        }
+
+        // LAPIS 2: GAS langsung (projects tidak di Firestore secara penuh)
+        // GAS = source of truth untuk projects karena ada _tasks
+        _orig(action, payload)
+          .then(function(data) {
+            if (data && data.length) {
+              resolve(data);
+              _cacheSet(_CACHE_KEY_PROJECTS, data);
+              console.log('[SWR] getProjects dari GAS:', data.length, 'project');
+            } else {
+              resolve(data || []);
+            }
+          })
+          .catch(function(e) {
+            console.warn('[SWR] getProjects GAS error:', e.message);
+            resolve([]);
+          });
+      });
     }
 
-    // ── Semua WRITE tetap ke GAS, lalu sync background ke Firestore ──
+    // ════════════════════════════════════════
+    // SEMUA WRITE → GAS + sync Firestore background
+    // ════════════════════════════════════════
     return Promise.resolve(_orig(action, payload))
       .then(function(result) {
         if (result && !result.error) {
+          // Invalidate cache setelah write berhasil
+          if (action === 'addDefect' || action === 'updateDefect') {
+            _cacheSet(_CACHE_KEY_DEFECTS, null); // force revalidate
+          }
+          if (action === 'addProject' || action === 'updateProject' || action === 'deleteProject') {
+            _cacheSet(_CACHE_KEY_PROJECTS, null); // force revalidate
+          }
+          // Sync ke Firestore di background
           _syncToFirestore(action, payload, result, db);
         }
         return result;
       });
   };
 
-  console.log('[Firebase] gasCall patched');
+  console.log('[Firebase] gasCall patched dengan SWR ✅');
 }
 
 // ══════════════════════════════════════════════════════════
-// SYNC BACKGROUND ke Firestore setelah GAS berhasil
+// BACKGROUND REFRESH — update STATE + cache + re-render
 // ══════════════════════════════════════════════════════════
-function _syncToFirestore(action, payload, result, db) {
-  var now = new Date().toISOString();
+function _refreshDefectsBackground(_orig, db) {
+  _orig('getDefects', {})
+    .then(function(gasData) {
+      if (!gasData || !gasData.length) return;
 
-  if (action === 'addDefect' && result.id) {
-    // FIX: payload GAS pakai lowercase — simpan PascalCase ke Firestore
-    // agar _firestoreToDefect(d.PhotoBefore) bisa baca dengan benar
-    db.collection('tickets').doc(result.id).set({
-      ID:          result.id,
-      RoomNumber:  payload.room        || payload.RoomNumber  || '',
-      Category:    payload.category    || payload.Category    || '',
-      Description: payload.desc        || payload.Description || '',
-      Priority:    payload.priority    || payload.Priority    || 'MEDIUM',
-      Reporter:    payload.reporter    || payload.Reporter    || '',
-      AreaType:    payload.areaType    || payload.AreaType    || 'ROOM',
-      PhotoBefore: payload.photoBefore || payload.PhotoBefore || '',
-      PhotoAfter:  payload.photoAfter  || payload.PhotoAfter  || '',
-      Notes:       payload.notes       || payload.Notes       || '',
-      Status:      'OPEN',
-      CreatedAt:   now,
-      UpdatedAt:   now,
-      _source:     'GAS',
-    }).catch(function(e) { console.warn('[Firebase] sync addDefect:', e.message); });
-  }
+      // Merge dengan data Firestore untuk status terbaru
+      return db.collection('tickets')
+        .where('Status', 'in', ['OPEN','IN_PROGRESS','WAITING_MATERIAL'])
+        .get()
+        .then(function(snap) {
+          var fsMap = {};
+          snap.docs.forEach(function(d) { fsMap[d.id] = d.data(); });
 
-  else if (action === 'updateDefect' && payload.id) {
-    var upd = { UpdatedAt: now };
-    // FIX: tambah photoBefore & photoAfter agar foto ter-sync ke Firestore
-    ['status','engineer','linkedProject','startedBy','resolvedBy',
-     'closedBy','notes','photoBefore','photoAfter']
-      .forEach(function(k) { if (payload[k] !== undefined) upd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k]; });
-    db.collection('tickets').doc(payload.id).update(upd)
-      .catch(function(e) { console.warn('[Firebase] sync updateDefect:', e.message); });
-  }
+          var merged = gasData.map(function(d) {
+            var fs = fsMap[d.id || d.ID];
+            if (!fs) return d;
+            var fsTime  = fs.UpdatedAt ? new Date(fs.UpdatedAt).getTime() : 0;
+            var gasTime = d.updatedAt || d.createdAt || 0;
+            // Pakai status Firestore jika lebih baru
+            if (fsTime > gasTime && fs.Status) d.status = fs.Status;
+            return d;
+          });
 
-  else if (action === 'addProject' && result.id) {
-    // FIX: payload dari GAS pakai lowercase (title, department) — konversi ke PascalCase
-    db.collection('projects').doc(result.id).set({
-      ProjectID:   result.id,
-      Title:       payload.title       || payload.Title       || '',
-      Description: payload.description || payload.Description || '',
-      Department:  payload.department  || payload.Department  || '',
-      Location:    payload.location    || payload.Location    || '',
-      Priority:    payload.priority    || payload.Priority    || 'MEDIUM',
-      Status:      'PLANNING',
-      TargetDate:  payload.targetDate  || payload.TargetDate  || '',
-      Notes:       payload.notes       || payload.Notes       || '',
-      VendorName:  payload.vendorName  || payload.VendorName  || '',
-      VendorPic:   payload.vendorPic   || payload.VendorPic   || '',
-      VendorSpk:   payload.vendorSpk   || payload.VendorSpk   || '',
-      VendorCost:  payload.vendorCost  || payload.VendorCost  || '',
-      CreatedBy:   payload.createdBy   || payload.CreatedBy   || '',
-      CreatedAt:   now, UpdatedAt: now, _source: 'GAS',
-    }).catch(function(e) { console.warn('[Firebase] sync addProject:', e.message); });
-  }
+          _cacheSet(_CACHE_KEY_DEFECTS, merged);
 
-  else if (action === 'updateProject' && payload.id) {
-    var pu = { UpdatedAt: now };
-    ['title','description','department','location','priority','status',
-     'targetDate','notes','vendorName','vendorPic','vendorSpk','vendorCost']
-      .forEach(function(k) {
-        if (payload[k] !== undefined) pu[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
-      });
-    db.collection('projects').doc(payload.id).update(pu)
-      .catch(function(e) { console.warn('[Firebase] sync updateProject:', e.message); });
-  }
+          // Update STATE.defects jika ada perubahan
+          if (window.STATE && STATE.defects) {
+            var changed = false;
+            merged.forEach(function(d) {
+              var idx = STATE.defects.findIndex(function(x) {
+                return x.id === (d.id || d.ID);
+              });
+              if (idx >= 0) {
+                // Hanya update jika data baru lebih lengkap
+                if (d.desc && !STATE.defects[idx].desc) {
+                  STATE.defects[idx] = d;
+                  changed = true;
+                }
+              } else {
+                STATE.defects.push(d);
+                changed = true;
+              }
+            });
 
-  else if (action === 'deleteProject' && payload.id) {
-    db.collection('projects').doc(payload.id).update({ Status: 'DELETED', UpdatedAt: now })
-      .catch(function(e) { console.warn('[Firebase] sync deleteProject:', e.message); });
-  }
+            if (changed && typeof renderDashboard === 'function') {
+              var dp = document.getElementById('page-dashboard');
+              if (dp && !dp.hidden) renderDashboard();
+            }
+          }
+          console.log('[SWR] Background refresh defects selesai:', merged.length, 'tiket');
+        })
+        .catch(function() {
+          // Firestore gagal — pakai data GAS murni
+          _cacheSet(_CACHE_KEY_DEFECTS, gasData);
+          if (window.STATE) STATE.defects = gasData;
+        });
+    })
+    .catch(function(e) {
+      console.warn('[SWR] Background refresh gagal:', e.message);
+    });
+}
+
+function _refreshProjectsBackground(_orig, db) {
+  _orig('getProjects', {})
+    .then(function(data) {
+      if (!data || !data.length) return;
+      _cacheSet(_CACHE_KEY_PROJECTS, data);
+
+      if (window.STATE) {
+        STATE.projects = data;
+        // Re-render projects jika sedang dibuka
+        var pp = document.getElementById('page-projects');
+        if (pp && !pp.hidden && typeof _renderProjectCards === 'function') {
+          _updateDeptDashboard && _updateDeptDashboard();
+          _renderProjectCards();
+        }
+      }
+      console.log('[SWR] Background refresh projects selesai:', data.length);
+    })
+    .catch(function(e) {
+      console.warn('[SWR] Background refresh projects gagal:', e.message);
+    });
 }
 
 // ══════════════════════════════════════════════════════════
-// REAL-TIME LISTENER — update STATE.defects otomatis
+// REAL-TIME LISTENER — Firestore onSnapshot
+// Update STATE otomatis saat ada perubahan dari user lain
 // ══════════════════════════════════════════════════════════
 function _startRealtimeListeners(db) {
   if (_unsubscribeListener) {
@@ -261,20 +358,26 @@ function _startRealtimeListeners(db) {
       .onSnapshot(
         function(snap) {
           retryCount = 0;
-          if (!window.STATE || !snap) return;
+          if (!window.STATE || !snap || snap.docChanges().length === 0) return;
 
           var changed = false;
           snap.docChanges().forEach(function(change) {
-            var data = Object.assign({ ID: change.doc.id }, change.doc.data());
+            var data   = Object.assign({ ID: change.doc.id }, change.doc.data());
             var defect = _firestoreToDefect(data);
 
             if (change.type === 'added' || change.type === 'modified') {
-              var idx = (STATE.defects || []).findIndex(function(d) { return d.id === data.ID; });
+              var idx = (STATE.defects || []).findIndex(function(d) {
+                return d.id === data.ID;
+              });
               if (idx >= 0) {
-                STATE.defects[idx] = defect;
+                // Hanya update field status — jangan timpa data lengkap dari GAS
+                STATE.defects[idx].status = defect.status;
+                if (defect.engineer)  STATE.defects[idx].engineer  = defect.engineer;
+                if (defect.startedBy) STATE.defects[idx].startedBy = defect.startedBy;
+                if (defect.resolvedBy)STATE.defects[idx].resolvedBy= defect.resolvedBy;
                 changed = true;
-              } else if (change.type === 'added' && STATE.defects) {
-                STATE.defects.unshift(defect);
+              } else if (change.type === 'added') {
+                STATE.defects && STATE.defects.unshift(defect);
                 changed = true;
               }
             } else if (change.type === 'removed' && STATE.defects) {
@@ -284,10 +387,15 @@ function _startRealtimeListeners(db) {
           });
 
           if (changed) {
+            // Invalidate cache
+            _cacheSet(_CACHE_KEY_DEFECTS, STATE.defects);
+
+            // Re-render hanya halaman yang aktif
             var dp = document.getElementById('page-dashboard');
-            if (dp && dp.classList.contains('active') && typeof renderDashboard === 'function') {
+            if (dp && !dp.hidden && typeof renderDashboard === 'function') {
               renderDashboard();
             }
+            console.log('[SWR] Real-time update:', snap.docChanges().length, 'changes');
           }
         },
         function(err) {
@@ -301,6 +409,60 @@ function _startRealtimeListeners(db) {
   }
 
   subscribe();
+}
+
+// ══════════════════════════════════════════════════════════
+// SYNC BACKGROUND ke Firestore setelah GAS write berhasil
+// ══════════════════════════════════════════════════════════
+function _syncToFirestore(action, payload, result, db) {
+  var now = new Date().toISOString();
+
+  if (action === 'addDefect' && result.id) {
+    db.collection('tickets').doc(result.id).set(
+      Object.assign({}, payload, {
+        ID: result.id, Status: 'OPEN',
+        CreatedAt: now, UpdatedAt: now, _source: 'GAS'
+      })
+    ).catch(function(e) { console.warn('[Firebase] sync addDefect:', e.message); });
+  }
+
+  else if (action === 'updateDefect' && payload.id) {
+    var upd = { UpdatedAt: now };
+    ['status','engineer','linkedProject','startedBy','resolvedBy','closedBy','notes']
+      .forEach(function(k) {
+        if (payload[k] !== undefined) {
+          upd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
+        }
+      });
+    db.collection('tickets').doc(payload.id).update(upd)
+      .catch(function(e) { console.warn('[Firebase] sync updateDefect:', e.message); });
+  }
+
+  else if (action === 'addProject' && result.id) {
+    db.collection('projects').doc(result.id).set(
+      Object.assign({}, payload, {
+        ProjectID: result.id, Status: 'PLANNING',
+        CreatedAt: now, UpdatedAt: now, _source: 'GAS'
+      })
+    ).catch(function(e) { console.warn('[Firebase] sync addProject:', e.message); });
+  }
+
+  else if (action === 'updateProject' && payload.id) {
+    var pu = { UpdatedAt: now };
+    ['title','description','department','location','priority','status',
+     'targetDate','notes','vendorName','vendorPic','vendorSpk','vendorCost']
+      .forEach(function(k) {
+        if (payload[k] !== undefined) pu[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
+      });
+    db.collection('projects').doc(payload.id).update(pu)
+      .catch(function(e) { console.warn('[Firebase] sync updateProject:', e.message); });
+  }
+
+  else if (action === 'deleteProject' && payload.id) {
+    db.collection('projects').doc(payload.id)
+      .update({ Status: 'DELETED', UpdatedAt: now })
+      .catch(function(e) { console.warn('[Firebase] sync deleteProject:', e.message); });
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -325,8 +487,8 @@ function _firestoreToDefect(d) {
     resolvedBy:    d.ResolvedBy    || '',
     closedBy:      d.ClosedBy      || '',
     linkedProject: d.LinkedProject || '',
-    photoBefore:   d.PhotoBefore   || d.photoBefore  || '',
-    photoAfter:    d.PhotoAfter    || d.photoAfter   || '',
+    photoBefore:   d.PhotoBefore   || d.photoBefore   || '',
+    photoAfter:    d.PhotoAfter    || d.photoAfter    || '',
     areaType:      d.AreaType      || 'ROOM',
     urgencyScore:  Number(d.UrgencyScore  || 0),
     slaPausedMin:  Number(d.SLAPausedMin  || 0),
@@ -338,42 +500,19 @@ function _firestoreToDefect(d) {
   };
 }
 
-
-// ══════════════════════════════════════════════════════════
-// NORMALIZE PROJECT — pastikan field selalu PascalCase
-// GAS payload lowercase, Firestore mungkin simpan campur
-// ══════════════════════════════════════════════════════════
-function _normalizeProject(d) {
-  return {
-    ProjectID:   d.ProjectID   || d.projectId   || d.id || '',
-    Title:       d.Title       || d.title        || '—',
-    Description: d.Description || d.description  || '',
-    Department:  d.Department  || d.department   || '',
-    Location:    d.Location    || d.location     || '',
-    Priority:    d.Priority    || d.priority     || 'MEDIUM',
-    Status:      d.Status      || d.status       || 'PLANNING',
-    TargetDate:  d.TargetDate  || d.targetDate   || '',
-    StartDate:   d.StartDate   || d.startDate    || '',
-    CompletedAt: d.CompletedAt || d.completedAt  || '',
-    Notes:       d.Notes       || d.notes        || '',
-    VendorName:  d.VendorName  || d.vendorName   || '',
-    VendorPic:   d.VendorPic   || d.vendorPic    || '',
-    VendorSpk:   d.VendorSpk   || d.vendorSpk    || '',
-    VendorCost:  d.VendorCost  || d.vendorCost   || '',
-    CreatedBy:   d.CreatedBy   || d.createdBy    || '',
-    CreatedAt:   d.CreatedAt   || d.createdAt    || '',
-    UpdatedAt:   d.UpdatedAt   || d.updatedAt    || '',
-    _tasks:      d._tasks      || [],
-    _source:     d._source     || 'Firestore',
-  };
+function _loadFirebaseSDKs() {
+  return _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js')
+    .then(function() {
+      return _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js');
+    })
+    .then(function() {
+      return _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
+    });
 }
 
 function _loadScript(src) {
   return new Promise(function(resolve, reject) {
-    if (document.querySelector('script[src="' + src + '"]')) {
-      resolve();
-      return;
-    }
+    if (document.querySelector('script[src="' + src + '"]')) { resolve(); return; }
     var s    = document.createElement('script');
     s.src    = src;
     s.onload = resolve;
