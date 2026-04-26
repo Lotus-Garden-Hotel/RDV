@@ -2709,7 +2709,7 @@ body::before {
 // CONFIG
 // ════════════════════════════════════════════════════
 const CONFIG = {
-  GAS_URL: https://script.google.com/macros/s/AKfycbx7ZE9N2UIZAY9RshduV0plD4Ad4WZ7Qc12gQsrflsngJ5JNDVd-U7bC96C5v4sZMoQ/exec',
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbxhGcQOiaERUgPf823szLEVSQatGqobXC4sGwhT0LClYTYN-RiiuktuH2ZefA-HxjZx/exec',
   WA_API_URL: 'https://api.fonnte.com/send',
   WA_TOKEN: 'YOUR_FONNTE_TOKEN',
   APP_URL: window.location.href.split('?')[0],
@@ -3079,9 +3079,12 @@ function getMockDefects() {
 }
 
 // ── Konstanta koneksi ──
-const GAS_TIMEOUT_MS  = 15000;  // 15 detik per attempt
-const GAS_MAX_RETRY   = 3;      // maks 3 percobaan
-const GAS_RETRY_DELAY = [0, 2000, 5000]; // delay antar retry (ms)
+// ── FIX HANG #2: turunkan timeout dan retry untuk cegah 45s hang ──
+// Sebelumnya: 15s × 3 = 45s worst case. Sekarang: 10s × 2 = 20s max.
+// GAS cold start biasanya < 8s. Jika > 10s kemungkinan ada masalah koneksi.
+const GAS_TIMEOUT_MS  = 10000;  // 10 detik per attempt (cukup untuk cold start GAS)
+const GAS_MAX_RETRY   = 2;      // maks 2 percobaan (total max ~22s)
+const GAS_RETRY_DELAY = [0, 3000]; // delay antar retry (ms)
 
 async function gasCall(action, payload = {}) {
   if (!CONFIG.GAS_URL) throw new Error('GAS_URL belum dikonfigurasi');
@@ -3466,7 +3469,12 @@ async function doLogin() {
     // Bersihkan pending role di sessionStorage
     try { sessionStorage.removeItem('_pendingRole'); } catch(e) {}
 
-    await fetchAndRender();
+    // ── FIX HANG #8: fetchAndRender non-blocking setelah login ──
+    // Jangan await — tampilkan app shell langsung,
+    // data load di background. User tidak perlu tunggu data untuk masuk.
+    fetchAndRender().catch(e => {
+      console.warn('[Login] fetchAndRender error (non-fatal):', e.message);
+    });
     startPolling();
     startLiveTick();
     requestNotificationPermission();
@@ -3504,11 +3512,25 @@ async function fetchAndRender(toast = false) {
   if (STATE.isLoading) return;
   STATE.isLoading = true;
   try {
-    // ── FIX v7: Load defects + projects secara paralel untuk dashboard lengkap ──
-    const [rawDefects, rawProjects] = await Promise.allSettled([
-      gasGetDefects(),
-      gasGetProjects(),
-    ]);
+    // ── FIX HANG #4: fetchAndRender punya total timeout 25s ──────
+    // Jika Firebase/GAS stuck (tidak resolve/reject), Promise.allSettled
+    // akan pending selamanya. Race dengan timeout untuk cegah infinite hang.
+    const _fetchTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('fetchAndRender timeout 25s')), 25000)
+    );
+
+    // ── Load defects + projects secara paralel ──────────────────
+    const [rawDefects, rawProjects] = await Promise.race([
+      Promise.allSettled([gasGetDefects(), gasGetProjects()]),
+      _fetchTimeout.then(() => { throw new Error('timeout'); }),
+    ]).catch(e => {
+      console.warn('[fetchAndRender] Timeout atau error:', e.message);
+      // Return settled-like result agar flow bisa lanjut dengan mock
+      return [
+        { status: 'rejected', reason: e },
+        { status: 'rejected', reason: e },
+      ];
+    });
 
     // Process defects
     let newDefects;
@@ -5974,19 +5996,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Sync visual role card dengan STATE.role default (HK)
   _syncRoleCard();
 
-  // ── Cek koneksi GAS
-  try { await gasCall('getMetrics', {}); STATE.gasAvailable = true; console.log('✅ GAS terhubung'); }
-  catch { STATE.gasAvailable = false; showToast('warn', 'Mode Offline', 'Menggunakan data lokal'); }
-
-  // ── Restore session
+  // ── Restore session dulu — jangan tunggu GAS (cegah hang 45s)
   const savedSession = restoreSession();
   if (savedSession) {
     applySession(savedSession);
-    await fetchAndRender();
+
+    // ── FIX HANG #1: fetchAndRender tidak lagi await di sini.
+    // gasCall('getMetrics') awal dihapus — fetchAndRender sudah include
+    // getDefects + getProjects yang cukup sebagai connectivity check.
+    // Jika GAS/Firebase gagal, fetchAndRender sudah handle fallback ke mock.
+    fetchAndRender().catch(e => {
+      console.warn('[Init] fetchAndRender error (non-fatal):', e.message);
+      STATE.gasAvailable = false;
+    });
+
     startPolling();
     startLiveTick();
     requestNotificationPermission();
-    loadAiPredictive(); // load AI setelah data ready
+
+    // ── loadAiPredictive setelah fetchAndRender selesai ──────────
+    // Jangan jalankan parallel — tunggu data defect ready dulu.
+    // Gunakan setTimeout agar tidak block init flow.
+    setTimeout(() => loadAiPredictive(), 3000);
+
+    // ── Cek koneksi GAS background (non-blocking) ──────────────
+    // Hanya untuk update STATE.gasAvailable flag, tidak block apapun
+    gasCall('getMetrics', {}).then(() => {
+      STATE.gasAvailable = true;
+      console.log('✅ GAS terhubung');
+    }).catch(() => {
+      // gasAvailable sudah di-set false oleh gasCall jika gagal
+      // fetchAndRender sudah tampilkan banner jika perlu
+    });
+
     showToast('info', `👋 Selamat datang, ${savedSession.user}!`, '');
   }
 
@@ -7813,14 +7855,23 @@ const POLL_INTERVAL_MS = 30000; // 30 detik
 function startPolling() {
   if (STATE.pollingTimer) clearInterval(STATE.pollingTimer);
   STATE.pollingTimer = setInterval(async () => {
-    // Jangan poll saat modal buka atau sedang upload
+    // ── FIX HANG #6: Skip polling jika Firebase realtime listener aktif ──
+    // window._HOMT_DB di-set saat Firebase siap (firebase-init.js: window._HOMT_DB = db)
+    // Ini lebih reliable dari _firebaseReady karena langsung cek instance-nya.
+    if (window._HOMT_DB && window.FIREBASE_ENABLED) {
+      // Tetap flush pending resolves (tidak block)
+      _flushPendingResolve().catch(() => {});
+      return;
+    }
+    // Jangan poll saat modal buka atau sedang loading
     if (document.getElementById('detail-modal')?.classList.contains('open')) return;
     if (STATE.isLoading) return;
     // Flush pending resolves setiap poll — auto-retry yang gagal saat offline
     await _flushPendingResolve();
     await fetchAndRender(false);
   }, POLL_INTERVAL_MS);
-  console.log('[Polling] Started — interval 30s');
+  console.log('[Polling] Started — interval 30s' +
+    (window.FIREBASE_ENABLED ? ' (akan di-skip jika Firebase aktif)' : ''));
 }
 
 function stopPolling() {
@@ -8187,13 +8238,50 @@ function lbClampPan() {
   });
 
   // ── Firebase Hybrid init ──────────────────────────────────
-  // Tunggu DOM selesai + firebase-init.js ter-load dulu
-  window.FIREBASE_ENABLED = false;
-  window.addEventListener('load', () => {
-    if (window.FIREBASE_ENABLED && typeof initFirebaseHybrid === 'function') {
-      initFirebaseHybrid().catch(e => console.warn('[Firebase] Init error:', e));
+  // ── FIX HANG #3: Firebase init dengan timeout guard ──────────
+  // defer script bisa delay 'load' event jika network lambat.
+  // Tambah timeout 12s — jika Firebase belum init dalam 12s, skip ke GAS only.
+  window.FIREBASE_ENABLED = true;
+
+  // Fungsi init dengan timeout guard
+  function _initFirebaseWithGuard() {
+    if (!window.FIREBASE_ENABLED) return;
+    if (typeof initFirebaseHybrid !== 'function') {
+      console.warn('[Firebase] initFirebaseHybrid tidak ditemukan — mungkin firebase-init.js gagal load. Pakai GAS only.');
+      window.FIREBASE_ENABLED = false;
+      return;
     }
+    const fbTimeout = setTimeout(() => {
+      console.warn('[Firebase] Init timeout (12s) — fallback ke GAS only');
+      window.FIREBASE_ENABLED = false;
+    }, 12000);
+
+    initFirebaseHybrid()
+      .then(() => {
+        clearTimeout(fbTimeout);
+        console.log('[Firebase] Init selesai ✅');
+      })
+      .catch(e => {
+        clearTimeout(fbTimeout);
+        console.warn('[Firebase] Init error:', e.message, '— pakai GAS only');
+        window.FIREBASE_ENABLED = false;
+      });
+  }
+
+  // Gunakan 'load' event jika firebase-init.js sudah defer-ready,
+  // fallback ke DOMContentLoaded jika load tidak fire dalam 5s
+  let _fbLoadFired = false;
+  window.addEventListener('load', () => {
+    _fbLoadFired = true;
+    _initFirebaseWithGuard();
   });
+  // Safety net: jika 'load' tidak fire (sangat jarang), init setelah 5s
+  setTimeout(() => {
+    if (!_fbLoadFired) {
+      console.warn('[Firebase] load event belum fire setelah 5s — coba init manual');
+      _initFirebaseWithGuard();
+    }
+  }, 5000);
 })();
 
 function _showInstallBanner(){
@@ -8217,7 +8305,28 @@ function dismissPWA(){
 }
 
 </script>
-<script src="firebase-init.js" defer></script>
+<script>
+// ── FIX HANG #5: Load firebase-init.js dengan error handling ──
+// 'defer' bisa delay 'load' event. Pakai dynamic load dengan timeout.
+(function() {
+  const s = document.createElement('script');
+  s.src   = 'firebase-init.js';
+  s.async = true; // async tidak delay load event
+  s.onerror = function() {
+    console.warn('[Firebase] firebase-init.js gagal dimuat — Firebase disabled, pakai GAS only');
+    window.FIREBASE_ENABLED = false;
+    window._FIREBASE_LOAD_ERROR = true;
+  };
+  s.onload = function() {
+    console.log('[Firebase] firebase-init.js loaded ✅');
+    // Trigger init jika load event sudah fire sebelum script selesai load
+    if (document.readyState === 'complete' && typeof initFirebaseHybrid === 'function') {
+      if (typeof _initFirebaseWithGuard === 'function') _initFirebaseWithGuard();
+    }
+  };
+  document.head.appendChild(s);
+})();
+</script>
 
 </body>
 </html>
