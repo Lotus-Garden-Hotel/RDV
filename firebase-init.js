@@ -101,77 +101,57 @@ function _patchGasCallForFirestore(db) {
 
   window.gasCall = function(action, payload) {
 
-    // ── getDefects: baca dari Firestore ───────────────────
+    // ── getDefects: GAS = source of truth, Firestore = real-time overlay ──
+    // STRATEGI: GAS selalu punya data lengkap (foto, semua field).
+    // Firestore hanya dipakai untuk update real-time SETELAH data GAS dimuat.
     if (action === 'getDefects') {
-      return db.collection('tickets')
-        .where('Status', '!=', 'DELETED')
-        .orderBy('Status')
-        .orderBy('CreatedAt', 'desc')
-        .limit(300)
-        .get()
-        .then(function(snap) {
-          if (!snap.empty) {
-            console.log('[Firebase] getDefects:', snap.size, 'dok');
-            var defects = snap.docs.map(function(d) {
-              return _firestoreToDefect(Object.assign({ ID: d.id }, d.data()));
-            });
-            // FIX: jika tidak ada satupun foto di Firestore (data lama sebelum fix)
-            // fallback ke GAS agar foto before/after tetap tampil
-            var hasAnyPhoto = defects.some(function(d) {
-              return d.photoBefore || d.photoAfter;
-            });
-            if (!hasAnyPhoto && defects.length > 0) {
-              console.log('[Firebase] getDefects: foto kosong, fallback GAS untuk data lengkap');
-              return _orig(action, payload);
-            }
-            return defects;
-          }
-          // Firestore kosong — fallback ke GAS
-          return _orig(action, payload);
+      return Promise.resolve(_orig(action, payload))
+        .then(function(gasData) {
+          if (!gasData || !gasData.length) return gasData;
+          console.log('[Firebase] getDefects dari GAS:', gasData.length, 'tiket');
+          // Overlay dengan data Firestore yang lebih baru (jika ada)
+          return db.collection('tickets')
+            .where('Status', 'in', ['OPEN','IN_PROGRESS','WAITING_MATERIAL'])
+            .get()
+            .then(function(snap) {
+              if (snap.empty) return gasData;
+              // Build map dari Firestore untuk merge status terbaru
+              var fsMap = {};
+              snap.docs.forEach(function(d) {
+                fsMap[d.id] = d.data();
+              });
+              // Merge: pakai data GAS tapi update status dari Firestore jika lebih baru
+              return gasData.map(function(d) {
+                var fs = fsMap[d.id];
+                if (!fs) return d;
+                var fsUpdated = fs.UpdatedAt ? new Date(fs.UpdatedAt).getTime() : 0;
+                var gasUpdated = d.updatedAt || d.createdAt || 0;
+                if (fsUpdated > gasUpdated && fs.Status) {
+                  d.status = fs.Status.toLowerCase ? fs.Status : d.status;
+                }
+                return d;
+              });
+            })
+            .catch(function() { return gasData; }); // Firestore error → tetap pakai GAS
         })
         .catch(function(e) {
-          console.warn('[Firebase] getDefects fallback GAS:', e.message);
+          console.warn('[Firebase] getDefects error:', e.message);
           return _orig(action, payload);
         });
     }
 
-    // ── getProjects: baca dari Firestore ──────────────────
+    // ── getProjects: GAS = source of truth ────────────────
+    // GAS punya semua field lengkap (Title, Description, Tasks, dll)
+    // Firestore hanya untuk sync background — bukan untuk READ
     if (action === 'getProjects') {
-      return db.collection('projects')
-        .where('Status', '!=', 'DELETED')
-        .orderBy('Status')
-        .get()
-        .then(function(snap) {
-          if (!snap.empty) {
-            var projects = snap.docs.map(function(d) {
-              return _normalizeProject(Object.assign({ ProjectID: d.id, _tasks: [] }, d.data()));
-            });
-            // Fetch tasks
-            return db.collection('projectTasks').get()
-              .then(function(taskSnap) {
-                var taskMap = {};
-                taskSnap.forEach(function(t) {
-                  var td = t.data();
-                  var pid = td.ProjectID || '';
-                  if (!taskMap[pid]) taskMap[pid] = [];
-                  taskMap[pid].push(Object.assign({ TaskID: t.id }, td));
-                });
-                projects.forEach(function(p) {
-                  p._tasks = (taskMap[p.ProjectID] || []).sort(function(a,b) {
-                    return (a.Order||0) - (b.Order||0);
-                  });
-                });
-                console.log('[Firebase] getProjects:', projects.length, 'project');
-                return projects;
-              });
-          }
-          // Firestore kosong — fallback ke GAS
-          console.log('[Firebase] getProjects kosong, fallback GAS');
-          return _orig(action, payload);
+      return Promise.resolve(_orig(action, payload))
+        .then(function(data) {
+          console.log('[Firebase] getProjects dari GAS:', (data||[]).length, 'project');
+          return data || [];
         })
         .catch(function(e) {
-          console.warn('[Firebase] getProjects fallback GAS:', e.message);
-          return _orig(action, payload);
+          console.warn('[Firebase] getProjects error:', e.message);
+          return [];
         });
     }
 
