@@ -8249,7 +8249,23 @@ function dismissPWA(){
 }
 
 </script>
-<!-- Firebase loader disabled: GAS-only mode -->
+<script>
+(function() {
+  var s = document.createElement('script');
+  s.src = 'firebase-init.js';
+  s.async = true;
+  s.onerror = function() {
+    console.warn('[Firebase] firebase-init.js gagal load');
+    window.FIREBASE_ENABLED = false;
+  };
+  s.onload = function() {
+    if (typeof _initFirebaseWithGuard === 'function') {
+      _initFirebaseWithGuard();
+    }
+  };
+  document.head.appendChild(s);
+})();
+</script>
 
 </body>
 </html>
