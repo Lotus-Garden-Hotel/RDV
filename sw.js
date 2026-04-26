@@ -4,7 +4,7 @@
 //    Ini yang memaksa browser hapus cache lama dan ambil fresh
 // ═══════════════════════════════════════════════════════════
 
-const APP_VERSION  = 'homt-v2.4';   // ← UPDATE INI setiap deploy
+const APP_VERSION  = 'homt-v2.5';   // ← UPDATE INI setiap deploy
 const FONT_CACHE   = 'homt-fonts-v1';
 const PHOTO_CACHE  = 'homt-photos-v1';
 const PHOTO_TTL_MS = 24 * 60 * 60 * 1000;
