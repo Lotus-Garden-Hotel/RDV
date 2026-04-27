@@ -262,7 +262,7 @@ function _refreshDefectsBackground(_orig, db) {
 
       // Merge dengan data Firestore untuk status terbaru
       return db.collection('tickets')
-        .where('Status', 'in', ['OPEN','IN_PROGRESS','WAITING_MATERIAL'])
+        .where('Status', 'in', ['OPEN','IN_PROGRESS','WAITING_DEFECT'])
         .get()
         .then(function(snap) {
           var fsMap = {};
@@ -354,7 +354,7 @@ function _startRealtimeListeners(db) {
 
   function subscribe() {
     _unsubscribeListener = db.collection('tickets')
-      .where('Status', 'in', ['OPEN', 'IN_PROGRESS', 'WAITING_MATERIAL'])
+      .where('Status', 'in', ['OPEN', 'IN_PROGRESS', 'WAITING_DEFECT'])
       .onSnapshot(
         function(snap) {
           retryCount = 0;
@@ -428,7 +428,7 @@ function _syncToFirestore(action, payload, result, db) {
 
   else if (action === 'updateDefect' && payload.id) {
     var upd = { UpdatedAt: now };
-    ['status','engineer','linkedProject','startedBy','resolvedBy','closedBy','notes']
+    ['status','engineer','linkedProject','startedBy','resolvedBy','closedBy','notes','materialNote']
       .forEach(function(k) {
         if (payload[k] !== undefined) {
           upd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
@@ -462,6 +462,13 @@ function _syncToFirestore(action, payload, result, db) {
     db.collection('projects').doc(payload.id)
       .update({ Status: 'DELETED', UpdatedAt: now })
       .catch(function(e) { console.warn('[Firebase] sync deleteProject:', e.message); });
+  }
+
+  else if (action === 'updateMaterialNote' && payload.id) {
+    db.collection('tickets').doc(payload.id).update({
+      MaterialNote: payload.materialNote || '',
+      UpdatedAt: now
+    }).catch(function(e) { console.warn('[Firebase] sync updateMaterialNote:', e.message); });
   }
 }
 
