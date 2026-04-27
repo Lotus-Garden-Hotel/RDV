@@ -467,10 +467,8 @@ body::before {
   gap: 12px;
   margin-bottom: 24px;
 }
-/* FIX v3: Waiting card selalu full-width di grid 2-kolom */
-#m-waiting-card {
-  grid-column: 1 / -1;
-}
+/* FIX v3: WAITING_DEFECT card full-width di row terakhir */
+#m-waiting-card { grid-column: 1 / -1; }
 
 .metric-card {
   background: var(--bg-1);
@@ -1750,7 +1748,7 @@ body::before {
           <div id="m-closed-dept" style="font-size:10px;color:var(--accent-green);margin-top:3px;opacity:.8"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
-        <!-- WAITING_DEFECT metric — selalu tampil di grid (FIX v3) -->
+        <!-- FIX v3: WAITING_DEFECT card — selalu tampil, sama seperti card lain -->
         <div class="metric-card stagger-child" id="m-waiting-card"
              style="--metric-color:var(--status-waiting)"
              onclick="tapMetric(this,'WAITING_DEFECT')" data-filter="WAITING_DEFECT">
@@ -1758,7 +1756,7 @@ body::before {
           <div class="metric-label">⏸ Waiting</div>
           <div class="metric-icon" style="color:var(--status-waiting)">⏸</div>
           <div id="m-waiting-dept" style="font-size:10px;color:var(--status-waiting);margin-top:3px;opacity:.8"></div>
-          <div id="m-waiting-materials" style="font-size:10px;color:#a78bfa;margin-top:3px;line-height:1.4"></div>
+          <div id="m-waiting-materials" style="font-size:10px;color:#a78bfa;margin-top:2px;line-height:1.4"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
       </div>
@@ -3365,7 +3363,18 @@ const gasValidateUser = (d) => gasCall('validateUser', d);
 
 // Fix: atomic resolve — satu call untuk photo save + status update
 const gasResolveDefect = (d) => gasCall('resolveDefect', d);
-const gasUpdateMaterialNote = (d) => gasCall('updateMaterialNote', d);
+// FIX v3: gasUpdateMaterialNote dengan explicit error check
+const gasUpdateMaterialNote = async (d) => {
+  const res = await gasCall('updateMaterialNote', d);
+  // gasCall kadang tidak throw error meski GAS return { error: '...' }
+  if (res && res.error) throw new Error(res.error);
+  if (!res || (!res.updated && !res.materialNote)) {
+    // Kalau response kosong / tidak ada field updated = indikasi gagal diam-diam
+    // Tapi jangan block — mungkin GAS versi lama tidak return field 'updated'
+    console.warn('[gasUpdateMaterialNote] Response tidak ideal:', res);
+  }
+  return res;
+};
 
 // ── Pending Resolve Queue — untuk retry saat jaringan pulih ──
 const PENDING_RESOLVE_KEY = 'rdv_pending_resolve';
@@ -3896,30 +3905,29 @@ function renderDashboard() {
     ['m-inprog-dept',   'IN_PROGRESS'],
     ['m-resolved-dept', 'RESOLVED'],
     ['m-closed-dept',   'CLOSED'],
-    // FIX v3: waiting dept sudah dihandle di blok wDept di bawah
   ];
   deptCards.forEach(([elId, status]) => {
     const el = document.getElementById(elId);
     if (el) el.textContent = _deptBreakdown(STATE.defects, status);
   });
 
-  // ── FIX v3: WAITING_DEFECT card — selalu tampil, update count + dept + material ──
+  // ── FIX v3: WAITING_DEFECT card — selalu tampil, opacity rendah saat 0 ──
   const wCard = document.getElementById('m-waiting-card');
   const wEl   = document.getElementById('m-waiting');
   const wMat  = document.getElementById('m-waiting-materials');
   const wDept = document.getElementById('m-waiting-dept');
   if (wCard && wEl) {
     wEl.textContent = counts.WAITING_DEFECT;
-    // Opacity rendah saat 0 agar tetap ada tapi tidak dominan
-    wCard.style.opacity = counts.WAITING_DEFECT > 0 ? '1' : '0.45';
-    wCard.style.pointerEvents = counts.WAITING_DEFECT > 0 ? '' : 'none';
+    // Opacity rendah saat 0 — card tetap ada di grid, tidak bisa diklik
+    wCard.style.opacity      = counts.WAITING_DEFECT > 0 ? '1' : '0.4';
+    wCard.style.pointerEvents= counts.WAITING_DEFECT > 0 ? '' : 'none';
     // Dept breakdown
     if (wDept) wDept.textContent = _deptBreakdown(STATE.defects, 'WAITING_DEFECT');
-    // Material notes ringkas
+    // Material notes ringkas — max 2 baris
     if (wMat) {
       const mats = STATE.defects
         .filter(d => d.status === 'WAITING_DEFECT' && d.materialNote)
-        .map(d => `${_roomLabel(d)}: ${String(d.materialNote).substring(0,25)}`);
+        .map(d => `${_roomLabel(d)}: ${String(d.materialNote).substring(0,28)}`);
       wMat.innerHTML = mats.length
         ? mats.slice(0,2).map(m => `<div>📦 ${m}</div>`).join('')
         : '';
@@ -4387,8 +4395,8 @@ function renderDefectList() {
 }
 
 function filterDefects(el) {
-  // FIX v3: hanya reset status filter chips (data-filter),
-  // jangan menyentuh area-filter-chip, data-dfilter, data-pfilter
+  // FIX v3: hanya reset status filter chips (data-filter)
+  // Tidak menyentuh area-filter-chip, data-dfilter, data-pfilter
   document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   STATE.activeFilter = el.dataset.filter;
@@ -4429,8 +4437,8 @@ function tapMetric(card, filter) {
   document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('metric-active'));
   if (newFilter !== 'ALL') card.classList.add('metric-active');
 
-  // FIX v3: hanya update status filter chips (data-filter),
-  // bukan area-filter-chip (data-area) atau project chips (data-pfilter/data-dfilter)
+  // FIX v3: hanya update status filter chips (data-filter)
+  // bukan area-filter-chip (data-area) atau project chips
   document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
     c.classList.toggle('active', c.dataset.filter === newFilter);
   });
@@ -4438,11 +4446,17 @@ function tapMetric(card, filter) {
   STATE.activeFilter = newFilter;
   renderDefectList();
 
-  // Navigate to defects page with smooth transition
+  // Navigate to defects page
   showPage('defects');
 
-  // Scroll filter bar to active chip after navigation
+  // FIX v3: scroll + force chip Waiting terlihat setelah navigasi
   requestAnimationFrame(() => {
+    // Pastikan chip Waiting dipilih secara visual
+    if (newFilter !== 'ALL') {
+      document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
+        c.classList.toggle('active', c.dataset.filter === newFilter);
+      });
+    }
     const activeChip = document.querySelector(`.filter-chip[data-filter="${newFilter}"]`);
     activeChip?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   });
@@ -5197,9 +5211,16 @@ async function submitWaitingMaterial() {
       updatedBy: `${STATE.user} (${STATE.role})`,
     });
     if (res.error) throw new Error(res.error);
+    // FIX v3: sync semua referensi ke defect yang sama
     d.status = 'WAITING_DEFECT';
     d.materialNote = fullNote;
     d.waitingMaterialAt = Date.now();
+    // Sync currentDefect jika sama (defensive)
+    if (STATE.currentDefect && STATE.currentDefect.id === d.id) {
+      STATE.currentDefect.status        = 'WAITING_DEFECT';
+      STATE.currentDefect.materialNote  = fullNote;
+      STATE.currentDefect.waitingMaterialAt = d.waitingMaterialAt;
+    }
     closeWaitingMaterialPanel();
     renderModalActions(d);
     renderDefectList(); renderDashboard();
@@ -8512,22 +8533,41 @@ async function submitReasonPopup() {
   const fullNote = detail ? (_RP.selectedReason + ': ' + detail) : _RP.selectedReason;
   const targetId = _RP.defectId;
 
+  // FIX v3: simpan ke GAS DULU, baru update local state
+  // Sebelumnya: update local → tutup popup → GAS (kalau gagal revert tidak terlihat)
+  // Sesudahnya: GAS dulu → kalau OK baru update local + tutup
   saveBtn.disabled = true;
-  saveBtn.textContent = '..';
-
-  const d = STATE.defects.find(x => x.id === targetId);
-  const oldNote = d ? (d.materialNote || '') : '';
-  if (d) d.materialNote = fullNote;
-  renderDefectList();
-  closeReasonPopup();
+  saveBtn.textContent = '⏳';
 
   try {
-    await gasUpdateMaterialNote({ id: targetId, materialNote: fullNote, updatedBy: STATE.user });
-    showToast('success', 'Alasan disimpan', fullNote.substring(0, 40));
-  } catch(err) {
-    if (d) d.materialNote = oldNote;
+    // 1. Simpan ke GAS
+    await gasUpdateMaterialNote({
+      id: targetId,
+      materialNote: fullNote,
+      updatedBy: STATE.user
+    });
+
+    // 2. Update local state — hanya jika GAS berhasil
+    const d = STATE.defects.find(x => x.id === targetId);
+    if (d) {
+      d.materialNote = fullNote;
+      // Sync ke currentDefect jika modal sedang buka
+      if (STATE.currentDefect && STATE.currentDefect.id === targetId) {
+        STATE.currentDefect.materialNote = fullNote;
+      }
+    }
+
+    // 3. Tutup popup + refresh tampilan
+    closeReasonPopup();
     renderDefectList();
-    showToast('error', 'Gagal simpan', err.message);
+    renderDashboard();
+    showToast('success', '✅ Alasan disimpan', fullNote.substring(0, 40));
+
+  } catch(err) {
+    // GAS gagal — tidak update apapun, popup tetap terbuka untuk coba lagi
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Simpan';
+    showToast('error', 'Gagal simpan ke server', err.message + ' — Coba lagi');
   }
 }
 </script>
