@@ -467,6 +467,10 @@ body::before {
   gap: 12px;
   margin-bottom: 24px;
 }
+/* FIX v3: Waiting card selalu full-width di grid 2-kolom */
+#m-waiting-card {
+  grid-column: 1 / -1;
+}
 
 .metric-card {
   background: var(--bg-1);
@@ -692,6 +696,104 @@ body::before {
 }
 .wm-chip:hover   { background: rgba(139,92,246,0.18); }
 .wm-chip.selected { background: #a78bfa; color: #fff; border-color: #a78bfa; }
+
+/* ── REASON CHIP — di card WAITING_DEFECT ── */
+.reason-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reason-chip.has-reason {
+  background: rgba(139,92,246,0.12);
+  border: 1px solid rgba(139,92,246,0.4);
+  color: #a78bfa;
+}
+.reason-chip.has-reason:hover { background: rgba(139,92,246,0.22); }
+.reason-chip.no-reason {
+  background: rgba(239,68,68,0.08);
+  border: 1px dashed rgba(239,68,68,0.5);
+  color: #f87171;
+  animation: pulse-border 2s infinite;
+}
+.reason-chip.no-reason:hover { background: rgba(239,68,68,0.16); }
+@keyframes pulse-border {
+  0%,100% { border-color: rgba(239,68,68,0.5); }
+  50%      { border-color: rgba(239,68,68,0.9); }
+}
+.reason-chip-edit { font-size: 10px; opacity: 0.7; flex-shrink: 0; }
+
+/* ── REASON POPUP ── */
+#reason-popup {
+  position: fixed;
+  z-index: 1200;
+  min-width: 260px;
+  max-width: 320px;
+  background: var(--bg-1);
+  border: 1px solid rgba(139,92,246,0.4);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: none;
+}
+#reason-popup.open { display: block; animation: fadeSlideUp 0.2s ease; }
+.rp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.rp-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #a78bfa;
+}
+.rp-close-btn {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  border: none;
+  color: var(--text-1);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.rp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.rp-textarea {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-0);
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+  resize: none;
+  min-height: 52px;
+  margin-bottom: 10px;
+  display: none;
+}
+.rp-textarea.visible { display: block; }
+.rp-textarea:focus { border-color: #a78bfa; }
+.rp-actions { display: flex; gap: 8px; }
+.rp-save { flex: 1; padding: 8px; border-radius: 6px; background: #a78bfa; border: none; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+.rp-save:hover { background: #8b5cf6; }
+.rp-cancel { padding: 8px 12px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border); color: var(--text-1); font-size: 12px; cursor: pointer; }
+.rp-old-data { font-size: 10px; color: var(--text-2); margin-bottom: 8px; padding: 5px 8px; background: var(--bg-2); border-radius: 6px; }
 
 /* ── GAS CONNECTION BANNER ── */
 #gas-conn-banner { position:fixed; top:60px; left:0; right:0; z-index:9990; }
@@ -1648,17 +1750,15 @@ body::before {
           <div id="m-closed-dept" style="font-size:10px;color:var(--accent-green);margin-top:3px;opacity:.8"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
-        <!-- WAITING_MATERIAL metric — full width, purple -->
+        <!-- WAITING_DEFECT metric — selalu tampil di grid (FIX v3) -->
         <div class="metric-card stagger-child" id="m-waiting-card"
-             style="--metric-color:var(--status-waiting);grid-column:1/-1;display:none"
-             onclick="tapMetric(this,'WAITING_MATERIAL')" data-filter="WAITING_MATERIAL">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <div class="metric-value" id="m-waiting" style="font-size:26px">0</div>
-              <div class="metric-label">📋 Daftar Tunggu Defect</div>
-            </div>
-            <div id="m-waiting-materials" style="font-size:11px;color:#a78bfa;text-align:right;max-width:55%;line-height:1.5"></div>
-          </div>
+             style="--metric-color:var(--status-waiting)"
+             onclick="tapMetric(this,'WAITING_DEFECT')" data-filter="WAITING_DEFECT">
+          <div class="metric-value" id="m-waiting">0</div>
+          <div class="metric-label">⏸ Waiting</div>
+          <div class="metric-icon" style="color:var(--status-waiting)">⏸</div>
+          <div id="m-waiting-dept" style="font-size:10px;color:var(--status-waiting);margin-top:3px;opacity:.8"></div>
+          <div id="m-waiting-materials" style="font-size:10px;color:#a78bfa;margin-top:3px;line-height:1.4"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
       </div>
@@ -1810,7 +1910,7 @@ body::before {
         <div class="filter-chip" data-filter="IN_PROGRESS" onclick="filterDefects(this)">🟡 In Progress</div>
         <div class="filter-chip" data-filter="RESOLVED" onclick="filterDefects(this)">🔵 Resolved</div>
         <div class="filter-chip" data-filter="CLOSED" onclick="filterDefects(this)">✅ Closed</div>
-        <div class="filter-chip" data-filter="WAITING_MATERIAL" onclick="filterDefects(this)">⏸ Waiting</div>
+        <div class="filter-chip" data-filter="WAITING_DEFECT" onclick="filterDefects(this)">⏸ Waiting</div>
       </div>
 
       <!-- Area sub-filter -->
@@ -2680,6 +2780,30 @@ body::before {
 <input type="file" id="f-task-photo" accept="image/*" style="display:none"
   onchange="handleTaskPhotoUpload(this)">
 
+<!-- REASON POPUP -->
+<div id="reason-popup" role="dialog" aria-modal="true">
+  <div class="rp-header">
+    <div class="rp-title">⏸ Alasan Penundaan</div>
+    <button class="rp-close-btn" onclick="closeReasonPopup()">✕</button>
+  </div>
+  <div id="rp-old-data" class="rp-old-data" style="display:none"></div>
+  <div class="rp-chips" id="rp-chips">
+    <button class="wm-chip" data-reason="Menunggu material"            onclick="rpSelectChip(this)">📦 Tunggu Material</button>
+    <button class="wm-chip" data-reason="Overload Engineering"         onclick="rpSelectChip(this)">👷 Overload ENG</button>
+    <button class="wm-chip" data-reason="Menunggu vendor"              onclick="rpSelectChip(this)">🔧 Tunggu Vendor</button>
+    <button class="wm-chip" data-reason="Menunggu spare part"          onclick="rpSelectChip(this)">⚙️ Tunggu Spare Part</button>
+    <button class="wm-chip" data-reason="Menunggu keputusan manajemen" onclick="rpSelectChip(this)">📋 Keputusan Mgmt</button>
+    <button class="wm-chip" data-reason="Tamu masih di kamar"          onclick="rpSelectChip(this)">🚪 Tamu di Kamar</button>
+    <button class="wm-chip" data-reason="Lainnya"                      onclick="rpSelectChip(this)">✏️ Lainnya</button>
+  </div>
+  <textarea id="rp-detail" class="rp-textarea" placeholder="Keterangan tambahan (opsional)..."></textarea>
+  <div class="rp-actions">
+    <button class="rp-cancel" onclick="closeReasonPopup()">Batal</button>
+    <button class="rp-save" id="rp-save-btn" onclick="submitReasonPopup()">💾 Simpan</button>
+  </div>
+</div>
+<div id="reason-popup-backdrop" style="display:none;position:fixed;inset:0;z-index:1199" onclick="closeReasonPopup()"></div>
+
 <!-- LIGHTBOX NATIVE -->
 <div id="lightbox" role="dialog" aria-modal="true" aria-label="Preview Foto">
   <div class="lb-topbar">
@@ -3241,6 +3365,7 @@ const gasValidateUser = (d) => gasCall('validateUser', d);
 
 // Fix: atomic resolve — satu call untuk photo save + status update
 const gasResolveDefect = (d) => gasCall('resolveDefect', d);
+const gasUpdateMaterialNote = (d) => gasCall('updateMaterialNote', d);
 
 // ── Pending Resolve Queue — untuk retry saat jaringan pulih ──
 const PENDING_RESOLVE_KEY = 'rdv_pending_resolve';
@@ -3560,6 +3685,9 @@ function normalizeDefect(d) {
     if (cachedStatus && statusFinal !== 'CLOSED') statusFinal = cachedStatus;
   } catch(e) {}
 
+  // ── Backward compat: data lama di sheet masih pakai 'WAITING_MATERIAL'
+  if (statusFinal === 'WAITING_MATERIAL') statusFinal = 'WAITING_DEFECT';
+
   return {
     id: defectId, room: String(d.RoomNumber ?? d.room ?? ''),
     category: d.Category || d.category || '',
@@ -3755,7 +3883,7 @@ function _projDeptBreakdown(projects, status) {
 }
 
 function renderDashboard() {
-  const counts = { OPEN:0, IN_PROGRESS:0, WAITING_MATERIAL:0, RESOLVED:0, CLOSED:0 };
+  const counts = { OPEN:0, IN_PROGRESS:0, WAITING_DEFECT:0, RESOLVED:0, CLOSED:0 };
   STATE.defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
   document.getElementById('m-open').textContent    = counts.OPEN;
   document.getElementById('m-inprog').textContent  = counts.IN_PROGRESS;
@@ -3768,30 +3896,37 @@ function renderDashboard() {
     ['m-inprog-dept',   'IN_PROGRESS'],
     ['m-resolved-dept', 'RESOLVED'],
     ['m-closed-dept',   'CLOSED'],
+    // FIX v3: waiting dept sudah dihandle di blok wDept di bawah
   ];
   deptCards.forEach(([elId, status]) => {
     const el = document.getElementById(elId);
     if (el) el.textContent = _deptBreakdown(STATE.defects, status);
   });
 
-  // ── WAITING_MATERIAL card — tampil hanya jika ada ──
+  // ── FIX v3: WAITING_DEFECT card — selalu tampil, update count + dept + material ──
   const wCard = document.getElementById('m-waiting-card');
   const wEl   = document.getElementById('m-waiting');
   const wMat  = document.getElementById('m-waiting-materials');
+  const wDept = document.getElementById('m-waiting-dept');
   if (wCard && wEl) {
-    wEl.textContent = counts.WAITING_MATERIAL;
-    wCard.style.display = counts.WAITING_MATERIAL > 0 ? '' : 'none';
+    wEl.textContent = counts.WAITING_DEFECT;
+    // Opacity rendah saat 0 agar tetap ada tapi tidak dominan
+    wCard.style.opacity = counts.WAITING_DEFECT > 0 ? '1' : '0.45';
+    wCard.style.pointerEvents = counts.WAITING_DEFECT > 0 ? '' : 'none';
+    // Dept breakdown
+    if (wDept) wDept.textContent = _deptBreakdown(STATE.defects, 'WAITING_DEFECT');
+    // Material notes ringkas
     if (wMat) {
       const mats = STATE.defects
-        .filter(d => d.status === 'WAITING_MATERIAL' && d.materialNote)
-        .map(d => `${_roomLabel(d)}: ${d.materialNote}`);
+        .filter(d => d.status === 'WAITING_DEFECT' && d.materialNote)
+        .map(d => `${_roomLabel(d)}: ${String(d.materialNote).substring(0,25)}`);
       wMat.innerHTML = mats.length
-        ? mats.slice(0,3).map(m => `<div>📦 ${m}</div>`).join('')
+        ? mats.slice(0,2).map(m => `<div>📦 ${m}</div>`).join('')
         : '';
     }
   }
   const overdueCount = STATE.defects.filter(d => {
-    if (d.status==='CLOSED'||d.status==='RESOLVED'||d.status==='WAITING_MATERIAL') return false;
+    if (d.status==='CLOSED'||d.status==='RESOLVED'||d.status==='WAITING_DEFECT') return false;
     const effectiveMs = Math.max(0, (Date.now()-d.createdAt) - (d.slaPausedMin||0)*60000);
     return effectiveMs/3600000 > (CONFIG.SLA_HOURS[d.priority]||8);
   }).length;
@@ -3799,7 +3934,7 @@ function renderDashboard() {
   document.getElementById('sla-alert-banner').style.display = overdueCount > 0 ? 'flex' : 'none';
   // ── PUBLIC AREA active banner ──
   const publicActive = STATE.defects.filter(d =>
-    d.areaType === 'PUBLIC' && (d.status==='OPEN'||d.status==='IN_PROGRESS'||d.status==='WAITING_MATERIAL')
+    d.areaType === 'PUBLIC' && (d.status==='OPEN'||d.status==='IN_PROGRESS'||d.status==='WAITING_DEFECT')
   );
   const pubBanner = $id('public-area-banner');
   const pubCount  = $id('public-area-count');
@@ -3909,7 +4044,7 @@ function _urgLabelJS(score) {
 }
 function _urgScoreJS(createdAt, priority, slaClockIso, reopenedAt, status, slaPausedMin) {
   try {
-    if (status === 'WAITING_MATERIAL') return 0; // SLA di-pause
+    if (status === 'WAITING_DEFECT') return 0; // SLA di-pause
     const now  = Date.now();
     const slaH = ({HIGH:2,MEDIUM:8,LOW:24})[priority] || 8;
     const dl   = slaClockIso ? new Date(slaClockIso).getTime() : createdAt + slaH*3600000;
@@ -3932,7 +4067,7 @@ function renderUrgentPanel() {
   if (!panel || !list) return;
   if (!['SPV','GM'].includes(STATE.role)) { panel.style.display='none'; return; }
   const active = STATE.defects
-    .filter(d => (d.status==='OPEN' || d.status==='IN_PROGRESS') && d.status!=='WAITING_MATERIAL')
+    .filter(d => (d.status==='OPEN' || d.status==='IN_PROGRESS') && d.status!=='WAITING_DEFECT')
     .map(d => ({...d, _score: d.urgencyScore > 0 ? d.urgencyScore : _urgScoreJS(d.createdAt, d.priority, d.slaClockIso, d.reopenedAt, d.status, d.slaPausedMin)}))
     .filter(d => d._score >= 40)
     .sort((a,b) => b._score - a._score);
@@ -4157,7 +4292,7 @@ function renderDefectList() {
   const colorMap = {
     OPEN:'var(--accent-red)',
     IN_PROGRESS:'var(--accent-amber)',
-    WAITING_MATERIAL:'var(--status-waiting)',
+    WAITING_DEFECT:'var(--status-waiting)',
     RESOLVED:'var(--accent-blue)',
     CLOSED:'var(--accent-green)'
   };
@@ -4167,7 +4302,7 @@ function renderDefectList() {
     const effectiveMs = Math.max(0, (Date.now()-d.createdAt) - (d.slaPausedMin||0)*60000);
     const elH    = effectiveMs / 3600000;
     const isActive = d.status==='OPEN' || d.status==='IN_PROGRESS';
-    const isPaused = d.status==='WAITING_MATERIAL';
+    const isPaused = d.status==='WAITING_DEFECT';
     const overdue = isActive && elH > slaH;
     let slaText;
     if (isPaused)       slaText = `⏸ SLA Paused`;
@@ -4191,14 +4326,21 @@ function renderDefectList() {
         'Lainnya':                     '✏️',
       };
       const note = d.materialNote || '';
-      // Cari icon sesuai reason (key yang cocok sebagai prefix)
       const matchedKey = Object.keys(reasonIconMap).find(k => note.startsWith(k));
       const icon = matchedKey ? reasonIconMap[matchedKey] : '⏸';
-      // Tampilkan reason: hilangkan prefix key jika ada, sisakan keterangan
-      const displayNote = note || 'Penundaan';
+      // Tampilkan sebagai clickable chip: has-reason jika sudah ada, no-reason jika belum
+      const hasReason = note.trim().length > 0;
+      const chipLabel = hasReason ? `${icon} ${note.substring(0,35)}${note.length>35?'…':''}` : '⚠️ Tambah Alasan';
+      const chipClass = hasReason ? 'reason-chip has-reason' : 'reason-chip no-reason';
+      const editIcon  = hasReason ? '✏️' : '+';
       const assignEl = d.assignedTo ? `<span style="font-size:10px;color:#a78bfa;margin-left:4px">→ ${d.assignedTo.split(' ')[0]}</span>` : '';
       durHtml = `<div class="dur-row">
-        <span class="dur-badge" style="color:#a78bfa;border-color:rgba(167,139,250,.35)">${icon} ${displayNote}</span>
+        <span class="${chipClass}"
+          onclick="event.stopPropagation();showReasonPopup(event,'${d.id}')"
+          title="${hasReason?note:'Klik untuk tambah alasan penundaan'}">
+          ${chipLabel}
+          <span class="reason-chip-edit">${editIcon}</span>
+        </span>
         ${assignEl}
       </div>`;
     } else if (isActive) {
@@ -4245,10 +4387,12 @@ function renderDefectList() {
 }
 
 function filterDefects(el) {
-  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  // FIX v3: hanya reset status filter chips (data-filter),
+  // jangan menyentuh area-filter-chip, data-dfilter, data-pfilter
+  document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   STATE.activeFilter = el.dataset.filter;
-  document.querySelectorAll('.metric-card').forEach(c=>c.classList.remove('metric-active'));
+  document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('metric-active'));
   if (el.dataset.filter !== 'ALL') {
     document.querySelector(`.metric-card[data-filter="${el.dataset.filter}"]`)?.classList.add('metric-active');
   }
@@ -4285,8 +4429,9 @@ function tapMetric(card, filter) {
   document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('metric-active'));
   if (newFilter !== 'ALL') card.classList.add('metric-active');
 
-  // Update filter chips
-  document.querySelectorAll('.filter-chip').forEach(c => {
+  // FIX v3: hanya update status filter chips (data-filter),
+  // bukan area-filter-chip (data-area) atau project chips (data-pfilter/data-dfilter)
+  document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
     c.classList.toggle('active', c.dataset.filter === newFilter);
   });
 
@@ -4307,7 +4452,7 @@ function getStatusClass(s) {
   return {
     OPEN:'status-badge status-open',
     IN_PROGRESS:'status-badge status-inprogress',
-    WAITING_MATERIAL:'status-badge status-waiting',
+    WAITING_DEFECT:'status-badge status-waiting',
     RESOLVED:'status-badge status-resolved',
     CLOSED:'status-badge status-closed'
   }[s]||'status-badge';
@@ -4316,7 +4461,7 @@ function getStatusLabel(s) {
   return {
     OPEN:'🔴 Open',
     IN_PROGRESS:'🟡 In Progress',
-    WAITING_MATERIAL:'⏸ Waiting Defect',
+    WAITING_DEFECT:'⏸ Waiting Defect',
     RESOLVED:'🔵 Resolved',
     CLOSED:'✅ Closed'
   }[s]||s;
@@ -4506,8 +4651,25 @@ function openDefect(id) {
   document.getElementById('modal-room').textContent = roomTitle;
   const assignBadge = d.assignedTo
     ? ` <span style="color:#f59e0b;font-size:11px">→ ${d.assignedTo.split(' ')[0]}</span>` : '';
-  const matBadge = d.status === 'WAITING_MATERIAL' && d.materialNote
-    ? ` <span style="color:#a78bfa;font-size:11px">⏸ ${d.materialNote}</span>` : '';
+  // Modal meta: reason-chip clickable untuk WAITING_DEFECT (data lama atau baru)
+  let matBadge = '';
+  if (d.status === 'WAITING_DEFECT') {
+    const hasR   = d.materialNote && d.materialNote.trim().length > 0;
+    const _reasonIconMap = {
+      'Menunggu material':'📦','Overload Engineering':'👷','Menunggu vendor':'🔧',
+      'Menunggu spare part':'⚙️','Menunggu keputusan':'📋','Tamu masih di kamar':'🚪','Lainnya':'✏️'
+    };
+    const note      = d.materialNote || '';
+    const mKey      = Object.keys(_reasonIconMap).find(k => note.startsWith(k));
+    const icon      = mKey ? _reasonIconMap[mKey] : '⏸';
+    const chipLabel = hasR ? `${icon} ${note.substring(0,30)}${note.length>30?'…':''}` : '⚠️ Tambah Alasan';
+    const chipCls   = hasR ? 'reason-chip has-reason' : 'reason-chip no-reason';
+    matBadge = ` <span class="${chipCls}" style="vertical-align:middle"
+      onclick="event.stopPropagation();showReasonPopup(event,'${d.id}')"
+      title="${hasR?note:'Klik untuk tambah alasan penundaan'}">
+      ${chipLabel}<span class="reason-chip-edit">${hasR?'✏️':'+'}</span>
+    </span>`;
+  }
   document.getElementById('modal-meta').innerHTML =
     `${d.id} · ${d.priority} · ${d.reporter}${assignBadge}${matBadge}`;
 
@@ -4600,7 +4762,7 @@ function renderModalActions(d) {
     if (d.status === 'OPEN') {
       html += _maSolo(`<button class="btn btn-amber w-full" onclick="updateStatus('IN_PROGRESS')">▶️ Start Repair</button>`);
     }
-    if (d.status === 'WAITING_MATERIAL') {
+    if (d.status === 'WAITING_DEFECT') {
       html += _maSolo(`<button class="btn w-full" style="background:#a78bfa;color:#fff" onclick="materialArrivedENG()">▶️ Lanjutkan Progress</button>`);
     }
     if (d.status === 'IN_PROGRESS') {
@@ -4620,7 +4782,7 @@ function renderModalActions(d) {
         `<button class="btn btn-danger  w-full" onclick="updateStatus('OPEN')">↩️ Re-open</button>`
       );
     }
-    if (d.status === 'WAITING_MATERIAL') {
+    if (d.status === 'WAITING_DEFECT') {
       html += _maSolo(`<button class="btn w-full" style="background:#a78bfa;color:#fff" onclick="materialArrivedSPV()">▶️ Lanjutkan Progress</button>`);
     }
     if (d.status !== 'CLOSED') {
@@ -5030,12 +5192,12 @@ async function submitWaitingMaterial() {
   try {
     const res = await gasCall('updateDefect', {
       id: d.id,
-      status: 'WAITING_MATERIAL',
+      status: 'WAITING_DEFECT',
       materialNote: fullNote,
       updatedBy: `${STATE.user} (${STATE.role})`,
     });
     if (res.error) throw new Error(res.error);
-    d.status = 'WAITING_MATERIAL';
+    d.status = 'WAITING_DEFECT';
     d.materialNote = fullNote;
     d.waitingMaterialAt = Date.now();
     closeWaitingMaterialPanel();
@@ -7414,7 +7576,7 @@ function exportExcel() {
   // ══════════════════════════════════════
   const defects  = STATE.defects  || [];
   const projects = STATE.projects || [];
-  const counts   = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0, WAITING_MATERIAL:0 };
+  const counts   = { OPEN:0, IN_PROGRESS:0, RESOLVED:0, CLOSED:0, WAITING_DEFECT:0 };
   defects.forEach(d => { if (counts[d.status] !== undefined) counts[d.status]++; });
   const pCounts  = { PLANNING:0, ACTIVE:0, ON_HOLD:0, COMPLETED:0 };
   projects.forEach(p => { if (pCounts[p['Status']] !== undefined) pCounts[p['Status']]++; });
@@ -7428,7 +7590,7 @@ function exportExcel() {
     ['Status', 'Jumlah', ''],
     ['Open',             counts.OPEN,            ''],
     ['In Progress',      counts.IN_PROGRESS,      ''],
-    ['Waiting Material', counts.WAITING_MATERIAL, ''],
+    ['Waiting Material', counts.WAITING_DEFECT, ''],
     ['Resolved',         counts.RESOLVED,         ''],
     ['Closed',           counts.CLOSED,           ''],
     ['TOTAL',            defects.length,          ''],
@@ -7840,7 +8002,7 @@ function startLiveTick() {
   _liveTickTimer = setInterval(() => {
     // Hanya jalan jika ada defect aktif
     const hasActive = STATE.defects.some(
-      d => d.status === 'OPEN' || d.status === 'IN_PROGRESS' || d.status === 'WAITING_MATERIAL'
+      d => d.status === 'OPEN' || d.status === 'IN_PROGRESS' || d.status === 'WAITING_DEFECT'
     );
     if (!hasActive) return;
 
@@ -8265,6 +8427,109 @@ function dismissPWA(){
   };
   document.head.appendChild(s);
 })();
+
+
+// ════════════════════════════════════════════════════
+// REASON POPUP — Edit MaterialNote dari card langsung
+// ════════════════════════════════════════════════════
+const _RP = { defectId: null, selectedReason: '' };
+
+function showReasonPopup(event, defectId) {
+  _RP.defectId = defectId;
+  _RP.selectedReason = '';
+  const popup    = document.getElementById('reason-popup');
+  const backdrop = document.getElementById('reason-popup-backdrop');
+  const oldEl    = document.getElementById('rp-old-data');
+  const detail   = document.getElementById('rp-detail');
+  const saveBtn  = document.getElementById('rp-save-btn');
+  if (!popup) return;
+
+  // Reset chips & form
+  document.querySelectorAll('#rp-chips .wm-chip').forEach(c => c.classList.remove('selected'));
+  detail.value = '';
+  detail.classList.remove('visible');
+  saveBtn.disabled = false;
+  saveBtn.textContent = '\u{1F4BE} Simpan';
+
+  // Tampilkan & pre-select data lama jika ada
+  const d = STATE.defects.find(x => x.id === defectId);
+  if (d && d.materialNote && d.materialNote.trim()) {
+    oldEl.style.display = '';
+    oldEl.textContent = '\u{1F4DD} Saat ini: ' + d.materialNote;
+    const chips   = [...document.querySelectorAll('#rp-chips .wm-chip')];
+    const matched = chips.find(c => d.materialNote.startsWith(c.dataset.reason));
+    if (matched) {
+      matched.classList.add('selected');
+      _RP.selectedReason = matched.dataset.reason;
+      const suffix = d.materialNote.slice(matched.dataset.reason.length).replace(/^:\s*/, '').trim();
+      if (suffix || matched.dataset.reason === 'Lainnya') {
+        detail.value = suffix;
+        detail.classList.add('visible');
+      }
+    }
+  } else {
+    oldEl.style.display = 'none';
+  }
+
+  // Posisi popup dekat chip
+  popup.classList.add('open');
+  backdrop.style.display = '';
+  const anchor  = event.target.closest('.reason-chip') || event.target;
+  const rect    = anchor.getBoundingClientRect();
+  const popupW  = 300, popupH = 280;
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+  if (left + popupW > window.innerWidth  - 8) left = window.innerWidth  - popupW - 8;
+  if (top  + popupH > window.innerHeight - 8) top  = rect.top - popupH - 6;
+  popup.style.left = Math.max(8, left) + 'px';
+  popup.style.top  = Math.max(8, top)  + 'px';
+}
+
+function closeReasonPopup() {
+  const popup    = document.getElementById('reason-popup');
+  const backdrop = document.getElementById('reason-popup-backdrop');
+  if (popup)    popup.classList.remove('open');
+  if (backdrop) backdrop.style.display = 'none';
+  _RP.defectId = null;
+  _RP.selectedReason = '';
+}
+
+function rpSelectChip(chip) {
+  document.querySelectorAll('#rp-chips .wm-chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+  _RP.selectedReason = chip.dataset.reason;
+  const detail = document.getElementById('rp-detail');
+  detail.classList.add('visible');
+  detail.placeholder = chip.dataset.reason === 'Lainnya' ? 'Tuliskan alasan...' : 'Keterangan tambahan (opsional)...';
+  if (chip.dataset.reason === 'Lainnya') detail.focus();
+}
+
+async function submitReasonPopup() {
+  if (!_RP.defectId) return;
+  if (!_RP.selectedReason) { showToast('warn', 'Pilih alasan dulu', 'Tap salah satu chip di atas'); return; }
+  const detail   = document.getElementById('rp-detail') ? document.getElementById('rp-detail').value.trim() : '';
+  const saveBtn  = document.getElementById('rp-save-btn');
+  const fullNote = detail ? (_RP.selectedReason + ': ' + detail) : _RP.selectedReason;
+  const targetId = _RP.defectId;
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = '..';
+
+  const d = STATE.defects.find(x => x.id === targetId);
+  const oldNote = d ? (d.materialNote || '') : '';
+  if (d) d.materialNote = fullNote;
+  renderDefectList();
+  closeReasonPopup();
+
+  try {
+    await gasUpdateMaterialNote({ id: targetId, materialNote: fullNote, updatedBy: STATE.user });
+    showToast('success', 'Alasan disimpan', fullNote.substring(0, 40));
+  } catch(err) {
+    if (d) d.materialNote = oldNote;
+    renderDefectList();
+    showToast('error', 'Gagal simpan', err.message);
+  }
+}
 </script>
 
 </body>
