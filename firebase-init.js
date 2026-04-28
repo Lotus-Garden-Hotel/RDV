@@ -236,7 +236,7 @@ function _patchGasCallSWR(db) {
       .then(function(result) {
         if (result && !result.error) {
           // Invalidate cache setelah write berhasil
-          if (action === 'addDefect' || action === 'updateDefect') {
+          if (action === 'addDefect' || action === 'updateDefect' || action === 'updateMaterialNote') {
             _cacheSet(_CACHE_KEY_DEFECTS, null); // force revalidate
           }
           if (action === 'addProject' || action === 'updateProject' || action === 'deleteProject') {
@@ -280,7 +280,7 @@ function _refreshDefectsBackground(_orig, db) {
 
           _cacheSet(_CACHE_KEY_DEFECTS, merged);
 
-          // Update STATE.defects jika ada perubahan
+          // Update STATE.defects — GAS adalah source of truth
           if (window.STATE && STATE.defects) {
             var changed = false;
             merged.forEach(function(d) {
@@ -288,9 +288,11 @@ function _refreshDefectsBackground(_orig, db) {
                 return x.id === (d.id || d.ID);
               });
               if (idx >= 0) {
-                // Hanya update jika data baru lebih lengkap
-                if (d.desc && !STATE.defects[idx].desc) {
-                  STATE.defects[idx] = d;
+                // FIX: selalu replace dengan data GAS yang lengkap (termasuk materialNote)
+                // Sebelumnya: hanya update jika desc kosong → materialNote tidak pernah masuk STATE
+                var prev = STATE.defects[idx];
+                STATE.defects[idx] = d;
+                if (d.materialNote !== prev.materialNote || d.status !== prev.status) {
                   changed = true;
                 }
               } else {
@@ -299,9 +301,16 @@ function _refreshDefectsBackground(_orig, db) {
               }
             });
 
-            if (changed && typeof renderDashboard === 'function') {
-              var dp = document.getElementById('page-dashboard');
-              if (dp && !dp.hidden) renderDashboard();
+            if (changed) {
+              if (typeof renderDashboard === 'function') {
+                var dp = document.getElementById('page-dashboard');
+                if (dp && !dp.hidden) renderDashboard();
+              }
+              // FIX: trigger re-render defect list agar card chip ikut update
+              if (typeof renderDefectList === 'function') {
+                var dl = document.getElementById('page-defects');
+                if (dl && !dl.hidden) renderDefectList();
+              }
             }
           }
           console.log('[SWR] Background refresh defects selesai:', merged.length, 'tiket');
@@ -309,7 +318,14 @@ function _refreshDefectsBackground(_orig, db) {
         .catch(function() {
           // Firestore gagal — pakai data GAS murni
           _cacheSet(_CACHE_KEY_DEFECTS, gasData);
-          if (window.STATE) STATE.defects = gasData;
+          if (window.STATE) {
+            STATE.defects = gasData;
+            // FIX: re-render agar materialNote tampil
+            if (typeof renderDefectList === 'function') {
+              var dl = document.getElementById('page-defects');
+              if (dl && !dl.hidden) renderDefectList();
+            }
+          }
         });
     })
     .catch(function(e) {
@@ -372,9 +388,11 @@ function _startRealtimeListeners(db) {
               if (idx >= 0) {
                 // Hanya update field status — jangan timpa data lengkap dari GAS
                 STATE.defects[idx].status = defect.status;
-                if (defect.engineer)  STATE.defects[idx].engineer  = defect.engineer;
-                if (defect.startedBy) STATE.defects[idx].startedBy = defect.startedBy;
-                if (defect.resolvedBy)STATE.defects[idx].resolvedBy= defect.resolvedBy;
+                if (defect.engineer)     STATE.defects[idx].engineer     = defect.engineer;
+                if (defect.startedBy)    STATE.defects[idx].startedBy    = defect.startedBy;
+                if (defect.resolvedBy)   STATE.defects[idx].resolvedBy   = defect.resolvedBy;
+                // FIX: update materialNote dari Firestore (jika ada — dari sync baru)
+                if (defect.materialNote) STATE.defects[idx].materialNote = defect.materialNote;
                 changed = true;
               } else if (change.type === 'added') {
                 STATE.defects && STATE.defects.unshift(defect);
@@ -434,6 +452,8 @@ function _syncToFirestore(action, payload, result, db) {
           upd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
         }
       });
+    // FIX: normalize status — frontend & Firestore pakai WAITING_DEFECT, bukan WAITING_MATERIAL
+    if (upd.Status === 'WAITING_MATERIAL') upd.Status = 'WAITING_DEFECT';
     db.collection('tickets').doc(payload.id).update(upd)
       .catch(function(e) { console.warn('[Firebase] sync updateDefect:', e.message); });
   }
