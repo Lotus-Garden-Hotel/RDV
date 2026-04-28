@@ -31,8 +31,13 @@ function _startRealtimeListeners(db) {
                 if (defect.engineer)     STATE.defects[idx].engineer     = defect.engineer;
                 if (defect.startedBy)    STATE.defects[idx].startedBy    = defect.startedBy;
                 if (defect.resolvedBy)   STATE.defects[idx].resolvedBy   = defect.resolvedBy;
-                // FIX: update materialNote jika Firestore punya (dari sync baru)
-                if (defect.materialNote) STATE.defects[idx].materialNote = defect.materialNote;
+                // FIX: SELALU update materialNote dari Firestore, bahkan jika kosong
+                if (defect.materialNote !== undefined && defect.materialNote !== null) {
+                  STATE.defects[idx].materialNote = defect.materialNote;
+                } else if (data.MaterialNote !== undefined && data.MaterialNote !== null) {
+                  // Fallback: ambil langsung dari Firestore jika _firestoreToDefect tidak extract
+                  STATE.defects[idx].materialNote = data.MaterialNote;
+                }
                 changed = true;
               } else if (change.type === 'added') {
                 STATE.defects && STATE.defects.unshift(defect);
@@ -98,8 +103,10 @@ function _refreshDefectsBackground(_orig, db) {
             var gasTime = d.updatedAt || d.createdAt || 0;
             // Pakai status Firestore jika lebih baru
             if (fsTime > gasTime && fs.Status) d.Status = fs.Status;
-            // 🆕 FIX: Selalu ambil MaterialNote terbaru dari Firestore
-            if (fs.MaterialNote) d.MaterialNote = fs.MaterialNote;
+            // 🆕 FIX: SELALU ambil MaterialNote terbaru dari Firestore, bahkan jika kosong
+            if (fs.MaterialNote !== undefined && fs.MaterialNote !== null) {
+              d.MaterialNote = fs.MaterialNote;
+            }
             return d;
           });
 
@@ -119,15 +126,16 @@ function _refreshDefectsBackground(_orig, db) {
                 var newStatus = d.status || rawD.status || rawD.Status || '';
                 if (newStatus === 'WAITING_MATERIAL') newStatus = 'WAITING_DEFECT';
 
-                var hasNewInfo = (newNote && newNote !== prev.materialNote)
-                              || (newStatus && newStatus !== prev.status);
+                // FIX: Lebih sensitif mendeteksi perubahan materialNote
+                var hasNewNote = (newNote && newNote !== (prev.materialNote || ''));
+                var hasNewStatus = (newStatus && newStatus !== prev.status);
 
-                if (hasNewInfo) {
+                if (hasNewNote || hasNewStatus) {
                   if (newNote)   prev.materialNote = newNote;
                   if (newStatus) prev.status        = newStatus;
                   if (typeof normalizeDefect === 'function') STATE.defects[idx] = d;
                   changed = true;
-                  console.log('[SWR] Updated defect:', id, 'materialNote:', newNote);
+                  console.log('[SWR] Updated defect:', id, 'materialNote:', newNote, 'status:', newStatus);
                 }
               } else {
                 STATE.defects.push(d);
@@ -160,7 +168,7 @@ function _refreshDefectsBackground(_orig, db) {
               var idx = STATE.defects.findIndex(function(x) { return x.id === id; });
               if (idx >= 0) {
                 var newNote = d.materialNote || rawD.MaterialNote || '';
-                if (newNote) {
+                if (newNote && newNote !== (STATE.defects[idx].materialNote || '')) {
                   STATE.defects[idx].materialNote = newNote;
                   changed = true;
                 }
