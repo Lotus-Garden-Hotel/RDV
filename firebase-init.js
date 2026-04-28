@@ -236,7 +236,7 @@ function _patchGasCallSWR(db) {
       .then(function(result) {
         if (result && !result.error) {
           // Invalidate cache setelah write berhasil
-          // FIX v3: invalidate cache untuk semua action yang ubah defect
+          // FIX v3: invalidate cache untuk semua action yang ubah defect data
           if (action === 'addDefect' || action === 'updateDefect' || action === 'updateMaterialNote') {
             _cacheSet(_CACHE_KEY_DEFECTS, null); // force revalidate
           }
@@ -261,7 +261,9 @@ function _refreshDefectsBackground(_orig, db) {
     .then(function(gasData) {
       if (!gasData || !gasData.length) return;
 
-      // Merge dengan data Firestore untuk status terbaru
+      // FIX v3: Merge Firestore overlay ke GAS data
+      // GAS = source of truth untuk semua field lengkap
+      // Firestore = overlay untuk field yang bisa berubah real-time
       return db.collection('tickets')
         .where('Status', 'in', ['OPEN','IN_PROGRESS','WAITING_DEFECT'])
         .get()
@@ -272,45 +274,63 @@ function _refreshDefectsBackground(_orig, db) {
           var merged = gasData.map(function(d) {
             var fs = fsMap[d.id || d.ID];
             if (!fs) return d;
+
             var fsTime  = fs.UpdatedAt ? new Date(fs.UpdatedAt).getTime() : 0;
-            var gasTime = d.updatedAt || d.createdAt || 0;
-            // Pakai status Firestore jika lebih baru
-            if (fsTime > gasTime && fs.Status) d.status = fs.Status;
+            var gasTime = d.updatedAt  ? new Date(d.updatedAt).getTime()
+                        : d.createdAt ? new Date(d.createdAt).getTime() : 0;
+
+            // Firestore lebih baru → overlay field yang bisa berubah
+            if (fsTime > gasTime) {
+              if (fs.Status)       d.status       = fs.Status;
+              if (fs.Engineer)     d.engineer     = fs.Engineer;
+              // FIX v3 BUG 1: MaterialNote dari Firestore harus di-merge
+              // Ini penyebab hilangnya alasan saat hard refresh
+              if (fs.MaterialNote !== undefined && fs.MaterialNote !== null) {
+                d.materialNote = fs.MaterialNote;
+              }
+              if (fs.AssignedTo)   d.assignedTo   = fs.AssignedTo;
+            } else {
+              // GAS lebih baru (atau sama) → tetap pakai GAS
+              // tapi ambil MaterialNote dari Firestore jika GAS kosong
+              // (GAS belum tentu sudah dapat update terbaru saat background refresh)
+              if (!d.materialNote && fs.MaterialNote) {
+                d.materialNote = fs.MaterialNote;
+              }
+            }
             return d;
           });
 
           _cacheSet(_CACHE_KEY_DEFECTS, merged);
 
-          // Update STATE.defects jika ada perubahan
-          if (window.STATE && STATE.defects) {
-            var changed = false;
-            merged.forEach(function(d) {
-              var idx = STATE.defects.findIndex(function(x) {
-                return x.id === (d.id || d.ID);
-              });
-              if (idx >= 0) {
-                // Hanya update jika data baru lebih lengkap
-                if (d.desc && !STATE.defects[idx].desc) {
-                  STATE.defects[idx] = d;
-                  changed = true;
-                }
-              } else {
-                STATE.defects.push(d);
-                changed = true;
-              }
-            });
+          // FIX v3 BUG 2: Selalu replace STATE.defects dengan data merged terbaru
+          // Sebelumnya hanya update jika 'd.desc && !STATE.defects[idx].desc'
+          // → hampir tidak pernah true → STATE tidak pernah diupdate dari GAS
+          if (window.STATE) {
+            STATE.defects = merged;
+            console.log('[SWR] STATE.defects diupdate:', merged.length, 'tiket dari GAS+FS merge');
 
-            if (changed && typeof renderDashboard === 'function') {
-              var dp = document.getElementById('page-dashboard');
-              if (dp && !dp.hidden) renderDashboard();
-            }
+            // Re-render halaman yang sedang aktif
+            requestAnimationFrame(function() {
+              var dpDash = document.getElementById('page-dashboard');
+              var dpDef  = document.getElementById('page-defects');
+              if (dpDash && !dpDash.hidden && typeof renderDashboard   === 'function') renderDashboard();
+              if (dpDef  && !dpDef.hidden  && typeof renderDefectList  === 'function') renderDefectList();
+            });
           }
-          console.log('[SWR] Background refresh defects selesai:', merged.length, 'tiket');
+          console.log('[SWR] Background refresh selesai:', merged.length, 'tiket (GAS+Firestore merged)');
         })
         .catch(function() {
-          // Firestore gagal — pakai data GAS murni
+          // Firestore gagal → pakai data GAS murni (tetap lebih baik dari cache lama)
           _cacheSet(_CACHE_KEY_DEFECTS, gasData);
-          if (window.STATE) STATE.defects = gasData;
+          if (window.STATE) {
+            STATE.defects = gasData;
+            requestAnimationFrame(function() {
+              var dpDash = document.getElementById('page-dashboard');
+              var dpDef  = document.getElementById('page-defects');
+              if (dpDash && !dpDash.hidden && typeof renderDashboard  === 'function') renderDashboard();
+              if (dpDef  && !dpDef.hidden  && typeof renderDefectList === 'function') renderDefectList();
+            });
+          }
         });
     })
     .catch(function(e) {
@@ -371,19 +391,14 @@ function _startRealtimeListeners(db) {
                 return d.id === data.ID;
               });
               if (idx >= 0) {
-                // FIX v3: update semua field yang bisa berubah real-time
-                STATE.defects[idx].status       = defect.status;
+                // Update semua field real-time yang relevan
+                STATE.defects[idx].status = defect.status;
                 if (defect.engineer)     STATE.defects[idx].engineer     = defect.engineer;
                 if (defect.startedBy)    STATE.defects[idx].startedBy    = defect.startedBy;
                 if (defect.resolvedBy)   STATE.defects[idx].resolvedBy   = defect.resolvedBy;
-                // FIX v3: materialNote — penting untuk Tambah Alasan Waiting
+                // FIX v3: materialNote wajib di-sync — ini field yang berubah saat user isi alasan
                 if (defect.materialNote !== undefined)
                   STATE.defects[idx].materialNote = defect.materialNote;
-                // FIX v3: re-render defect list jika sedang di halaman defects/waiting
-                if (typeof renderDefectList === 'function') {
-                  var dp = document.getElementById('page-defects');
-                  if (dp && !dp.hidden) renderDefectList();
-                }
                 changed = true;
               } else if (change.type === 'added') {
                 STATE.defects && STATE.defects.unshift(defect);
@@ -399,11 +414,11 @@ function _startRealtimeListeners(db) {
             // Invalidate cache
             _cacheSet(_CACHE_KEY_DEFECTS, STATE.defects);
 
-            // Re-render hanya halaman yang aktif
-            var dp = document.getElementById('page-dashboard');
-            if (dp && !dp.hidden && typeof renderDashboard === 'function') {
-              renderDashboard();
-            }
+            // FIX v3: re-render dashboard DAN defect list
+            var dpDash = document.getElementById('page-dashboard');
+            var dpDef  = document.getElementById('page-defects');
+            if (dpDash && !dpDash.hidden && typeof renderDashboard  === 'function') renderDashboard();
+            if (dpDef  && !dpDef.hidden  && typeof renderDefectList === 'function') renderDefectList();
             console.log('[SWR] Real-time update:', snap.docChanges().length, 'changes');
           }
         },
@@ -474,10 +489,26 @@ function _syncToFirestore(action, payload, result, db) {
   }
 
   else if (action === 'updateMaterialNote' && payload.id) {
-    db.collection('tickets').doc(payload.id).update({
+    // FIX v3: set (merge:true) bukan update — handle kasus doc belum ada di Firestore
+    // + simpan Status agar tetap masuk query onSnapshot (WAITING_DEFECT)
+    var umnUpdate = {
       MaterialNote: payload.materialNote || '',
-      UpdatedAt: now
-    }).catch(function(e) { console.warn('[Firebase] sync updateMaterialNote:', e.message); });
+      UpdatedAt:    now,
+      // Pastikan Status tersimpan agar doc masuk query listener
+      Status:       'WAITING_DEFECT',
+    };
+    db.collection('tickets').doc(payload.id)
+      .set(umnUpdate, { merge: true })
+      .then(function() {
+        console.log('[Firebase] MaterialNote synced → Firestore:', payload.id);
+      })
+      .catch(function(e) {
+        console.warn('[Firebase] sync updateMaterialNote:', e.message);
+        // Fallback: coba update biasa
+        db.collection('tickets').doc(payload.id)
+          .update({ MaterialNote: payload.materialNote || '', UpdatedAt: now })
+          .catch(function(e2) { console.warn('[Firebase] sync updateMaterialNote fallback:', e2.message); });
+      });
   }
 }
 
