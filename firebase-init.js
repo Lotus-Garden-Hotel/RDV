@@ -236,6 +236,7 @@ function _patchGasCallSWR(db) {
       .then(function(result) {
         if (result && !result.error) {
           // Invalidate cache setelah write berhasil
+          // FIX v3: invalidate cache untuk semua action yang ubah defect
           if (action === 'addDefect' || action === 'updateDefect' || action === 'updateMaterialNote') {
             _cacheSet(_CACHE_KEY_DEFECTS, null); // force revalidate
           }
@@ -274,40 +275,23 @@ function _refreshDefectsBackground(_orig, db) {
             var fsTime  = fs.UpdatedAt ? new Date(fs.UpdatedAt).getTime() : 0;
             var gasTime = d.updatedAt || d.createdAt || 0;
             // Pakai status Firestore jika lebih baru
-            if (fsTime > gasTime && fs.Status) d.Status = fs.Status;
+            if (fsTime > gasTime && fs.Status) d.status = fs.Status;
             return d;
           });
 
           _cacheSet(_CACHE_KEY_DEFECTS, merged);
 
-          // Update STATE.defects — GAS adalah source of truth
-          // PENTING: GAS mengembalikan raw data dengan key KAPITAL (MaterialNote, Status, dll)
-          // Harus di-normalize dulu sebelum masuk STATE, karena renderer baca key lowercase
+          // Update STATE.defects jika ada perubahan
           if (window.STATE && STATE.defects) {
             var changed = false;
-            merged.forEach(function(rawD) {
-              // FIX: gunakan normalizeDefect() jika tersedia (fungsi global dari Room_Defect.html)
-              // Ini mengkonversi MaterialNote → materialNote, Status → status, dll
-              var d = (typeof normalizeDefect === 'function') ? normalizeDefect(rawD) : rawD;
-              var id = d.id || rawD.id || rawD.ID;
-
-              var idx = STATE.defects.findIndex(function(x) { return x.id === id; });
+            merged.forEach(function(d) {
+              var idx = STATE.defects.findIndex(function(x) {
+                return x.id === (d.id || d.ID);
+              });
               if (idx >= 0) {
-                var prev = STATE.defects[idx];
-                // Cek apakah ada perubahan field yang relevan
-                var newNote   = d.materialNote || rawD.materialNote || rawD.MaterialNote || '';
-                var newStatus = d.status || rawD.status || rawD.Status || '';
-                if (newStatus === 'WAITING_MATERIAL') newStatus = 'WAITING_DEFECT';
-
-                var hasNewInfo = (newNote && newNote !== prev.materialNote)
-                              || (newStatus && newStatus !== prev.status);
-
-                if (hasNewInfo) {
-                  // Patch hanya field yang berubah — jangan ganti seluruh object
-                  if (newNote)   prev.materialNote = newNote;
-                  if (newStatus) prev.status        = newStatus;
-                  // Jika normalizeDefect tersedia, full-replace untuk konsistensi
-                  if (typeof normalizeDefect === 'function') STATE.defects[idx] = d;
+                // Hanya update jika data baru lebih lengkap
+                if (d.desc && !STATE.defects[idx].desc) {
+                  STATE.defects[idx] = d;
                   changed = true;
                 }
               } else {
@@ -316,40 +300,17 @@ function _refreshDefectsBackground(_orig, db) {
               }
             });
 
-            if (changed) {
-              if (typeof renderDashboard === 'function') {
-                var dp = document.getElementById('page-dashboard');
-                if (dp && !dp.hidden) renderDashboard();
-              }
-              // FIX: re-render defect list agar chip materialNote ikut update
-              if (typeof renderDefectList === 'function') {
-                var dl = document.getElementById('page-defects');
-                if (dl && !dl.hidden) renderDefectList();
-              }
+            if (changed && typeof renderDashboard === 'function') {
+              var dp = document.getElementById('page-dashboard');
+              if (dp && !dp.hidden) renderDashboard();
             }
           }
           console.log('[SWR] Background refresh defects selesai:', merged.length, 'tiket');
         })
         .catch(function() {
-          // Firestore gagal — pakai data GAS murni, normalize dulu
+          // Firestore gagal — pakai data GAS murni
           _cacheSet(_CACHE_KEY_DEFECTS, gasData);
-          if (window.STATE && STATE.defects) {
-            gasData.forEach(function(rawD) {
-              var d   = (typeof normalizeDefect === 'function') ? normalizeDefect(rawD) : rawD;
-              var id  = d.id || rawD.id || rawD.ID;
-              var idx = STATE.defects.findIndex(function(x) { return x.id === id; });
-              if (idx >= 0) {
-                var newNote = d.materialNote || rawD.MaterialNote || '';
-                if (newNote) STATE.defects[idx].materialNote = newNote;
-              } else {
-                STATE.defects.push(d);
-              }
-            });
-            if (typeof renderDefectList === 'function') {
-              var dl = document.getElementById('page-defects');
-              if (dl && !dl.hidden) renderDefectList();
-            }
-          }
+          if (window.STATE) STATE.defects = gasData;
         });
     })
     .catch(function(e) {
@@ -410,13 +371,19 @@ function _startRealtimeListeners(db) {
                 return d.id === data.ID;
               });
               if (idx >= 0) {
-                // Hanya update field status — jangan timpa data lengkap dari GAS
-                STATE.defects[idx].status = defect.status;
+                // FIX v3: update semua field yang bisa berubah real-time
+                STATE.defects[idx].status       = defect.status;
                 if (defect.engineer)     STATE.defects[idx].engineer     = defect.engineer;
                 if (defect.startedBy)    STATE.defects[idx].startedBy    = defect.startedBy;
                 if (defect.resolvedBy)   STATE.defects[idx].resolvedBy   = defect.resolvedBy;
-                // FIX: update materialNote jika Firestore punya (dari sync baru)
-                if (defect.materialNote) STATE.defects[idx].materialNote = defect.materialNote;
+                // FIX v3: materialNote — penting untuk Tambah Alasan Waiting
+                if (defect.materialNote !== undefined)
+                  STATE.defects[idx].materialNote = defect.materialNote;
+                // FIX v3: re-render defect list jika sedang di halaman defects/waiting
+                if (typeof renderDefectList === 'function') {
+                  var dp = document.getElementById('page-defects');
+                  if (dp && !dp.hidden) renderDefectList();
+                }
                 changed = true;
               } else if (change.type === 'added') {
                 STATE.defects && STATE.defects.unshift(defect);
@@ -476,8 +443,6 @@ function _syncToFirestore(action, payload, result, db) {
           upd[k.charAt(0).toUpperCase()+k.slice(1)] = payload[k];
         }
       });
-    // FIX: normalize WAITING_MATERIAL → WAITING_DEFECT agar konsisten di Firestore
-    if (upd.Status === 'WAITING_MATERIAL') upd.Status = 'WAITING_DEFECT';
     db.collection('tickets').doc(payload.id).update(upd)
       .catch(function(e) { console.warn('[Firebase] sync updateDefect:', e.message); });
   }
