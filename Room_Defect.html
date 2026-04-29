@@ -467,7 +467,7 @@ body::before {
   gap: 12px;
   margin-bottom: 24px;
 }
-/* FIX v3: Waiting card selalu full-width */
+/* v3.0: WAITING card selalu full-width */
 #m-waiting-card { grid-column: 1 / -1; }
 
 .metric-card {
@@ -1748,7 +1748,7 @@ body::before {
           <div id="m-closed-dept" style="font-size:10px;color:var(--accent-green);margin-top:3px;opacity:.8"></div>
           <div class="metric-tap-hint">Lihat ↗</div>
         </div>
-        <!-- FIX v3: WAITING_DEFECT card — selalu tampil -->
+        <!-- v3.0: WAITING_DEFECT card — selalu tampil di grid -->
         <div class="metric-card stagger-child" id="m-waiting-card"
              style="--metric-color:var(--status-waiting)"
              onclick="tapMetric(this,'WAITING_DEFECT')" data-filter="WAITING_DEFECT">
@@ -2832,6 +2832,7 @@ body::before {
 // ════════════════════════════════════════════════════
 const CONFIG = {
   GAS_URL: 'https://script.google.com/macros/s/AKfycbx7ZE9N2UIZAY9RshduV0plD4Ad4WZ7Qc12gQsrflsngJ5JNDVd-U7bC96C5v4sZMoQ/exec',
+  GAS_SECRET: 'HOMT-LotusGarden-2024-SecretKey-x9z!',
   WA_API_URL: 'https://api.fonnte.com/send',
   WA_TOKEN: 'YOUR_FONNTE_TOKEN',
   APP_URL: window.location.href.split('?')[0],
@@ -3224,38 +3225,18 @@ async function gasCall(action, payload = {}) {
     const timerId = setTimeout(() => ctrl.abort(), GAS_TIMEOUT_MS);
 
     try {
-      // FIX v3: GAS CORS workaround
-      // GAS kadang tidak kirim CORS header pada attempt pertama (timing issue)
-      // Gunakan XMLHttpRequest sebagai fallback karena lebih toleran terhadap
-      // redirect GAS (302 → final URL dengan CORS header yang benar)
-      let text;
-      try {
-        const resp = await fetch(CONFIG.GAS_URL, {
-          method:      'POST',
-          headers:     { 'Content-Type': 'text/plain' },
-          body:        JSON.stringify({ action, payload }),
-          mode:        'cors',
-          credentials: 'omit',
-          redirect:    'follow',
-          signal:      ctrl.signal,
-        });
-        clearTimeout(timerId);
-        text = await resp.text();
-      } catch (corsErr) {
-        // CORS error pada fetch → fallback ke XHR (tidak kena CORS preflight
-        // karena GAS redirect ke URL akhir yang punya header CORS)
-        clearTimeout(timerId);
-        text = await new Promise((res, rej) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', CONFIG.GAS_URL, true);
-          xhr.setRequestHeader('Content-Type', 'text/plain');
-          xhr.timeout = GAS_TIMEOUT_MS;
-          xhr.onload  = () => res(xhr.responseText);
-          xhr.onerror = () => rej(new Error('NetworkError (XHR fallback)'));
-          xhr.ontimeout = () => rej(new Error('Timeout (XHR fallback)'));
-          xhr.send(JSON.stringify({ action, payload }));
-        });
-      }
+      const resp = await fetch(CONFIG.GAS_URL, {
+        method:      'POST',
+        headers:     { 'Content-Type': 'text/plain' },
+        body:        JSON.stringify({ action, payload, _k: CONFIG.GAS_SECRET }),
+        mode:        'cors',
+        credentials: 'omit',
+        redirect:    'follow',
+        signal:      ctrl.signal,
+      });
+      clearTimeout(timerId);
+
+      const text = await resp.text();
 
       // Deteksi redirect ke halaman login Google (response HTML bukan JSON)
       if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().startsWith('<html')) {
@@ -3383,7 +3364,7 @@ const gasValidateUser = (d) => gasCall('validateUser', d);
 
 // Fix: atomic resolve — satu call untuk photo save + status update
 const gasResolveDefect = (d) => gasCall('resolveDefect', d);
-// FIX v3: gasUpdateMaterialNote dengan explicit error check
+// v3.0: strict error check
 const gasUpdateMaterialNote = async (d) => {
   const res = await gasCall('updateMaterialNote', d);
   if (res && res.error) throw new Error(res.error);
@@ -3552,7 +3533,7 @@ function _syncRoleCard() {
   });
 }
 
-function doLogin() {
+async function doLogin() {
   var nameVal = ($id('login-name') ? $id('login-name').value : '').trim();
   if (!nameVal) {
     showToast('error', 'Nama diperlukan', 'Masukkan nama Anda');
@@ -3565,6 +3546,34 @@ function doLogin() {
     showToast('error', 'Pilih peran dulu', 'Klik salah satu departemen');
     return;
   }
+
+  // ── v3.0: Server-side validation — cegah role spoofing ──
+  const loginBtn = document.querySelector('#auth-screen button[onclick*="doLogin"]') ||
+                   document.querySelector('#auth-screen .btn-primary');
+  if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = '⏳'; }
+
+  try {
+    const res = await gasValidateUser({ name: nameVal, role: role });
+    if (res && res.rateLimited) {
+      showToast('error', '🔒 Terlalu banyak percobaan', res.error || 'Coba lagi nanti');
+      if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Masuk'; }
+      return;
+    }
+    if (res && !res.valid) {
+      showToast('error', 'Login ditolak', res.error || 'Nama atau role tidak terdaftar');
+      if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Masuk'; }
+      return;
+    }
+    // Login sukses (termasuk warning = offline mode)
+    if (res && res.warning) console.warn('[Login] Warning:', res.warning);
+  } catch(e) {
+    // GAS tidak bisa dihubungi — izinkan login tapi beri peringatan
+    console.warn('[Login] Validasi server gagal, lanjut offline:', e.message);
+    showToast('warn', '⚠️ Mode offline', 'Server tidak bisa dihubungi — akses terbatas');
+  }
+
+  if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Masuk'; }
+
   STATE.user = nameVal;
   STATE.role = role;
   $id('auth-screen').style.display = 'none';
@@ -3685,9 +3694,20 @@ function _parseTs(val) {
   return null;
 }
 
+// ── v3.0: XSS Protection helper ──────────────────────────────
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function normalizeDefect(d) {
   // FIX v7: paksa semua field teks ke String untuk mencegah TypeError
-  const desc = String(d.Description || d.desc || d.description || '');
+  // v3.0: escHtml pada field yang bisa diinput user — cegah XSS
+  const desc = escHtml(String(d.Description || d.desc || d.description || ''));
   const defectId = d.ID || d.id || '';
 
   // ── FIX: Merge localStorage cache agar photoAfter & status tidak rollback saat polling
@@ -3925,7 +3945,7 @@ function renderDashboard() {
     if (el) el.textContent = _deptBreakdown(STATE.defects, status);
   });
 
-  // ── FIX v3: WAITING_DEFECT card — selalu tampil, opacity saat 0 ──
+  // ── v3.0: WAITING_DEFECT card — selalu tampil, opacity saat 0 ──
   const wCard = document.getElementById('m-waiting-card');
   const wEl   = document.getElementById('m-waiting');
   const wMat  = document.getElementById('m-waiting-materials');
@@ -3938,7 +3958,7 @@ function renderDashboard() {
     if (wMat) {
       const mats = STATE.defects
         .filter(d => d.status === 'WAITING_DEFECT' && d.materialNote)
-        .map(d => `${_roomLabel(d)}: ${String(d.materialNote).substring(0,28)}`);
+        .map(d => `${escHtml(_roomLabel(d))}: ${escHtml(String(d.materialNote).substring(0,28))}`);
       wMat.innerHTML = mats.length
         ? mats.slice(0,2).map(m => `<div>📦 ${m}</div>`).join('')
         : '';
@@ -4406,7 +4426,7 @@ function renderDefectList() {
 }
 
 function filterDefects(el) {
-  // FIX v3: scope ke data-filter saja, jangan reset area/project chips
+  // v3.0: scope ke data-filter saja, tidak sentuh area/project chips
   document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   STATE.activeFilter = el.dataset.filter;
@@ -4447,24 +4467,22 @@ function tapMetric(card, filter) {
   document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('metric-active'));
   if (newFilter !== 'ALL') card.classList.add('metric-active');
 
-  // FIX v3: scope ke data-filter saja
+  // v3.0: scope ke data-filter saja
   document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
     c.classList.toggle('active', c.dataset.filter === newFilter);
   });
 
   STATE.activeFilter = newFilter;
   renderDefectList();
-
-  // Navigate ke halaman defects
   showPage('defects');
 
-  // FIX v3: re-sync chip setelah DOM update + scroll ke chip aktif
+  // v3.0: re-sync chip setelah DOM update + scroll
   requestAnimationFrame(() => {
     document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
       c.classList.toggle('active', c.dataset.filter === newFilter);
     });
-    const activeChip = document.querySelector(`.filter-chip[data-filter="${newFilter}"]`);
-    activeChip?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    document.querySelector(`.filter-chip[data-filter="${newFilter}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   });
 }
 
@@ -5217,15 +5235,9 @@ async function submitWaitingMaterial() {
       updatedBy: `${STATE.user} (${STATE.role})`,
     });
     if (res.error) throw new Error(res.error);
-    // FIX v3: sync semua referensi
-    d.status            = 'WAITING_DEFECT';
-    d.materialNote      = fullNote;
+    d.status = 'WAITING_DEFECT';
+    d.materialNote = fullNote;
     d.waitingMaterialAt = Date.now();
-    if (STATE.currentDefect && STATE.currentDefect.id === d.id) {
-      STATE.currentDefect.status           = 'WAITING_DEFECT';
-      STATE.currentDefect.materialNote     = fullNote;
-      STATE.currentDefect.waitingMaterialAt = d.waitingMaterialAt;
-    }
     closeWaitingMaterialPanel();
     renderModalActions(d);
     renderDefectList(); renderDashboard();
@@ -5234,7 +5246,7 @@ async function submitWaitingMaterial() {
     const metaEl = $id('modal-meta');
     if (metaEl) {
       const assignBadge = d.assignedTo ? ` <span style="color:#f59e0b;font-size:11px">→ ${d.assignedTo.split(' ')[0]}</span>` : '';
-      metaEl.innerHTML = `${d.id} · ${d.priority} · ${d.reporter}${assignBadge} <span style="color:#a78bfa;font-size:11px">⏸ ${reason}</span>`;
+      metaEl.innerHTML = `${escHtml(d.id)} · ${escHtml(d.priority)} · ${escHtml(d.reporter)}${assignBadge} <span style="color:#a78bfa;font-size:11px">⏸ ${escHtml(reason)}</span>`;
     }
     showToast('success', '⏸ SLA di-pause', fullNote.substring(0, 50));
   } catch(e) {
@@ -6278,14 +6290,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── FIX: visibilitychange — saat app kembali ke foreground (dari kamera/galeri/switch app)
   // Ini mencegah data stale setelah HP di-background saat proses upload
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !STATE.user) return;
-    // App kembali ke foreground
-    console.log('[Visibility] App kembali ke foreground');
-    // Flush pending resolves dulu (jika ada yang gagal sebelumnya)
-    _flushPendingResolve();
-    // Re-fetch hanya jika modal tidak sedang terbuka
-    if (!document.getElementById('detail-modal')?.classList.contains('open')) {
-      fetchAndRender(false);
+    if (document.visibilityState === 'visible') {
+      // v3.0: resume polling + langsung refresh saat foreground
+      if (typeof startPolling === 'function') startPolling();
+      const elapsed = Date.now() - (STATE._lastVisible || 0);
+      if (elapsed > 30000) fetchAndRender(false);
+      STATE._lastVisible = Date.now();
+    } else {
+      // v3.0: pause polling saat background — hemat battery & data
+      if (typeof stopPolling === 'function') stopPolling();
     }
   });
 
@@ -8538,41 +8551,31 @@ async function submitReasonPopup() {
   const fullNote = detail ? (_RP.selectedReason + ': ' + detail) : _RP.selectedReason;
   const targetId = _RP.defectId;
 
-  // FIX v3: GAS DULU — baru update local state
-  // Sebelumnya: update local → tutup popup → GAS (kalau gagal tidak ketahuan)
+  // v3.0: GAS DULU — baru update local state
   saveBtn.disabled = true;
   saveBtn.textContent = '⏳';
 
   try {
-    // 1. Simpan ke GAS + Firestore (via gasUpdateMaterialNote)
-    const res = await gasUpdateMaterialNote({
-      id: targetId,
-      materialNote: fullNote,
-      updatedBy: STATE.user
-    });
+    const res = await gasUpdateMaterialNote({ id: targetId, materialNote: fullNote, updatedBy: STATE.user });
     if (res && res.error) throw new Error(res.error);
 
-    // 2. Update local state — hanya setelah GAS konfirmasi berhasil
+    // Update local state hanya setelah GAS konfirmasi
     const d = STATE.defects.find(x => x.id === targetId);
     if (d) {
       d.materialNote = fullNote;
-      // Sync currentDefect jika modal sedang buka
-      if (STATE.currentDefect && STATE.currentDefect.id === targetId) {
+      if (STATE.currentDefect && STATE.currentDefect.id === targetId)
         STATE.currentDefect.materialNote = fullNote;
-      }
     }
 
-    // 3. Tutup popup + refresh UI
     closeReasonPopup();
     renderDefectList();
     renderDashboard();
     showToast('success', '✅ Alasan tersimpan', fullNote.substring(0, 40));
-
   } catch(err) {
     // GAS gagal — popup tetap terbuka, user bisa coba lagi
     saveBtn.disabled = false;
     saveBtn.textContent = 'Simpan';
-    showToast('error', '❌ Gagal simpan ke server', err.message + ' — Coba lagi');
+    showToast('error', '❌ Gagal simpan', err.message + ' — Coba lagi');
   }
 }
 </script>
